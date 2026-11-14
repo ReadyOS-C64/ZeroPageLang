@@ -1,6 +1,7 @@
 # Zig build output and compiler caches.
 .zig-cache/
 zig-out/
+zig-pkg/
 
 # zp64c generated assembly, PRGs, labels, VICE plans, and run logs.
 build/
