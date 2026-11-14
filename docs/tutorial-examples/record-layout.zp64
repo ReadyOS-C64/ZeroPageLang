@@ -1,0 +1,20 @@
+const c64 = @import("c64");
+
+const Cell = enum(u8) { empty, x, o };
+const Header = struct { tag: u8, word: u16, cell: Cell, ok: bool };
+const Nested = struct { prefix: u8, header: Header };
+
+fn headerSize() usize {
+    return @sizeOf(Header);
+}
+
+export fn main() void {
+    var bytes: [@sizeOf(Header) + @alignOf(Header)]u8 = .{ 0, 1, 2, 3, 4, 5 };
+    const flag_byte: u8 = bytes[@offsetOf(Header, "ok")];
+    const size = headerSize();
+    const nested_offset: usize = @offsetOf(Nested, "header.word");
+
+    c64.console.clear();
+    c64.console.print("SIZE {x16} FLAG {x}\n", .{ size, flag_byte });
+    c64.console.print("NESTED OFFSET {x16}\n", .{nested_offset});
+}

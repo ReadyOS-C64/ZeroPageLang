@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Build and run commands for Plan a program that uses disk, REU, and RAM">
 <title>Commands · ZeroPage</title>
-<link rel="stylesheet" href="site/style.css?v=disk-comparison">
-<script src="site/copy.js" defer></script>
+<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<script src="site/copy.js?v=chapter-navigation" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html">Intro</a><a href="guide.html">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
 <main id="main" class="wrap guide commands"><article><p><a href="guide-memory-plan.html">← Plan a program that uses disk, REU, and RAM</a></p><h1>Commands</h1><p class="lead">Plan a program that uses disk, REU, and RAM</p><section id="commands-score-disk"><h2>Build both programs, package the disk, and boot</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
 <span class="nv">score_build</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="w"> </span>build/score-tutorial.XXXXXX<span class="k">)</span>
 <span class="nv">compiler</span><span class="o">=</span>./zig-out/bin/zp64c

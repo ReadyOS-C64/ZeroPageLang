@@ -1,0 +1,22 @@
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fc, .size = 12 },
+    .abi = .{ .default_frame = .stack, .functions = .{ .store = .{ .frame = .static } } },
+};
+
+fn identity(value: u16) u16 {
+    return value;
+}
+
+fn relay(value: u16) u16 {
+    return identity(value);
+}
+
+export fn main() void {
+    const word: u16 = relay(0x805a);
+    store(word);
+}
+
+fn store(value: u16) void {
+    const result: *volatile u16 = @ptrFromInt(0xc100);
+    result.* = value;
+}

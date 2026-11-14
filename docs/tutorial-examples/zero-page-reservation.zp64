@@ -1,0 +1,24 @@
+const c64 = @import("c64");
+
+memory {
+    zero_page {
+        profile = .kernal;
+        allocation = .scalars;
+        reserve at 0x30 size 2;
+    }
+}
+
+fn useReserved(value: u8) u16 {
+    const cell: *volatile u8 = @ptrFromInt(0x30);
+    const previous: u8 = cell.*;
+    cell.* = value ^ 0x55;
+    const written: u8 = cell.*;
+    cell.* = previous;
+    return (@as(u16, value) << 8) | @as(u16, written);
+}
+
+export fn main() void {
+    c64.console.clear();
+    const pair = useReserved(0x81);
+    c64.console.print("INPUT AND STORE {x16}\n", .{pair});
+}

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Edit one page of a map in REU">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<script src="site/copy.js?v=chapter-navigation" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="tutorial-reu.html">← Edit one page of a map in REU</a></p><h1>Commands</h1><p class="lead">Edit one page of a map in REU</p><section id="commands-run-map"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/reu-map-sectors.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-reu-map.prg
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-reu-map.prg
+</code></pre></div><p><a href="tutorial-reu.html#commands-run-map">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

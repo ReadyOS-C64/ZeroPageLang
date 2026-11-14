@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="A short language-first introduction to ZeroPage for the Commodore 64.">
-<title>ZeroPage · Language introduction</title>
-<link rel="stylesheet" href="site/style.css?v=disk-comparison">
-<script src="site/copy.js" defer></script>
+<meta name="description" content="Learn ZeroPage by writing native Commodore 64 programs.">
+<title>ZeroPage tutorial</title>
+<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<script src="site/copy.js?v=chapter-navigation" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html" aria-current="page">Intro</a><a href="guide.html">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
 
 <main id="main" class="wrap guide">
-  <aside aria-label="Tutorial contents"><h3>On this page</h3><ol class="toc"><li><a href="#hello">Read your first program</a></li><li><a href="#language">Write typed 6510 code</a></li><li><a href="#hardware">Talk to the hardware</a></li><li><a href="#memory">Plan the memory layout</a></li><li><a href="#next">Continue into the full guide</a></li></ol></aside>
+  <aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#hello">Read your first program</a></li><li><a href="#language">Write typed 6510 code</a></li><li><a href="#records">Model a small piece of game state</a></li><li><a href="#hardware">Talk to the hardware</a></li><li><a href="#assembly">Use assembly for one machine operation</a></li><li><a href="#memory">Plan the memory layout</a></li><li><a href="#storage">Give temporary data a lifetime</a></li><li><a href="#far-memory">Edit records stored in REU</a></li><li><a href="#disk-modules">Call code loaded from disk</a></li><li><a href="#inspect">Check the result on the target</a></li><li><a href="#next">Continue into the full guide</a></li></ul></details></aside>
   <article>
-    <h1>ZeroPage introduction</h1>
-    <p class="lead">Read a first program, then follow the language into the C64 hardware and memory model. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
+    <h1>Learn ZeroPage</h1>
+    <p class="lead">Start with a small C64 program, then work through typed state, hardware, memory, and code loaded from disk. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
     <section id="hello"><h2>Read your first program</h2>
 <p>The compiler starts at <code>export fn main() void</code>. The <code>c64</code> import provides the machine-facing API. <code>.{}</code> is an empty argument tuple for the formatter.</p>
 <div class="codebox"><div class="codebar"><span class="mono">hello.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
@@ -56,7 +56,17 @@
 <span class="p">}</span>
 </code></pre></div>
 <p id="commands-2" class="command-link"><a href="tutorial-commands.html#commands-2">Build and run</a></p>
-<p>The fixed array has three bytes. <code>nextIndex</code> keeps the runtime index within bounds because generated indexing has no runtime bounds check. Use <code>u8</code> for byte values and <code>u16</code> or <code>usize</code> for words and addresses. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/language.md">Types, control flow, and language limits</a></p></section><section id="hardware"><h2>Talk to the hardware</h2>
+<p>The fixed array has three bytes. <code>nextIndex</code> keeps the runtime index within bounds because generated indexing has no runtime bounds check. Use <code>u8</code> for byte values and <code>u16</code> or <code>usize</code> for words and addresses. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/language.md">Types, control flow, and language limits</a></p></section><section id="records"><h2>Model a small piece of game state</h2>
+<p>Start by grouping values that change together. A game can keep its cursor position, hit points, and facing in one record. A function that takes the record by value gets a copy. A function that takes its address can update the caller's record. Pick the first when you want an independent snapshot and the second when you want one live game state.</p>
+<div class="codebox"><div class="codebar"><span class="mono">A position and a move · excerpt</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">Position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">x</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">moveRight</span><span class="p">(</span><span class="n">pos</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="n">Position</span><span class="p">)</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">pos</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">39</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">pos</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The right edge of the default 40-column screen is column 39. Starting at 38, the first call advances the original position to 39. A second call leaves it there. The <a href="guide-data.html#ownership">record chapter</a> compares this style with returning a new value and explains what happens when a copied field is itself a pointer.</p></section><section id="hardware"><h2>Talk to the hardware</h2>
 <p>The border helper maps to the VIC-II register at <code>$d020</code>. The example below uses a volatile pointer to that register, then an assembly block to write the background register at <code>$d021</code>. Build <code>docs/tutorial-examples/volatile-border.zp64</code> using the same command pattern.</p>
 <div class="codebox"><div class="codebar"><span class="mono">volatile-border.zp64</span></div><pre tabindex="0"><code><span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kr">const</span><span class="w"> </span><span class="n">border</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="kr">volatile</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@ptrFromInt</span><span class="p">(</span><span class="mh">0xd020</span><span class="p">);</span>
@@ -67,7 +77,26 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>Use <code>c64.screen</code> for direct screen writes, <code>c64.console</code> for PETSCII output and formatting, and <code>c64.kernal</code> when you need the ROM routines. The keyboard API reports PETSCII values. Inline assembly has a documented instruction and operand subset. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/api.md">C64 API</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/inline-assembler.md">Inline assembly rules</a></p></section><section id="memory"><h2>Plan the memory layout</h2>
+<p>Use <code>c64.screen</code> for direct screen writes, <code>c64.console</code> for PETSCII output and formatting, and <code>c64.kernal</code> when you need the ROM routines. The keyboard API reports PETSCII values. Inline assembly has a documented instruction and operand subset. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/api.md">C64 API</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/inline-assembler.md">Inline assembly rules</a></p></section><section id="assembly"><h2>Use assembly for one machine operation</h2>
+<p>Keep the application in ZeroPage and use a small assembly block where it helps express the machine operation. Here, <code>@color</code> names a mutable source byte. The block counts three iterations in X and writes the resulting value to the VIC-II border register.</p>
+<div class="codebox"><div class="codebar"><span class="mono">asm-border.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">color</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ldx</span><span class="w"> </span><span class="err">#</span><span class="mi">3</span>
+<span class="w">    </span><span class="n">brighten</span><span class="o">:</span>
+<span class="w">        </span><span class="n">inc</span><span class="w"> </span><span class="nb">@color</span>
+<span class="w">        </span><span class="n">dex</span>
+<span class="w">        </span><span class="n">bne</span><span class="w"> </span><span class="n">brighten</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="nb">@color</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="err">$</span><span class="n">d020</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;BORDER {x}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{</span><span class="n">color</span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Expect <code>BORDER 05</code>. The wrapper restores A, X, and status. The changes to <code>color</code> and the VIC-II register remain. When a firmware routine returns a register value, save it to a source variable inside the block before the wrapper restores the register. The <a href="guide-assembly.html">assembly chapter</a> takes this further with record fields, string addresses, and KERNAL calls.</p></section><section id="memory"><h2>Plan the memory layout</h2>
 <p>Open <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/examples/small/95_memory_regions_placement.zp64">the memory placement demo</a>. It declares visible code at <code>$2000</code>, an arena at <code>$9000</code>, and a region at <code>$e000</code> behind KERNAL ROM. The resident image starts from its configured entry at <code>$1000</code>.</p>
 <div class="codebox"><div class="codebar"><span class="mono">95_memory_regions_placement.zp64 · placement excerpt</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
 
@@ -100,7 +129,52 @@
 </code></pre></div>
 <p><code>linksection("hidden")</code> places the lookup function and table together. <code>.startup_copy</code> keeps their bytes in the load image and copies them to the run address before <code>main</code>. A resident call gateway exposes the hidden RAM and restores the previous mapping. The demo also uses <code>near_heap.allocBytes(2)</code>, which returns an optional pointer to visible C64 RAM.</p>
 <p id="commands-3" class="command-link"><a href="tutorial-commands.html#commands-3">Build and run</a></p>
-<p>Expect <code>PLACEMENT ARENA OK</code>. Open <code>build/placement.prg.zpmap.json</code> and compare the load and run addresses of the <code>hidden</code> placement. A named pool allocates equal-sized blocks, while an arena releases its allocations together with <code>reset()</code>. The separate <code>zero_page</code> policy governs borrowed bytes and fixed reservations. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/memory-model.md">Region ownership and zero-page policy</a></p></section><section id="next"><h2>Continue into the full guide</h2>
+<p>Expect <code>PLACEMENT ARENA OK</code>. Open <code>build/placement.prg.zpmap.json</code> and compare the load and run addresses of the <code>hidden</code> placement. A named pool allocates equal-sized blocks, while an arena releases its allocations together with <code>reset()</code>. The separate <code>zero_page</code> policy governs borrowed bytes and fixed reservations. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/memory-model.md">Region ownership and zero-page policy</a></p></section><section id="storage"><h2>Give temporary data a lifetime</h2>
+<p>Suppose your game needs a scratch buffer only while drawing a frame. Name a C64 RAM region and assign it to an arena. Check the optional allocation before using it. When the frame is finished, reset the arena so the next frame can reuse the same space.</p>
+<div class="codebox"><div class="codebar"><span class="mono">34_near_heap_arena.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+
+<span class="n">memory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">region</span><span class="w"> </span><span class="n">main_ram</span><span class="o">:</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="mh">0x9000</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="mh">0x0100</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">arena</span><span class="w"> </span><span class="n">near_heap</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">main_ram</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;NEAR HEAP ARENA</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+
+<span class="w">    </span><span class="kr">const</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">near_heap</span><span class="p">.</span><span class="n">allocBytes</span><span class="p">(</span><span class="mi">8</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">first</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="n">first_buf</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">first_buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x48</span><span class="p">;</span>
+<span class="w">        </span><span class="n">first_buf</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x50</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">first_buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0x48</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">first_buf</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0x50</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;ALLOC OK</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">near_heap</span><span class="p">.</span><span class="n">reset</span><span class="p">();</span>
+<span class="w">    </span><span class="kr">const</span><span class="w"> </span><span class="n">again</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">near_heap</span><span class="p">.</span><span class="n">allocBytes</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">again</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="n">again_buf</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nb">@intFromPtr</span><span class="p">(</span><span class="n">again_buf</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0x9000</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;RESET OK</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="w">            </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Expect <code>ALLOC OK</code> and <code>RESET OK</code>. Every pointer from the old allocation becomes stale at reset. Use a fixed-block pool instead when objects have independent lifetimes and need to be returned one at a time. The <a href="guide-arenas.html">arena chapter</a> compares those lifetimes and shows how to store a record in allocated bytes.</p></section><section id="far-memory"><h2>Edit records stored in REU</h2>
+<p>The CPU can directly address C64 RAM. To use bytes in an REU, copy them into C64 RAM over DMA. A far arena allocates REU storage, and a typed view gives you record-sized reads and writes. If you will edit several fields repeatedly, materialize a range into a near arena, work on it there, then flush it back.</p>
+<ol>
+<li>Allocate and initialize the far records. In the map example, forty eight-byte sectors take 320 bytes in REU.</li>
+<li>Bring four sectors into a 32-byte near arena. Far sector 36 becomes local sector 0 in a range starting at 36.</li>
+<li>Edit the local records, flush back to far index 36, then reset the near arena. Check the result with a new far read.</li>
+</ol>
+<p><a href="tutorial-reu.html">Continue with the guided REU exercise</a> and try a request that crosses the end of the map. Use the <a href="guide-reu.html#capacity">capacity table</a> to choose an emulator or hardware layout before starting transfers.</p></section><section id="disk-modules"><h2>Call code loaded from disk</h2>
+<p>A DLL gives you a way to bring in code as well as data. The compiler fixes the export signature and the location of each export in the jump table. At runtime, KERNAL reads a disk payload into staging RAM, the loader keeps a copy in REU, and the CPU executes the relocated code in a C64 RAM window.</p>
+<p>Start with the <a href="guide-modules.html#disk">side-by-side disk example</a>. The named version supplies the module and export names at the call site. The typed version declares the signature once and uses ordinary call arguments. Both return an optional because the loader may be unable to make the export available. Read the failure branch before running the disk without its payload.</p>
+<p><a href="tutorial-dll.html">Follow a DLL from source to a running disk</a>, then continue with the <a href="guide-memory-plan.html">score updater</a> to see a disk DLL, a far arena, and a near working copy in a single program.</p></section><section id="inspect"><h2>Check the result on the target</h2>
+<p>Start with what the program should do. Observe the screen or border for a device write, or look at the destination bytes in the VICE monitor for a copy. Read the compiler's assembly when you need to see the instructions and its map when you need to see which code or data owns an address.</p>
+<p>For the placement example above, check both the load and run address of the hidden table. For the disk example, check that the disk contains the payload under the declared name. The <a href="guide-verification.html">verification chapter</a> connects each question to a compiler artifact or an emulator observation.</p></section><section id="next"><h2>Continue into the full guide</h2>
 <p>The full guide continues with types, inline assembly, memory maps, arenas, REU records, DLL caching, and target verification. Each chapter links runnable examples and explains the limits that matter on a 6510.</p>
 <p><a class="button primary" href="guide.html">Open the full guide</a> <a class="button" href="setup.html">Install and build</a></p></section>
   </article>

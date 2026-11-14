@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Build and call a disk-loaded DLL">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<script src="site/copy.js?v=chapter-navigation" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="tutorial-dll.html">← Build and call a disk-loaded DLL</a></p><h1>Commands</h1><p class="lead">Build and call a disk-loaded DLL</p><section id="commands-run-dll"><h2>Build and boot both disk images</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+<span class="nv">out</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="w"> </span>build/first-dll.XXXXXX<span class="k">)</span>
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/dll-disk-typed.zp64<span class="w"> </span>-o<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/boot.prg&quot;</span>
+c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;first dll,01&#39;</span><span class="w"> </span>d64<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/with-dll.d64&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/boot.prg&quot;</span><span class="w"> </span>boot<span class="w"> </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/boot.prg.zpmod.disk.prg&quot;</span><span class="w"> </span>enemyrt
+c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;missing dll,02&#39;</span><span class="w"> </span>d64<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/without-dll.d64&quot;</span><span class="w"> </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/boot.prg&quot;</span><span class="w"> </span>boot
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/with-dll.d64:boot&quot;</span>
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/without-dll.d64:boot&quot;</span>
+</code></pre></div><p><a href="tutorial-dll.html#commands-run-dll">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

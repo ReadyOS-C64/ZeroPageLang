@@ -1,0 +1,23 @@
+const c64 = @import("c64");
+
+fn takeIndex(cursor: *u8) u8 {
+    const next = cursor.*;
+    cursor.* = next + 1;
+    return next;
+}
+
+fn refresh(slot: *u16) u16 {
+    slot.* = 55;
+    return 7;
+}
+
+export fn main() void {
+    var cursor: u8 = 0;
+    var totals = [_]u16{ 5, 20 };
+    const first: *u16 = &totals[0];
+    totals[takeIndex(&cursor)] += refresh(first);
+
+    const total: u16 = totals[0];
+    c64.console.clear();
+    c64.console.print("TOTAL {x16} CURSOR {x}\n", .{ total, cursor });
+}

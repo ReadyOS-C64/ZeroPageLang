@@ -1,0 +1,71 @@
+const ZeroPage = @import("ZeroPage");
+const c64 = @import("c64");
+
+extern module MathCore = math_core {
+    fn add(value: u8) u8;
+}
+
+memory {
+    region frames: c64 at 0xc800 size 0x0400;
+    region execution: c64 at 0xc000 size 0x0800;
+    region cache: reu at 0x030000 size 0x1800;
+    region staging: c64 at 0x9000 size 0x0800;
+    stack in frames;
+}
+
+module_loader {
+    window main in execution;
+    reu_cache in cache;
+    disk_staging in staging;
+    capacity = 3;
+
+    current {
+        file = "rollback";
+    }
+    dependency math_core {
+        file = "mathcore";
+        requires = .{};
+    }
+    dependency pathing {
+        file = "pathing";
+        requires = .{ .math_core };
+    }
+}
+
+module rollback_demo abi 1 {
+    export tick;
+    dependency math_core;
+    dependency pathing;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+fn pathingUnavailable() bool {
+    if (ZeroPage.module.acquireDependencyGraph("pathing")) {
+        ZeroPage.module.releaseDependencyGraph("pathing");
+        return false;
+    }
+    return ZeroPage.module.isLoaded("pathing") == false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    var ok = false;
+    if (MathCore.acquire()) {
+        if (pathingUnavailable()) {
+            if (MathCore.add(3)) |value| {
+                ok = value == 5;
+            }
+        }
+        MathCore.release();
+    }
+    if (ok) {
+        c64.console.print("MATH STILL AVAILABLE\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("CHECK THE DISK\n", .{});
+        c64.vic.border = 2;
+    }
+}

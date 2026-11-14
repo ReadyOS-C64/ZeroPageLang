@@ -1,0 +1,14 @@
+const c64 = @import("c64");
+
+memory {
+    image prg {
+        load_addr = 0x1000;
+        entry_addr = 0x1010;
+        basic_stub = false;
+        address_limit = 0xc600;
+    }
+}
+
+export fn main() void {
+    c64.vic.border = 5;
+}

@@ -103,7 +103,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   .guide aside { max-height: none; }
 }
 
-.chapter-label { margin-top: 1.5rem; }
+.section-menu summary { cursor: pointer; font-weight: 700; }
+.section-menu .toc { margin-top: .65rem; }
+.guide-breadcrumb { font-size: .9rem; margin-bottom: .6rem; }
 
 .dll-pair { gap: 1rem; }
 .dll-pair > div { min-width: 0; }
