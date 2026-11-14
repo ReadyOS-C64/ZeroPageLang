@@ -1,0 +1,38 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region scratch_reu: reu at 0x010000 size 16;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (ZeroPage.reu.present() == true) {
+        const source: [*]volatile u8 = @ptrFromInt(0x0500);
+        const result: [*]volatile u8 = @ptrFromInt(0x0528);
+        source[0] = 0x11;
+        source[1] = 0x22;
+
+        ZeroPage.reu.copyC64ToReu(0x0500, 0x010000, 2);
+        ZeroPage.reu.copyReuToC64(0x010000, 0x0528, 2);
+        if (ZeroPage.reu.compare(0x0528, 0x010000, 2)) {
+            ZeroPage.reu.fill(0x010000, 0x55, 2);
+            ZeroPage.reu.swap(0x0528, 0x010000, 2);
+            if (result[0] == 0x55 and result[1] == 0x55 and
+                ZeroPage.reu.compare(0x0500, 0x010000, 2))
+            {
+                c64.console.print("REU TRANSFER OK\n", .{});
+                c64.vic.border = 5;
+            } else {
+                c64.console.print("REU SWAP FAILED\n", .{});
+                c64.vic.border = 2;
+            }
+        } else {
+            c64.console.print("REU COPY FAILED\n", .{});
+            c64.vic.border = 2;
+        }
+    } else {
+        c64.console.print("ENABLE AN REU\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Images, placement, and zero page">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=command-pages">
+<script src="site/copy.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html">Intro</a><a href="guide.html">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="guide-memory.html">← Images, placement, and zero page</a></p><h1>Commands</h1><p class="lead">Images, placement, and zero page</p><section id="commands-1"><h2>Build and run</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/95_memory_regions_placement.zp64<span class="w"> </span>-o<span class="w"> </span>build/placement.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/placement.prg
+</code></pre></div><p><a href="guide-memory.html#commands-1">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

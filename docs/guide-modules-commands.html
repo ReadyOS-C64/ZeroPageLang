@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Your first DLL on the C64">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=command-pages">
+<script src="site/copy.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html">Intro</a><a href="guide.html">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="guide-modules.html">← Your first DLL on the C64</a></p><h1>Commands</h1><p class="lead">Your first DLL on the C64</p><section id="commands-1"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/96_memory_regions_dll.zp64<span class="w"> </span>-o<span class="w"> </span>build/cache.prg
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/cache.prg
+</code></pre></div><p><a href="guide-modules.html#commands-1">Return to the guide</a></p></section><section id="commands-2"><h2>Build and boot both versions</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build/dll-tutorial
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/51_module_disk_load_real.zp64<span class="w"> </span>-o<span class="w"> </span>build/dll-tutorial/named.prg
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/dll-disk-typed.zp64<span class="w"> </span>-o<span class="w"> </span>build/dll-tutorial/typed.prg
+
+c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;named dll,51&#39;</span><span class="w"> </span>d64<span class="w"> </span>build/dll-tutorial/named.d64<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>build/dll-tutorial/named.prg<span class="w"> </span>boot<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>build/dll-tutorial/named.prg.zpmod.disk.prg<span class="w"> </span>enemyrt
+c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;typed dll,64&#39;</span><span class="w"> </span>d64<span class="w"> </span>build/dll-tutorial/typed.d64<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>build/dll-tutorial/typed.prg<span class="w"> </span>boot<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>build/dll-tutorial/typed.prg.zpmod.disk.prg<span class="w"> </span>enemyrt
+
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/dll-tutorial/named.d64:boot
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/dll-tutorial/typed.d64:boot
+</code></pre></div><p><a href="guide-modules.html#commands-2">Return to the guide</a></p></section><section id="commands-3"><h2>Build both DLLs and boot the shared-window disk</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build/dll-tutorial
+<span class="nb">cd</span><span class="w"> </span>build/dll-tutorial
+<span class="nv">compiler</span><span class="o">=</span>../../zig-out/bin/zp64c
+<span class="s2">&quot;</span><span class="nv">$compiler</span><span class="s2">&quot;</span><span class="w"> </span>compile<span class="w"> </span>../../tests/fixtures/emu/modules/math_core_dispatch.zp64<span class="w"> </span>-o<span class="w"> </span>math.prg
+<span class="s2">&quot;</span><span class="nv">$compiler</span><span class="s2">&quot;</span><span class="w"> </span>compile<span class="w"> </span>../../tests/fixtures/emu/modules/fixed_math_runtime.zp64<span class="w"> </span>-o<span class="w"> </span>fixed.prg
+<span class="s2">&quot;</span><span class="nv">$compiler</span><span class="s2">&quot;</span><span class="w"> </span>compile<span class="w"> </span>../../examples/small/85_module_typed_multi_window_binding.zp64<span class="w"> </span>-o<span class="w"> </span>swap.prg<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dependency-module<span class="w"> </span><span class="nv">math_core</span><span class="o">=</span>math.prg.zpmod.json<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dependency-relocsim<span class="w"> </span><span class="nv">math_core</span><span class="o">=</span>math.prg.zpmod.relocsim.json<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dependency-module<span class="w"> </span><span class="nv">fixed_math</span><span class="o">=</span>fixed.prg.zpmod.json<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dependency-relocsim<span class="w"> </span><span class="nv">fixed_math</span><span class="o">=</span>fixed.prg.zpmod.relocsim.json
+c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;typed swap,85&#39;</span><span class="w"> </span>d64<span class="w"> </span>swap.d64<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>swap.prg<span class="w"> </span>boot<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>math.prg.zpmod.disk.prg<span class="w"> </span>mathcore<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span>fixed.prg.zpmod.disk.prg<span class="w"> </span>fixedmath
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>swap.d64:boot
+</code></pre></div><p><a href="guide-modules.html#commands-3">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

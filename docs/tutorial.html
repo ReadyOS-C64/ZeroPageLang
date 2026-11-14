@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="A short language-first introduction to ZeroPage for the Commodore 64.">
 <title>ZeroPage · Language introduction</title>
-<link rel="stylesheet" href="site/style.css?v=guide-reading">
+<link rel="stylesheet" href="site/style.css?v=command-pages">
 <script src="site/copy.js" defer></script>
 </head>
 <body>
@@ -27,10 +27,7 @@
 <span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<details class="terminal"><summary>Show commands</summary><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
-./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/hello.zp64<span class="w"> </span>-o<span class="w"> </span>build/hello.prg
-x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/hello.prg
-</code></pre></div></details>
+<p id="commands-1" class="command-link"><a href="tutorial-commands.html#commands-1">Build and run</a></p>
 <p>The default image loads at <code>$0801</code>. A BASIC line runs <code>SYS 2061</code>, entering the compiled program at <code>$080d</code>. Expect a greeting and a green border. On hardware, put the PRG on a disk or compatible storage device, load it, and enter <code>RUN</code>.</p></section><section id="language"><h2>Write typed 6510 code</h2>
 <p>Save the example as <code>tutorial-colors.zp64</code> in the repository root. Each keypress advances to the next color. Return exits the program.</p>
 <div class="codebox"><div class="codebar"><span class="mono">tutorial-colors.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
@@ -58,9 +55,7 @@ x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/hello.prg
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<details class="terminal"><summary>Show commands</summary><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>tutorial-colors.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-colors.prg
-x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-colors.prg
-</code></pre></div></details>
+<p id="commands-2" class="command-link"><a href="tutorial-commands.html#commands-2">Build and run</a></p>
 <p>The fixed array has three bytes. <code>nextIndex</code> keeps the runtime index within bounds because generated indexing has no runtime bounds check. Use <code>u8</code> for byte values and <code>u16</code> or <code>usize</code> for words and addresses. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/language.md">Types, control flow, and language limits</a></p></section><section id="hardware"><h2>Talk to the hardware</h2>
 <p>The border helper maps to the VIC-II register at <code>$d020</code>. The example below uses a volatile pointer to that register, then an assembly block to write the background register at <code>$d021</code>. Save it as <code>tutorial-hardware.zp64</code> and compile it using the same command pattern.</p>
 <div class="codebox"><div class="codebar"><span class="mono">tutorial-hardware.zp64</span></div><pre tabindex="0"><code><span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
@@ -104,9 +99,7 @@ x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-co
 <span class="p">}</span>
 </code></pre></div>
 <p><code>linksection("hidden")</code> places the lookup function and table together. <code>.startup_copy</code> keeps their bytes in the load image and copies them to the run address before <code>main</code>. A resident call gateway exposes the hidden RAM and restores the previous mapping. The demo also uses <code>near_heap.allocBytes(2)</code>, which returns an optional pointer to visible C64 RAM.</p>
-<details class="terminal"><summary>Show commands</summary><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/95_memory_regions_placement.zp64<span class="w"> </span>-o<span class="w"> </span>build/placement.prg
-x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/placement.prg
-</code></pre></div></details>
+<p id="commands-3" class="command-link"><a href="tutorial-commands.html#commands-3">Build and run</a></p>
 <p>Expect <code>PLACEMENT ARENA OK</code>. Open <code>build/placement.prg.zpmap.json</code> and compare the load and run addresses of the <code>hidden</code> placement. A named pool allocates equal-sized blocks, while an arena releases its allocations together with <code>reset()</code>. The separate <code>zero_page</code> policy governs borrowed bytes and fixed reservations. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/memory-model.md">Region ownership and zero-page policy</a></p></section><section id="next"><h2>Continue into the full guide</h2>
 <p>The full guide continues with types, inline assembly, memory maps, arenas, REU records, DLL caching, and target verification. Each chapter links runnable examples and explains the limits that matter on a 6510.</p>
 <p><a class="button primary" href="guide.html">Open the full guide</a> <a class="button" href="setup.html">Install and build</a></p></section>
