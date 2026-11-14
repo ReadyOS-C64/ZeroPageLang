@@ -1,0 +1,60 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const glyphs = [_]u8{ 'R', 'O', 'A', 'D', 'L', 'A', 'K', 'E' };
+const TileState = struct { visits: u8, flags: u8 };
+
+memory {
+    region scratch_ram: c64 at 0x9000 size 8;
+    region artwork: reu at 0x020000 size 8;
+    region state_reu: reu at 0x021000 size 4;
+    arena scratch in scratch_ram;
+    arena states in state_reu;
+}
+
+fn stageArtwork() bool {
+    if (scratch.allocBytes(glyphs.len)) |staging| {
+        for (glyphs, 0..) |byte, i| {
+            staging[i] = byte;
+        }
+        ZeroPage.reu.copyC64ToReu(@intFromPtr(staging), 0x020000, glyphs.len);
+        scratch.reset();
+        return true;
+    }
+    return false;
+}
+
+fn updateLake() bool {
+    if (states.allocBytes(@sizeOf(TileState) * 2)) |allocation| {
+        var table = ZeroPage.reu.view(TileState, allocation, 2);
+        table.set(0, TileState{ .visits = 0, .flags = 0 });
+        table.set(1, TileState{ .visits = 2, .flags = 0 });
+        if (table.materializeRange(scratch, 1, 1)) |page| {
+            var lake = page.get(0);
+            lake.visits += 1;
+            lake.flags |= 0x04;
+            page.set(0, lake);
+            table.flushRange(1, page);
+            scratch.reset();
+
+            const saved = table.get(1);
+            const road = table.get(0);
+            states.reset();
+            return saved.visits == 3 and saved.flags == 0x04 and road.visits == 0;
+        }
+        states.reset();
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.screen.clear();
+    if (ZeroPage.reu.present() and stageArtwork() and updateLake()) {
+        ZeroPage.reu.copyReuToC64(0x020004, 0x0400, 4);
+        c64.screen.putsAt(0, 2, "STATE SAVED");
+        c64.vic.border = 5;
+    } else {
+        c64.screen.putsAt(0, 0, "MAP UNAVAILABLE");
+        c64.vic.border = 2;
+    }
+}

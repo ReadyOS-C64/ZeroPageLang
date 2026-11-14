@@ -26,6 +26,12 @@ Declare a far arena with `arena assets in asset_ram;` in `memory`, where `asset_
 
 For repeated local work, `materialize` and `materializeRange` copy records into a named near arena heap. The returned `NearView` reads and writes C64 RAM; `flush` and `flushRange` copy changes back to REU. Materialization does not reset or otherwise own the near heap.
 
+Choose storage by how each consumer uses the bytes. The
+[split tile example](tutorial-examples/reu-split-tables.zp64) keeps artwork in a
+fixed REU region for direct DMA to the screen. It keeps visits and flags in a
+typed far view so editing state transfers only the state record. A tile ID
+selects the corresponding entry in each table.
+
 ## Module artifacts
 
 A `module` declaration makes `compile` emit:
@@ -37,6 +43,14 @@ A `module` declaration makes `compile` emit:
 The binary format starts with `ZPMD` and is currently version 1. Export and dependency ordinals are fixed at compile time. Relocations are explicit `abs16`, `lo8`, or `hi8` records generated from compiler-owned anchors; they are not discovered by scanning arbitrary machine code.
 
 Sidecars are compiler and packaging inputs. Target code does not parse JSON, names, signatures, dependency graphs, or the binary module format.
+
+A producer build can supply more than one application. Compile each caller with
+the producer's metadata and relocation simulation. Package the matching disk
+payload in each application's D64 under the name that caller declares. The
+[calculator caller](tutorial-examples/dll-reuse.zp64) and
+[score updater](tutorial-examples/memory-plan.zp64) use the same
+[FixedMath producer](tutorial-examples/memory-plan-math.zp64) with different
+loading policies.
 
 ## Declaring a DLL and its loader
 

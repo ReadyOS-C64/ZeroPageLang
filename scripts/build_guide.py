@@ -334,9 +334,11 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
 <li><a href="guide-reu.html#sector-map">Calculate a map's REU and scratch capacity</a> and test both bounds.</li>
 <li><a href="guide-reu.html#immutable-assets">Stage tile data in REU</a> and fetch a fixed subrange directly to the screen.</li>
+<li><a href="guide-reu.html#split-tables">Keep mutable tile state separate from artwork</a> so the two follow different transfer paths.</li>
 <li><a href="guide-modules.html#disk">Call the same disk DLL two ways</a>, then <a href="guide-module-lifecycle.html#relocation">trace an address into the execution window</a>.</li>
 <li><a href="guide-module-lifecycle.html#state-cycle">Keep a byte across DLL unload and reload</a>.</li>
 <li><a href="guide-module-lifecycle.html#policy-lab">Compare preload, on-demand, and explicit loading</a> for the same exports.</li>
+<li><a href="guide-module-lifecycle.html#reuse-producer">Package one DLL build for two applications</a> with different loading policies.</li>
 <li><a href="guide-memory-plan.html">Build a disk-backed score updater</a> and diagnose a bad memory plan, signature, or disk.</li>
 <li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
 <li><a href="guide-abi.html#frame-trace">Trace a word argument through a nested call</a>.</li>
@@ -422,6 +424,21 @@ fn colorFor(tile: u8) u8 {
 {paired_examples("Asset file", "Excerpt from the imported data fixture", Path("tests/fixtures/emu/lang/pass/parity/modules/_rodata_assets.zp64").read_text(),
           "Caller", "Fixture reading imported data", Path("tests/fixtures/emu/lang/pass/parity/modules/rodata_imports.zp64").read_text())}
 <p>{fixture_link("lang/pass/parity/modules/rodata_imports", "Read-only import fixture")} · {example_link("examples/small/29_module_rodata_assets.zp64", "Runnable read-only import demo")} · <a href="guide-modules.html">DLL walkthrough</a></p>'''),
+    ("compile-time", "Use a layout calculation in code that runs on the C64", f'''
+<p>A layout query is answered by the compiler using ZeroPage's target representation. It can appear where the program needs a fixed array length or as an operand in a runtime function. In this fixture, <code>Header</code> is five bytes with alignment one, so the first array contains six bytes. The Boolean field <code>ok</code> is at offset four, which selects the value 4 from the array.</p>
+{block("Target layout queries · fixture excerpt", """const Cell = enum(u8) { empty, x, o };
+const Header = struct { tag: u8, word: u16, cell: Cell, ok: bool };
+
+fn headerSize() usize {
+    return @sizeOf(Header);
+}
+
+// Inside main:
+var bytes: [@sizeOf(Header) + @alignOf(Header)]u8 = .{ 0, 1, 2, 3, 4, 5 };
+test6502.expectEqualU8(29, 4, bytes[@offsetOf(Header, "ok")]);
+""")}
+<p><code>headerSize()</code> is a normal source function. The compiler resolves its <code>@sizeOf</code> operand during compilation. Calling the function in executable code uses the ordinary runtime function rules. To compute an array length, put the supported layout query and arithmetic in the length itself. General <code>comptime</code> blocks and arbitrary calls in array lengths are outside the current subset.</p>
+<p>{fixture_link("lang/pass/parity/comptime/layout_builtins", "Full layout fixture")} · {fixture_link("lang/fail_compile/comptime_block", "General comptime rejection")} · <a href="guide-data.html#layout">Calculate record offsets by hand</a></p>'''),
     ("boundary", "Syntax and target limits", f'''
 <p>Zig's AST validates ordinary syntax before ZeroPage lowers its target subset. ZeroPage adds machine declarations and <code>asm {{ ... }}</code>. It gives <code>callconv</code> and <code>linksection</code> target-specific meanings. Valid Zig can receive a ZeroPage diagnostic for constructs such as slices, floating point, division, generics, error unions, or general <code>comptime</code>.</p><p>{doc("language", "Language reference")} · {doc("zig-reference-notes", "Pinned Zig behavior")}</p>'''),
 ])
@@ -681,6 +698,12 @@ test6502.expectNull(12, oom);
 {example_run("docs/tutorial-examples/reu-tiles.zp64", "reu-tiles", True, anchor="reu-tiles")}
 <p>Expect <code>LAKE</code> at the start of the screen. The second tile starts at <code>$020004</code>, four bytes after the declared base. These bytes were encoded as screen codes in the source. The REU copy preserves bytes exactly. Keep this fixed slot separate from your mutable REU tables. Choose a far arena when the program needs to allocate storage for multiple assets at runtime.</p>
 <p>In this exercise the source asset is embedded in the PRG. The copy demonstrates staging and reuse of the C64 work buffer. The original table still occupies its compiled read-only storage. {doc("reu-overlays", "Raw DMA and allocation contracts")}</p>'''),
+    ("split-tables", "Keep artwork and frequently edited state in separate tables", f'''
+<p>The same tile ID selects two representations. ID 1 means the four bytes of <code>LAKE</code> in a fixed artwork slot and the second record in a far state arena. Artwork goes straight to screen RAM. Visits and flags pass through a typed near view. Editing a tile transfers just its two state bytes in each direction. The artwork stays in its own range until the renderer asks for it.</p>
+{sample("docs/tutorial-examples/reu-split-tables.zp64")}
+{example_run("docs/tutorial-examples/reu-split-tables.zp64", "reu-split-tables", True, anchor="reu-split-tables")}
+<p>Expect <code>LAKE</code> and <code>STATE SAVED</code>. After the flush, the lake has three visits and flag <code>$04</code>. The road still has zero visits. The program reuses one near arena for the initial artwork staging and the later state edit. Its <code>states.reset()</code> ends the state allocation's lifetime after verification. In a game, keep the handle until the map is unloaded.</p>
+<p>Combine fields in one record when you routinely need them together. Separate tables help when one path wants raw bytes and another wants structured edits with a different lifetime. In either layout, preserve a stable mapping from tile ID to the data you load or write.</p>'''),
     ("measure", "Compare repeated far updates with a working copy", f'''
 <p>The same four sectors can be updated directly in REU. This variant keeps the same initial data, the same three passes over each pair, and the same final checks. Each pass reads and writes both far records. In the materialized version, each pair crosses the bus once in each direction and the passes access C64 RAM.</p>
 {block("Direct far updates · excerpt", dedent(Path("docs/tutorial-examples/reu-direct-passes.zp64").read_text().split("        var start: u8 = 0;", 1)[1].split("        const first", 1)[0].join(("        var start: u8 = 0;", ""))))}
@@ -1037,6 +1060,33 @@ python3 -m json.tool build/reloc.prg.zpmod.relocsim.json
 <tr><td><code>load</code> fails or the call returns <code>null</code></td><td>Check REU setup, the disk entry, and whether the row is still loaded. In manual mode, ensure the load succeeded before calling. {module_fixture("module_dependency_call_missing_load", "Call before loading fixture")}</td></tr>
 </tbody></table>
 <p>Declare your binding in the caller and call it from a supported static-frame context. DLL export implementations use the software-stack convention. The compiler rejects unsupported loader calls within software-stack functions. The standalone fixed-address cache described here also differs from the proposed ReadyOS host-managed cache. {doc("readyos-precog", "ReadyOS integration boundary")}</p>'''),
+    ("reuse-producer", "Package the same DLL for two applications", f'''
+<p>Build the <code>fixed_math</code> producer once. Its export accepts one byte, adds three, and returns a byte. The score updater acquires it explicitly while the calculator below loads it on demand. The loading policy belongs to each caller's dependency row. Both bind the same export signature and use the same execution window and staging address. Each disk gets the same producer payload under <code>fixedmath</code>.</p>
+{sample("docs/tutorial-examples/dll-reuse.zp64", "Complete calculator caller")}
+<p>The calculator passes <code>$20</code> and prints <code>BIAS 23</code>. The <a href="guide-memory-plan.html">score updater</a> passes the current round count, adds the result to a far record, and prints <code>MEMORY PLAN OK</code>. The calculator evaluates <code>base()</code> before calling the binding. The preview rejects a nested user call in an argument to a software-stack bridge.</p>
+<table><thead><tr><th scope="col">Producer output</th><th scope="col">Used by</th><th scope="col">What it supplies</th></tr></thead><tbody>
+<tr><td><code>math.prg.zpmod.json</code></td><td>Both caller builds</td><td>Module ID, ABI, export signatures and ordinals.</td></tr>
+<tr><td><code>math.prg.zpmod.relocsim.json</code></td><td>Both caller builds</td><td>Payload size, window and relocation information.</td></tr>
+<tr><td><code>math.prg.zpmod.disk.prg</code></td><td>Both D64 images</td><td>The bytes KERNAL loads when the caller asks for <code>fixedmath</code>.</td></tr>
+</tbody></table>
+<p>Keep these three outputs together. If you change a signature, export order, or window contract, rebuild the caller and replace the disk entry from the matching producer build. Each caller's disk manifest describes packaging names. The calculator's <code>current.file</code> names its own module row. The boot entry is a separate PRG named <code>boot</code> for this exercise, and the calculator only loads its dependency from disk.</p>
+{shell("""
+mkdir -p build
+reuse_build=$(mktemp -d build/dll-reuse.XXXXXX)
+compiler=./zig-out/bin/zp64c
+"$compiler" compile docs/tutorial-examples/memory-plan-math.zp64 -o "$reuse_build/math.prg"
+for caller in dll-reuse memory-plan; do
+  "$compiler" compile "docs/tutorial-examples/$caller.zp64" -o "$reuse_build/$caller.prg" \\
+    --dependency-module "fixed_math=$reuse_build/math.prg.zpmod.json" \\
+    --dependency-relocsim "fixed_math=$reuse_build/math.prg.zpmod.relocsim.json"
+  c1541 -format 'fixed math,01' d64 "$reuse_build/$caller.d64" \\
+    -write "$reuse_build/$caller.prg" boot \\
+    -write "$reuse_build/math.prg.zpmod.disk.prg" fixedmath
+done
+x64sc -reu -reusize 16384 -autostart "$reuse_build/dll-reuse.d64:boot"
+x64sc -reu -reusize 16384 -autostart "$reuse_build/memory-plan.d64:boot"
+""", "Build the producer once and boot both callers", "reuse-producer")}
+<p>{example_link("docs/tutorial-examples/memory-plan-math.zp64", "Producer source")} · {example_link("docs/tutorial-examples/dll-reuse.zp64", "Calculator source")} · {doc("cli", "Dependency sidecar options")}</p>'''),
     ("disk-audit", "Check what actually made it onto the disk", f'''
 <p>A successful build proves the binding and the sidecars agree. The disk can still contain an older file under the right name. Starting with the <a href="guide-modules.html#disk">typed disk exercise</a>, list the D64 directory and extract <code>enemyrt</code>. Compare its bytes with the <code>.zpmod.disk.prg</code> generated by the same build. An empty <code>cmp</code> result with exit status zero means the files match. Rebuild the disk from the matching caller and producer outputs if they differ.</p>
 {shell("""
