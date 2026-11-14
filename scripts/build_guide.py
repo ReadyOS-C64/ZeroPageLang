@@ -265,6 +265,7 @@ chapters = [
     ("application", "Read a complete C64 application", "Follow Tic-Tac-Toe through input, state, screen RAM, assembly, and verification."),
     ("testing", "Test a program on the 6510", "Write source, compile-fail, and runtime checks with the emulator appropriate to each behavior."),
     ("verification", "Inspect, test, and compare", "Read generated artifacts and verify execution on the host 6510 runner and VICE."),
+    ("memory-plan", "Plan a program that uses disk, REU, and RAM", "Build a score updater that combines a disk DLL, an application REU arena, and a near working copy."),
 ]
 
 def chapter_sections(items):
@@ -316,6 +317,7 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
 <li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
 <li><a href="guide-modules.html#disk">Call the same disk DLL two ways</a>, then <a href="guide-module-lifecycle.html#relocation">trace an address into the execution window</a>.</li>
+<li><a href="guide-memory-plan.html">Build a disk-backed score updater</a> and diagnose a bad memory plan, signature, or disk.</li>
 <li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
 <li><a href="guide-verification.html#policy-cost">Measure a zero-page policy</a> with the same source workload and assertions.</li>
 </ul>'''),
@@ -371,6 +373,12 @@ test6502.expectEqualU8(3, 1, count);
 """)}
 <p>Short-circuiting also controls whether work happens. A false left operand of <code>and</code> skips the right operand, and a true left operand of <code>or</code> skips it. The host fixture checks both the result and whether a helper ran. Use this pattern to guard an indexed read behind a bounds condition.</p>
 <p>{example_link("examples/small/17_for_array_loop.zp64", "Fixed-array loop")} · {example_link("examples/small/18_switch_dispatch.zp64", "Scalar switch dispatch")} · {fixture_link("lang/pass/parity/control/bool_short_circuit", "Short-circuit assertions")}</p>'''),
+    ("dispatch", "Dispatch input with exact values, lists, and ranges", f'''
+<p>The command table contains Return, Down, Space, and an unrecognized byte. The first switch maps them to 1, 2, 32, and 4. Those add to 39. The word-valued switch returns 512 for that exact value, 16 for values from 0 through 10 inclusive, and 1 for the remaining values.</p>
+{sample("examples/small/18_switch_dispatch.zp64")}
+{example_run("examples/small/18_switch_dispatch.zp64", "switch-dispatch", anchor="switch-dispatch")}
+<p>Expect <code>DISPATCH 27</code>, <code>WORD 0200</code>, and <code>SWITCH OK</code>. The first two lines use hex. A comma list shares one branch body, while an unsigned range covers every selector value between its endpoints. Overlapping labels and ranges are rejected. The final switch is a statement and performs output and I/O in its branches.</p>
+<p>{fixture_link("lang/pass/parity/arrays_for_switch/switch_scalars", "Byte, word, Boolean, and signed equality cases")} · {fixture_link("lang/fail_compile/switch_overlapping_range", "Rejected overlapping alternatives")}</p>'''),
     ("sum-types", "Enums, optionals, and tagged unions", f'''
 <p>An <code>enum(u8)</code> has byte tags. A scalar optional stores presence and payload. A supported pointer optional uses address zero for null. Narrow tagged unions select a payload through a <code>switch</code> capture. This demo models a small event instead of passing a tag and value separately.</p>
 {sample("examples/small/24_optional_union_event.zp64")}'''),
@@ -401,6 +409,12 @@ guide_page("hardware", chapters[1][1], chapters[1][2], [
 <p><code>c64.screen</code> writes the default screen at <code>$0400</code> and color RAM. Screen codes represent glyphs on screen. <code>c64.console</code> accepts text and manages a cursor, newlines, and scrolling. <code>c64.vic.border</code> maps to <code>$d020</code>. For other registers, use a volatile pointer and the register's hardware contract.</p>
 {sample("examples/small/21_pointer_mmio.zp64")}
 <p>Use <code>ptr.*</code> for a single-item pointer and <code>ptr[i]</code> for a many-item pointer. Volatile reads and writes reach the device. When your program banks memory or changes VIC-II screen configuration, check the assumptions of built-in helpers.</p>'''),
+    ("encoding", "Distinguish screen codes from PETSCII bytes", f'''
+<p>In this language, the character literal <code>'A'</code> is screen code <code>$01</code>. In the default screen layout, a store to <code>$0400</code> writes that code directly. <code>putAt</code> takes a screen code and <code>putsAt</code> converts text to screen codes. Each approach puts <code>$01</code> into its destination in the example below.</p>
+{sample("docs/tutorial-examples/screen-encoding.zp64")}
+{example_run("docs/tutorial-examples/screen-encoding.zp64", "screen-encoding", anchor="screen-encoding")}
+<p>Expect <code>AAA</code> and, two rows below, <code>01 01 01</code>. Compare that with <a href="guide-assembly.html#kernal-result">reading A from the keyboard</a>, which returns PETSCII <code>$41</code> in the standard input configuration. If you are matching keyboard input, use the PETSCII value or the appropriate <code>c64.key</code> constant. Use screen codes when writing cells directly and PETSCII text with KERNAL output.</p>
+<p>{fixture_link("lang/pass/parity/scalars/char_literals", "Character literal checks")} · {doc("api", "Console, screen, and KERNAL APIs")}</p>'''),
     ("strings", "PETSCII, formatting, and buffers", f'''
 <p>String constants and buffers are length-counted. The PETSCII and ASCII wrappers choose byte encoding explicitly. A mutable string has fixed capacity and static storage. Appending beyond capacity truncates. Format fields <code>{{s}}</code>, <code>{{x}}</code>, and <code>{{x16}}</code> take arguments in an anonymous tuple.</p>
 {sample("examples/small/12_mutable_strings.zp64")}
@@ -415,6 +429,7 @@ guide_page("hardware", chapters[1][1], chapters[1][2], [
     ("input", "KERNAL, keyboard, and timing", f'''
 <p><code>readPetscii()</code> returns zero when the buffer is empty. <code>waitPetscii()</code> waits for a press and release. <code>c64.key</code> provides named keys. <code>c64.time.sleepTicks</code> and <code>sleepFrames</code> busy-wait. Use KERNAL calls with the appropriate ROM mapping and system workspace.</p>
 {sample("examples/small/14_keyboard_input.zp64")}
+<p>Poll with <code>readPetscii()</code> when the rest of the program must keep running between keys. Use the blocking form for a prompt that can wait. <code>sleepTicks</code> waits for changes in the low byte of CIA1 timer A at <code>$dc04</code>. <code>sleepFrames</code> waits for the low raster register at <code>$d012</code> to leave zero and return to it. These are polling loops over the hardware registers. Their timing depends on the running hardware and its configuration. Use VICE to observe behavior that depends on the VIC-II or CIA.</p>
 <p>{doc("api", "Complete C64 API")}</p>'''),
 ])
 
@@ -484,6 +499,11 @@ guide_page("memory", chapters[3][1], chapters[3][2], [
     ("regions", "Declare and claim regions", f'''
 <p>A region names a physical address range, its address space, and C64 bank visibility where relevant. The compiler validates bounds, overlap, expected space and bank, and claims against the assembled resident image. A region has one reservation role. The same map can describe arenas, pools, a software stack, fixed code, and DLL windows or staging.</p>
 <p>Current resident placement supports static functions and constant strings or arrays. Bank gateways expose RAM under ROM, make the call, and restore the processor mapping. KERNAL-dependent calls require particular care when KERNAL is hidden. A banked table belongs with the code that can access it. {doc("abi", "Entry and placement gateways")}</p>'''),
+    ("raw-entry", "Read the raw entry contract before handing off control", f'''
+<p>A PRG's two-byte header tells a loader where the payload starts. The entry address tells the caller where to transfer control after loading it. The raw-entry fixture sets load to <code>$1000</code> and entry to <code>$1010</code>. Its host test starts at the generated program entry. Starting at the load address instead would skip the contract expressed by the fixture.</p>
+{sample("tests/fixtures/emu/lang/pass/abi/custom_raw_image.zp64", "Raw image · host fixture")}
+<p>The caller supplies the C64 mapping and a usable hardware stack. If the entry will return with <code>RTS</code>, enter through a call or supply the equivalent return frame. If your program uses ROM services, keep the expected ROM and system workspace available. Under the bare zero-page profile, the caller must already own IRQ and NMI before entry. Use a BASIC-stub image when BASIC should load and start your program.</p>
+<p>{fixture_link("lang/pass/abi/custom_raw_image", "Raw image fixture")} · <a href="guide-application.html#hosted">ReadyOS application entry</a> · {doc("abi", "Executable entry and lifecycle")}</p>'''),
     ("zero-page", "Own zero-page bytes explicitly", f'''
 {block("Application zero-page policy · excerpt", Path("docs/language.md").read_text().split("## Application zero-page settings")[1].split("```zig\n")[1].split("```")[0])}
 <p>The compatibility profile retains the default pointer and frame conventions. The BASIC profile preserves system workspace. The KERNAL profile can borrow BASIC workspace while retaining documented KERNAL services. Bare mode requires a raw image and a caller that already owns interrupts and ROM policy.</p>
@@ -836,6 +856,12 @@ ZEROPAGE_EMU_FILTER=module_graph_rollback_shared_owner zig build emu-test
 """)}
 <p>The KERNAL path also preserves processor status and masks IRQs while KERNAL is hidden. Keep these exports independent of KERNAL services. ZeroPage supports a resident trampoline for supported console calls. Keyboard, raw KERNAL, disk, and unsupported inline assembly paths are rejected for this bank. Use a visible window when the export needs those services.</p>
 <p>{example_link("examples/small/87_module_current_basic_bank.zp64", "BASIC-bank demo")} · {example_link("examples/small/90_module_current_kernal_bank.zp64", "KERNAL-bank demo")} · {example_link("examples/small/93_module_kernal_console_trampoline.zp64", "Console trampoline demo")} · {module_fixture("module_kernal_bank_console_trampoline", "Fixture checking that $0001 is restored")}</p>'''),
+    ("banked-console", "Print from a DLL that runs under KERNAL ROM", f'''
+<p>Put a simple banner export in a window at <code>$e000</code>. While the DLL runs, KERNAL ROM is hidden so the CPU can fetch the DLL's instructions from RAM. The compiler accepts supported <code>c64.console</code> output in this export and emits a console trampoline path. In this demo the trampoline calls the screen-writing console helpers. A direct call into the hidden ROM would have a different target.</p>
+{sample("examples/small/93_module_kernal_console_trampoline.zp64")}
+{example_run("examples/small/93_module_kernal_console_trampoline.zp64", "banked-console", True, anchor="banked-console")}
+<p>Expect <code>TRAMP EXPORT</code> from the DLL and <code>TRAMP OK</code> from the caller. The bank gateway saves the processor port, masks IRQs, exposes RAM for dispatch, preserves the return value across cleanup, and restores the caller's mapping. The host fixture checks <code>$0001</code> before loading, after loading, and after calling. Its initial and final value is <code>$37</code>.</p>
+<p>If the export needs a key, read it in the resident caller and pass a byte argument. The keyboard example below is rejected because it requests the KERNAL-dependent read inside the export. A visible window avoids the bank transition for code that needs supported ROM services. {fixture_link("lang/fail_compile/module_kernal_bank_export_uses_keyboard", "Rejected keyboard read in an export")} · {module_fixture("module_kernal_bank_console_trampoline", "Port and return-value assertions")} · {doc("abi", "Banking contract")}</p>'''),
     ("state", "Choose which state survives activation", f'''
 <p>When a new DLL takes a window, the loader copies a fresh image over the old contents. Use <code>persist_in_reu</code> for selected state bytes that must survive. The state offset is relative to the start of the execution window. For state at <code>$c100</code> in a <code>$c000</code> window, the offset is <code>$0100</code>. Use <code>discard_on_unload</code> when an unload should discard that row's state. These policies are mutually exclusive for a row.</p>
 {block("Keep two bytes across activations · configuration excerpt", """current {
@@ -1116,4 +1142,56 @@ awk '/^host-metrics/ && $2 !~ /scalars_oscar64_short_scalar_calls/' build/short-
     ("context", "How ZeroPage fits among C64 toolchains", '''
 <p>Memory regions and overlays have precedents. Oscar64 documents source pragmas for sections and regions and a linker-generated overlay flow. cc65's ld65 documents memory and segment configuration with separate load and run addresses. <a href="https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md">Oscar64 manual</a> · <a href="https://cc65.github.io/doc/ld65.html">ld65 guide</a></p>
 <p>ZeroPage's combination is a Zig-shaped target subset with source-declared ownership shared by the PRG, heaps, zero page, placements, and DLL loader. Typed far views expose explicit copies to and from C64 RAM. The DLL loader combines named REU slots, typed exports, relocations, window activation, and explicit ownership in one model.</p>'''),
+])
+
+guide_page("memory-plan", chapters[13][1], chapters[13][2], [
+    ("task", "Update a score with rules loaded from disk", '''
+<p>Keep a score record in REU, materialize it into C64 RAM, call a scoring rule loaded from disk, then flush the update. The initial total is <code>$0200</code> and the round count is 3. The DLL adds 3 to the round count it receives and returns 6 points. The program adds those points to the total and increments the stored round count to 4. A fresh far read checks both changes.</p>
+<p>This exercise brings together <a href="guide-arenas.html">arenas</a>, <a href="guide-reu.html#range">materialized views</a>, and <a href="guide-modules.html#disk">typed disk calls</a>. The score record and the DLL both use REU, and each needs its own address range and lifetime.</p>'''),
+    ("layout", "Assign a region to each owner", '''
+<table><thead><tr><th scope="col">Region</th><th scope="col">Addresses</th><th scope="col">Contents and lifetime</th></tr></thead><tbody>
+<tr><td>Execution</td><td>C64 <code>$6000–$6fff</code></td><td>Active DLL code and its jump table. The CPU executes here.</td></tr>
+<tr><td>Scratch</td><td>C64 <code>$8000–$80ff</code></td><td>The three-byte near score view, until the edit and flush finish.</td></tr>
+<tr><td>Disk staging</td><td>C64 <code>$9000–$97ff</code></td><td>Temporary buffer for the disk payload.</td></tr>
+<tr><td>Frames</td><td>C64 <code>$c800–$cbff</code></td><td>Software-stack frames for the scoring export and other stack calls.</td></tr>
+<tr><td>Scores</td><td>REU <code>$010000–$0100ff</code></td><td>Application data. The far arena owns the score record until reset.</td></tr>
+<tr><td>Cache</td><td>REU <code>$030000–$031fff</code></td><td>Two window-sized payload slots. FixedMath is row 1, so its slot begins at <code>$031000</code>.</td></tr>
+</tbody></table>
+<p>The ranges in the table include the last byte. The map records exclusive ends. The application reserves the current module's slot at <code>$030000</code> as part of the registry plan. This run uses only the dependency's slot. The scoring export calls through the execution window while the near score remains live in scratch RAM.</p>'''),
+    ("producer", "Compile the scoring DLL first", f'''
+<p>The producer declares the <code>fixed_math</code> module and its stack-frame export. Its assembly contains a small <code>bias</code> routine. The compiler writes the metadata and relocation sidecars the caller needs and a disk payload with a load header for the configured staging address. The producer's <code>main</code> is empty because the exercise boots the application.</p>
+{sample("docs/tutorial-examples/memory-plan-math.zp64")}
+<p>{example_link("docs/tutorial-examples/memory-plan-math.zp64", "Complete scoring DLL source")}</p>'''),
+    ("caller", "Acquire, call, flush, and release", f'''
+<p>The caller declares the same signature in <code>extern module</code> and names the disk entry in its loader. <code>FixedMath.acquire()</code> gives the caller a reference. <code>FixedMath.bias()</code> activates the DLL as needed and returns an optional value. The near edit is committed with <code>flush</code>. Only then does the program reset scratch and read the score again from REU. It releases FixedMath on both paths after successful acquire.</p>
+{sample("docs/tutorial-examples/memory-plan.zp64")}
+<p>The current module declaration provides the application row and its own export. The app calls <code>roundLimit()</code> directly from resident code for its final check. Only the FixedMath dependency needs a separate disk entry in this exercise.</p>
+<p>{example_link("docs/tutorial-examples/memory-plan.zp64", "Complete score application source")}</p>
+{shell("""
+mkdir -p build
+score_build=$(mktemp -d build/score-tutorial.XXXXXX)
+compiler=./zig-out/bin/zp64c
+"$compiler" compile docs/tutorial-examples/memory-plan-math.zp64 -o "$score_build/math.prg"
+"$compiler" compile docs/tutorial-examples/memory-plan.zp64 -o "$score_build/score.prg" \\
+  --dependency-module "fixed_math=$score_build/math.prg.zpmod.json" \\
+  --dependency-relocsim "fixed_math=$score_build/math.prg.zpmod.relocsim.json"
+c1541 -format 'memory plan,01' d64 "$score_build/score.d64" \\
+  -write "$score_build/score.prg" boot \\
+  -write "$score_build/math.prg.zpmod.disk.prg" fixedmath
+x64sc -reu -reusize 16384 -autostart "$score_build/score.d64:boot"
+""", "Build both programs, package the disk, and boot", "score-disk")}
+<p>Expect <code>MEMORY PLAN OK</code> and a green border. Inspect <code>memory_regions</code> in the caller's <code>.zpmap.json</code> and <code>loader</code> in its <code>.zpmod.json</code> to connect the layout to the generated artifacts.</p>'''),
+    ("repair", "Diagnose three failures at the stage that reports them", f'''
+<table><thead><tr><th scope="col">Change to try</th><th scope="col">What you observe</th><th scope="col">Repair</th></tr></thead><tbody>
+<tr><td>Move <code>score_reu</code> to <code>0x030000</code>.</td><td>The compiler rejects overlapping regions. Application data would occupy the same REU range as the cache.</td><td>Restore the score arena to <code>0x010000</code> and keep raw transfers within the owning region.</td></tr>
+<tr><td>Declare <code>FixedMath.bias</code> with a <code>u16</code> parameter in the caller.</td><td>The compiler rejects the dependency sidecar. The caller expects a word and the producer exports a byte argument.</td><td>Restore <code>u8</code>, or change and rebuild both sides together. Check module id, ABI, and window if the same diagnostic persists.</td></tr>
+<tr><td>Build a second disk with only the <code>boot</code> entry.</td><td>The app boots, acquire fails, and the screen shows <code>MEMORY PLAN FAILED</code> with a red border.</td><td>Write the producer's <code>.zpmod.disk.prg</code> under <code>fixedmath</code> and boot again with the REU enabled.</td></tr>
+</tbody></table>
+{shell("""
+c1541 -format 'missing dll,02' d64 "$score_build/missing.d64" \\
+  -write "$score_build/score.prg" boot
+x64sc -reu -reusize 16384 -autostart "$score_build/missing.d64:boot"
+""", "Boot a disk without the scoring DLL", "missing-score-dll")}
+<p>The missing-disk command uses the <code>score_build</code> variable from the build command. Use the same shell. If you open a new shell, set it to the directory created by <code>mktemp</code>.</p>
+<p>{fixture_link("lang/pass/abi/named_regions_arena_dll", "Host fixture checking the arena and DLL byte locations")} · {fixture_link("lang/fail_compile/zeropage_module_loader_reu_heap_overlap", "Compile-fail fixture for a cache overlap")} · <a href="guide-module-lifecycle.html#diagnostics">DLL diagnostics</a></p>'''),
 ])

@@ -1,0 +1,85 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Score = struct { total: u16, rounds: u8 };
+
+extern module FixedMath = fixed_math {
+    fn bias(value: u8) u8;
+}
+
+memory {
+    region scratch_ram: c64 at 0x8000 size 0x0100;
+    region disk_ram: c64 at 0x9000 size 0x0800;
+    region execution_ram: c64 at 0x6000 size 0x1000;
+    region frame_ram: c64 at 0xc800 size 0x0400;
+    region score_reu: reu at 0x010000 size 0x0100;
+    region cache_reu: reu at 0x030000 size 0x2000;
+
+    arena scratch in scratch_ram;
+    arena scores in score_reu;
+    stack in frame_ram;
+}
+
+module_loader {
+    window main in execution_ram;
+    reu_cache in cache_reu;
+    disk_staging in disk_ram;
+    capacity = 2;
+    current {
+        file = "scoreapp";
+    }
+    dependency fixed_math {
+        file = "fixedmath";
+    }
+}
+
+module score_app abi 1 {
+    export round_limit = roundLimit;
+    dependency fixed_math;
+}
+
+fn roundLimit() callconv(.stack) u8 {
+    return 4;
+}
+
+fn play() bool {
+    if (ZeroPage.reu.present() == false) {
+        return false;
+    }
+    if (FixedMath.acquire() == false) {
+        return false;
+    }
+    if (scores.allocBytes(@sizeOf(Score))) |bytes| {
+        var table = ZeroPage.reu.view(Score, bytes, 1);
+        table.set(0, Score{ .total = 0x0200, .rounds = 3 });
+        if (table.materialize(scratch)) |local| {
+            var score = local.get(0);
+            if (FixedMath.bias(score.rounds)) |points| {
+                score.total += @as(u16, points);
+                score.rounds += 1;
+                local.set(0, score);
+                table.flush(local);
+                scratch.reset();
+                const saved = table.get(0);
+                scores.reset();
+                FixedMath.release();
+                return saved.total == 0x0206 and saved.rounds == roundLimit();
+            }
+        }
+    }
+    scratch.reset();
+    scores.reset();
+    FixedMath.release();
+    return false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (play()) {
+        c64.console.print("MEMORY PLAN OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("MEMORY PLAN FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -34,7 +34,7 @@ Peddle is compiled only into `zeropage_emu_tests` and its tests. It is not linke
 | `vice_tasks_dotnet` harness | Compiling and executing generated VICE YAML plans |
 | Python 3.12+ | Preparing the isolated macOS VICE bridge and optimization reports |
 
-The full Zig compiler source, 64tass, VICE, .NET SDK, VICE task harness, ROM images, and disk images are not included in this repository.
+Install 64tass, VICE, and the .NET SDK separately. The VICE task harness and ROM images also come from outside this repository. ZeroPage ships its own [sample D64 images](../README.md#try-the-sample-disks).
 
 When using the default sibling VICE harness, test scripts prepare an isolated
 copy under `build/vice-harness/`. Its monitor bridge source is pinned to

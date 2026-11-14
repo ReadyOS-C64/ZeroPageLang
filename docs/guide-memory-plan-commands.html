@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Plan a program that uses disk, REU, and RAM">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=command-pages">
+<script src="site/copy.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html">Intro</a><a href="guide.html">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="guide-memory-plan.html">← Plan a program that uses disk, REU, and RAM</a></p><h1>Commands</h1><p class="lead">Plan a program that uses disk, REU, and RAM</p><section id="commands-score-disk"><h2>Build both programs, package the disk, and boot</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+<span class="nv">score_build</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="w"> </span>build/score-tutorial.XXXXXX<span class="k">)</span>
+<span class="nv">compiler</span><span class="o">=</span>./zig-out/bin/zp64c
+<span class="s2">&quot;</span><span class="nv">$compiler</span><span class="s2">&quot;</span><span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/memory-plan-math.zp64<span class="w"> </span>-o<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/math.prg&quot;</span>
+<span class="s2">&quot;</span><span class="nv">$compiler</span><span class="s2">&quot;</span><span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/memory-plan.zp64<span class="w"> </span>-o<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/score.prg&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dependency-module<span class="w"> </span><span class="s2">&quot;fixed_math=</span><span class="nv">$score_build</span><span class="s2">/math.prg.zpmod.json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dependency-relocsim<span class="w"> </span><span class="s2">&quot;fixed_math=</span><span class="nv">$score_build</span><span class="s2">/math.prg.zpmod.relocsim.json&quot;</span>
+c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;memory plan,01&#39;</span><span class="w"> </span>d64<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/score.d64&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/score.prg&quot;</span><span class="w"> </span>boot<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/math.prg.zpmod.disk.prg&quot;</span><span class="w"> </span>fixedmath
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/score.d64:boot&quot;</span>
+</code></pre></div><p><a href="guide-memory-plan.html#commands-score-disk">Return to the guide</a></p></section><section id="commands-missing-score-dll"><h2>Boot a disk without the scoring DLL</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#39;missing dll,02&#39;</span><span class="w"> </span>d64<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/missing.d64&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/score.prg&quot;</span><span class="w"> </span>boot
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$score_build</span><span class="s2">/missing.d64:boot&quot;</span>
+</code></pre></div><p><a href="guide-memory-plan.html#commands-missing-score-dll">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>
