@@ -102,3 +102,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 }
 
 .chapter-label { margin-top: 1.5rem; }
+
+.dll-pair { gap: 1rem; }
+.dll-pair > div { min-width: 0; }
+@media (min-width: 41rem) and (max-width: 52rem) {
+  .dll-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
