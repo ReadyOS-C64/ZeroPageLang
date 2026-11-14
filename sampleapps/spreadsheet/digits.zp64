@@ -1,0 +1,41 @@
+const digits = @import("digits.zp64");
+const paint = @import("paint.zp64");
+const math = @import("numbers.zp64");
+const bytes = @import("bytes.zp64");
+
+fn twoDigits(offset: u16, shown: u8, ink_color: u8) void {
+    var value = shown;
+    var tens: u8 = 0;
+    while (value >= 10) {
+        value -= 10;
+        tens += 1;
+    }
+    paint.put(offset, '0' + tens, ink_color);
+    paint.put(offset + 1, '0' + value, ink_color);
+}
+
+// Six character signed decimal field. Terminate on the first nonzero digit
+// so the usual small spreadsheet values avoid five software divisions.
+fn decimal(right: u16, word: u16, ink_color: u8, mask: u8, width: u8) void {
+    var value = math.abs(word);
+    var at = right;
+    var remaining = width;
+    while (true) {
+        const q = math.divide(value, 10);
+        const digit = bytes.low(value - q * 10);
+        paint.put(at, ('0' + digit) | mask, ink_color);
+        at -= 1;
+        remaining -= 1;
+        if (remaining == 0 and (q != 0 or math.negative(word))) {
+            paint.span(at + 1, width, '#' | mask, ink_color);
+            break;
+        }
+        value = q;
+        if (value == 0) {
+            break;
+        }
+    }
+    if (remaining != 0 and math.negative(word)) {
+        paint.put(at, '-' | mask, ink_color);
+    }
+}

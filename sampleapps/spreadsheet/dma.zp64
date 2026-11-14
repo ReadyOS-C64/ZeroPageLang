@@ -1,0 +1,48 @@
+const dma = @import("dma.zp64");
+
+// Dynamic bank and offset adapter for ReadyOS's allocated bank handles.
+// Only this micromodule programs the REU controller.
+fn transfer(bank: u8, offset: u16, address: u16, length: u16, command: u8, control: u8) void {
+    asm {
+        lda dma_transfer_length
+        ora dma_transfer_length+1
+        beq done
+        lda dma_transfer_address
+        sta $df02
+        lda dma_transfer_address+1
+        sta $df03
+        lda dma_transfer_offset
+        sta $df04
+        lda dma_transfer_offset+1
+        sta $df05
+        lda @bank
+        sta $df06
+        lda dma_transfer_length
+        sta $df07
+        lda dma_transfer_length+1
+        sta $df08
+        lda #0
+        sta $df09
+        lda @control
+        sta $df0a
+        lda @command
+        sta $df01
+        lda #0
+        sta $df0a
+    done:
+    }
+}
+
+fn fetch(bank: u8, offset: u16, address: u16, length: u16) void {
+    dma.transfer(bank, offset, address, length, 0x91, 0);
+}
+
+fn stash(bank: u8, offset: u16, address: u16, length: u16) void {
+    dma.transfer(bank, offset, address, length, 0x90, 0);
+}
+
+fn clear(bank: u8, offset: u16, length: u16) void {
+    const zero: *volatile u8 = @ptrFromInt(0xc300);
+    zero.* = 0;
+    dma.transfer(bank, offset, 0xc300, length, 0x90, 0x80);
+}

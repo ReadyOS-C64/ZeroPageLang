@@ -120,6 +120,16 @@ pub fn build(b: *std.Build) void {
     const sampleapps_cmd = b.addSystemCommand(&.{ "bash", "scripts/verify_sampleapps.sh", "--skip-build" });
     sampleapps_cmd.step.dependOn(b.getInstallStep());
 
+    const sheet_cmd = b.addSystemCommand(&.{ "bash", "scripts/verify_spreadsheet.sh" });
+    sheet_cmd.step.dependOn(b.getInstallStep());
+    const sheet_step = b.step("spreadsheet", "Build the standalone and available ReadyOS spreadsheet images");
+    sheet_step.dependOn(&sheet_cmd.step);
+
+    const sheet_vice_cmd = b.addSystemCommand(&.{ "bash", "scripts/verify_spreadsheet.sh", "--vice" });
+    sheet_vice_cmd.step.dependOn(b.getInstallStep());
+    const sheet_vice_step = b.step("spreadsheet-vice", "Run optional spreadsheet VICE integration plans");
+    sheet_vice_step.dependOn(&sheet_vice_cmd.step);
+
     const size_cmd = b.addSystemCommand(&.{ "bash", "scripts/size_report.sh" });
     size_cmd.step.dependOn(&e2e_cmd.step);
     size_cmd.step.dependOn(&emu_run.step);

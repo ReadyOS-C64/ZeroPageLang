@@ -1,0 +1,108 @@
+const relocate = @import("relocate.zp64");
+const bytes = @import("bytes.zp64");
+const lex = @import("lex.zp64");
+
+fn emit(byte: u8) void {
+    const out: [*]volatile u8 = @ptrFromInt(0xc100);
+    if (out[0] < 31) {
+        const next: u8 = out[0] + 1;
+        out[0] = next;
+        out[next] = byte;
+    } else {
+        out[0] = 32;
+    }
+}
+
+fn address(id: u16, from: u16, to: u16) bool {
+    const flags: *volatile u8 = @ptrFromInt(0xc044);
+    var col: u16 = id & 15;
+    var row: u16 = id >> 4;
+    if ((flags.* & 1) == 0) {
+        col += (to & 15) - (from & 15);
+    }
+    if ((flags.* & 2) == 0) {
+        row += (to >> 4) - (from >> 4);
+    }
+    if (col >= 16 or row >= 96) {
+        relocate.emit('#');
+        relocate.emit(0x52);
+        relocate.emit(0x45);
+        relocate.emit(0x46);
+        relocate.emit('!');
+        return false;
+    }
+    if ((flags.* & 1) != 0) {
+        relocate.emit('$');
+    }
+    relocate.emit(0x41 + bytes.low(col));
+    if ((flags.* & 2) != 0) {
+        relocate.emit('$');
+    }
+    var ones: u8 = bytes.low(row) + 1;
+    var tens: u8 = 0;
+    while (ones >= 10) {
+        ones -= 10;
+        tens += 1;
+    }
+    if (tens != 0) {
+        relocate.emit('0' + tens);
+    }
+    relocate.emit('0' + ones);
+    return true;
+}
+
+// Translate into scratch before committing. A formula that grows beyond
+// the on-disk cell size leaves the destination untouched.
+fn adjust(from: u16, to: u16) bool {
+    const raw: [*]volatile u8 = @ptrFromInt(0xc000);
+    const out: [*]volatile u8 = @ptrFromInt(0xc100);
+    if (raw[0] == 0 or raw[1] != '=' or from == to) {
+        return true;
+    }
+    out[0] = 0;
+    relocate.emit('=');
+    lex.seek(2);
+    while (lex.peek() != 0 and out[0] <= 31) {
+        var pos = lex.position();
+        // Consume a decimal/scientific literal before testing for references
+        // so the E in 1E3 can never be translated as a cell address.
+        const c = lex.peek();
+        if (c == '"') {
+            lex.advance();
+            while (lex.peek() != '"' and lex.peek() != 0) {
+                lex.advance();
+            }
+            if (lex.peek() == '"') {
+                lex.advance();
+            }
+        } else if (lex.digit(c) or c == '.') {
+            const numeric = lex.numberToken();
+        } else {
+            const ref = lex.reference();
+            if (ref < 1536) {
+                const in_bounds = relocate.address(ref, from, to);
+                continue;
+            } else if (lex.position() == pos and lex.alpha(c)) {
+                while (lex.alpha(lex.peek())) {
+                    lex.advance();
+                }
+            }
+        }
+        if (lex.position() == pos) {
+            lex.advance();
+        }
+        while (pos < lex.position()) {
+            relocate.emit(raw[pos]);
+            pos += 1;
+        }
+    }
+    if (out[0] > 31) {
+        return false;
+    }
+    var i: u8 = 0;
+    while (i <= out[0]) {
+        raw[i] = out[i];
+        i += 1;
+    }
+    return true;
+}

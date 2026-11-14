@@ -1,0 +1,69 @@
+const paint = @import("paint.zp64");
+
+fn put(offset: u16, code: u8, ink: u8) void {
+    asm {
+        lda paint_put_offset
+        sta $fb
+        lda paint_put_offset+1
+        clc
+        adc #$04
+        sta $fc
+        lda @code
+        ldy #0
+        sta ($fb),y
+        lda paint_put_offset+1
+        clc
+        adc #$d8
+        sta $fc
+        lda @ink
+        sta ($fb),y
+    }
+}
+
+fn glyph(key: u8) u8 {
+    if (key >= 0xc1 and key <= 0xda) {
+        return key & 0x5f;
+    }
+    if (key >= 0x40 and key <= 0x5f) {
+        return key & 0x3f;
+    }
+    if (key >= 0x60 and key <= 0x7e) {
+        return key - 0x20;
+    }
+    return key & 0x3f;
+}
+
+fn formulaGlyph(key: u8) u8 {
+    if (key >= 0x41 and key <= 0x5a) {
+        return key;
+    }
+    return paint.glyph(key);
+}
+
+fn span(start: u16, length: u8, code: u8, ink: u8) void {
+    asm {
+        lda @length
+        beq done
+        lda paint_span_start
+        sta $fb
+        sta $fd
+        lda paint_span_start+1
+        clc
+        adc #$04
+        sta $fc
+        lda paint_span_start+1
+        clc
+        adc #$d8
+        sta $fe
+        ldy #0
+    next:
+        lda @code
+        sta ($fb),y
+        lda @ink
+        sta ($fd),y
+        iny
+        cpy @length
+        bne next
+    done:
+    }
+}

@@ -174,3 +174,7 @@ summary:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
 
 .command-link { font-size: .95rem; }
 .guide.commands { display: block; max-width: 54rem; }
+
+.sheet-capture { margin: 1.5rem 0; }
+.sheet-capture img { display: block; width: min(100%, 504px); height: auto; }
+.sheet-capture figcaption { color: var(--muted); font-size: .9rem; margin-top: .45rem; }

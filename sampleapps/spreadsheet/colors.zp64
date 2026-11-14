@@ -1,0 +1,75 @@
+const colors = @import("colors.zp64");
+
+// One nibble per cell in REU $FD00–$FFFF. The shared DMA read/write
+// uses autoload so the paired write addresses the very same byte.
+fn read(bank: u8, id: u16) u8 {
+    return colors.access(bank, id, 255);
+}
+
+fn write(bank: u8, id: u16, ink: u8) void {
+    const prior = colors.access(bank, id, ink);
+}
+
+fn access(bank: u8, id: u16, ink: u8) u8 {
+    var prior: u8 = 0;
+    asm {
+        lda #$79
+        sta $df02
+        lda #$c0
+        sta $df03
+        lda colors_access_id+1
+        lsr
+        tax
+        lda colors_access_id
+        ror
+        sta $df04
+        txa
+        clc
+        adc #$fd
+        sta $df05
+        lda @bank
+        sta $df06
+        lda #1
+        sta $df07
+        lda #0
+        sta $df08
+        sta $df09
+        sta $df0a
+        lda #$b1
+        sta $df01
+        lda colors_access_id
+        lsr
+        lda $c079
+        bcs odd
+        and #15
+        sta @prior
+        lda @ink
+        bmi done
+        lda $c079
+        and #$f0
+        ora @ink
+        jmp commit
+    odd:
+        lsr
+        lsr
+        lsr
+        lsr
+        sta @prior
+        lda @ink
+        bmi done
+        asl
+        asl
+        asl
+        asl
+        sta @prior
+        lda $c079
+        and #15
+        ora @prior
+    commit:
+        sta $c079
+        lda #$90
+        sta $df01
+    done:
+    }
+    return prior;
+}

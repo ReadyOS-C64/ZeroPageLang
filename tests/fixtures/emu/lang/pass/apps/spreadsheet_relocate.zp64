@@ -1,0 +1,59 @@
+const test6502 = @import("test6502");
+const relocate = @import("../../../../../../sampleapps/spreadsheet/relocate.zp64");
+const lex = @import("../../../../../../sampleapps/spreadsheet/lex.zp64");
+const bytes = @import("../../../../../../sampleapps/spreadsheet/bytes.zp64");
+const math = @import("../../../../../../sampleapps/spreadsheet/numbers.zp64");
+
+export fn main() void {
+    const raw: [*]volatile u8 = @ptrFromInt(0xc000);
+    // Move B2 to C4: =A1+$B1+C$2+$D$3+1E3 becomes
+    // =B3+$B3+D$2+$D$3+1E3.
+    raw[0] = 20;
+    raw[1] = '=';
+    raw[2] = 0x41;
+    raw[3] = '1';
+    raw[4] = '+';
+    raw[5] = '$';
+    raw[6] = 0x42;
+    raw[7] = '1';
+    raw[8] = '+';
+    raw[9] = 0x43;
+    raw[10] = '$';
+    raw[11] = '2';
+    raw[12] = '+';
+    raw[13] = '$';
+    raw[14] = 0x44;
+    raw[15] = '$';
+    raw[16] = '3';
+    raw[17] = '+';
+    raw[18] = '1';
+    raw[19] = 0x45;
+    raw[20] = '3';
+    const moved = relocate.adjust(17, 50);
+    test6502.expectEqualBool(1, true, moved);
+    test6502.expectEqualBool(2, true, raw[0] == 20 and raw[2] == 0x42 and raw[3] == '3' and raw[7] == '3' and raw[9] == 0x44 and raw[11] == '2');
+    test6502.expectEqualBool(3, true, raw[14] == 0x44 and raw[16] == '3' and raw[19] == 0x45 and raw[20] == '3');
+
+    // Moving one column left from B1 puts the A1 reference off-sheet.
+    raw[0] = 3;
+    raw[1] = '=';
+    raw[2] = 0x41;
+    raw[3] = '1';
+    const shifted = relocate.adjust(1, 0);
+    test6502.expectEqualBool(4, true, shifted and raw[0] == 6 and raw[2] == '#' and raw[6] == '!');
+    lex.seek(2);
+    test6502.expectEqualBool(5, true, lex.reference() == 0xfffe);
+
+    // Length overflow leaves the source bytes untouched.
+    raw[0] = 31;
+    var i: u8 = 2;
+    while (i < 30) {
+        raw[i] = ' ';
+        i += 1;
+    }
+    raw[30] = 0x41;
+    raw[31] = '9';
+    const fits = relocate.adjust(0, 16);
+    test6502.expectEqualBool(6, true, !fits and raw[0] == 31 and raw[31] == '9');
+    test6502.pass();
+}

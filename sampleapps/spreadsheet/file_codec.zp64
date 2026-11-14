@@ -1,0 +1,702 @@
+const colors = @import("colors.zp64");
+const codec = @import("file_codec.zp64");
+const dma = @import("dma.zp64");
+const disk = @import("disk.zp64");
+
+// Disk records are sparse. REU still uses fixed-size records.
+fn copyPages(from: u8, to: u8) void {
+    var offset: u16 = 0;
+    while (true) {
+        dma.fetch(from, offset, 0xc100, 256);
+        dma.stash(to, offset, 0xc100, 256);
+        offset += 256;
+        if (offset == 0) {
+            break;
+        }
+        if (offset == 0xc000) {
+            offset = 0xfd00;
+        }
+    }
+}
+
+fn writeImage(staging: u8) bool {
+    if (!disk.writeByte(0x5a) or !disk.writeByte(0x50) or
+        !disk.writeByte(0x53) or !disk.writeByte(0x48) or !disk.writeByte(6)) {
+        return false;
+    }
+    if (!codec.writeMetadata()) {
+        return false;
+    }
+    var offset: u16 = 0;
+    var page_number: u8 = 0;
+    while (offset < 0xc000) {
+        dma.fetch(staging, offset, 0xc100, 256);
+        if (!codec.writePage(page_number)) {
+            return false;
+        }
+        offset += 256;
+        page_number += 1;
+    }
+    return codec.writeColors(staging) and disk.writeByte(255) and disk.writeByte(255);
+}
+
+// Color records use an otherwise invalid high ID byte ($80–$85).
+// Read one packed page at a time, writing only nonzero nibbles.
+fn writeColors(bank: u8) bool {
+    var page: u8 = 0;
+    var good: bool = true;
+    while (page < 3 and good) {
+        dma.fetch(bank, 0xfd00 + (@as(u16, page) << 8), 0xc100, 256);
+        good = codec.writeColorPage(page);
+        page += 1;
+    }
+    return good;
+}
+
+fn writeColorPage(page: u8) bool {
+    var cursor: u8 = 0;
+    var which: u8 = 0;
+    var ink: u8 = 0;
+    var ok: bool = false;
+    asm {
+    cell:
+        ldx @cursor
+        lda $c100,x
+        ldy @which
+        beq low
+        lsr
+        lsr
+        lsr
+        lsr
+    low:
+        and #15
+        beq next
+        sta @ink
+        txa
+        asl
+        ora @which
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+        lda @page
+        asl
+        ldx @cursor
+        bpl high
+        ora #1
+    high:
+        ora #$80
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+        lda @ink
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+    next:
+        lda @which
+        eor #1
+        sta @which
+        bne cell
+        inc @cursor
+        bne cell
+        lda #1
+        sta @ok
+    done:
+    }
+    return ok;
+}
+
+// Walk the eight fixed REU records in this page. KERNAL may clobber
+// registers, so keep the record and byte cursors in static byte slots.
+fn writePage(page_number: u8) bool {
+    var cell: u8 = 0;
+    var cursor: u8 = 0;
+    var remaining: u8 = 0;
+    var ok: bool = false;
+    asm {
+cell_start:
+        lda @cell
+        asl
+        asl
+        asl
+        asl
+        asl
+        sta @cursor
+        tax
+        lda $c100,x
+        beq next_cell
+        sta @remaining
+        lda @page_number
+        asl
+        asl
+        asl
+        ora @cell
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+        lda @page_number
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+        lda @remaining
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+payload:
+        inc @cursor
+        ldx @cursor
+        lda $c100,x
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+        dec @remaining
+        bne payload
+next_cell:
+        inc @cell
+        lda @cell
+        cmp #8
+        bne cell_start
+        lda #1
+        sta @ok
+done:
+    }
+    return ok;
+}
+
+fn readImage(staging: u8) bool {
+    var version: u8 = 0;
+    asm {
+        lda #0
+        sta $c275
+        jsr $ffcf
+        cmp #$d3
+        beq simple
+        cmp #$53
+        beq simple
+        cmp #$5a
+        bne done
+        jsr $ffcf
+        cmp #$50
+        bne done
+        jsr $ffcf
+        cmp #$53
+        bne done
+        jsr $ffcf
+        cmp #$48
+        bne done
+        jsr $ffcf
+        cmp #7
+        bcs done
+        sta @version
+        jsr $ffb7
+        beq done
+        lda #0
+        sta @version
+        beq done
+simple:
+        jsr $ffcf
+        and #$7f
+        cmp #$43
+        bne done
+        jsr $ffcf
+        and #$7f
+        cmp #$4c
+        bne done
+        jsr $ffcf
+        and #$7f
+        cmp #$53
+        bne done
+        jsr $ffcf
+        cmp #$31
+        bne done
+        jsr $ffcf
+        cmp #2
+        bne done
+        ldx $90
+        bne done
+        lda #7
+        sta @version
+done:
+    }
+    dma.clear(staging, 0xfd00, 768);
+    if (version == 1) {
+        return codec.readLegacy(staging);
+    }
+    if (version >= 3 and version <= 6) {
+        if (!codec.readMetadata(version)) {
+            return false;
+        }
+        return codec.readSparse(staging, version);
+    }
+    if (version == 2) {
+        return codec.readSparse(staging, version);
+    }
+    if (version == 7) {
+        return codec.readSimple(staging);
+    }
+    return false;
+}
+
+// SimpleCells v2 uses an 18x10 grid, separate width and format bytes,
+// and row/column coordinates instead of ZeroPage Sheet's linear cell IDs.
+fn readSimpleHeader() bool {
+    var success: bool = false;
+    asm {
+        jsr $ffcf
+        cmp #18
+        bne done
+        jsr $ffcf
+        cmp #10
+        bne done
+        jsr $ffcf
+        cmp #18
+        bcs done
+        sta $c270
+        jsr $ffcf
+        cmp #10
+        bcs done
+        sta $c271
+        jsr $ffcf
+        cmp $c271
+        beq left
+        bcs done
+    left:
+        sta $c273
+        lda #0
+        sta $c272
+        sta $c276
+        lda #6
+        sta $c274
+    column:
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #4
+        bcc done
+        cmp #13
+        bcs done
+        asl
+        asl
+        asl
+        asl
+        sta $c277
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #5
+        bcs done
+        ora $c277
+        ldx $c276
+        sta $c260,x
+        inx
+        stx $c276
+        cpx #10
+        bne column
+        inc $c275
+        lda #1
+        sta @success
+    done:
+    }
+    return success;
+}
+
+fn readSimpleRecord() u16 {
+    var low: u8 = 0xfe;
+    var high: u8 = 0xff;
+    asm {
+        jsr $ffcf
+        cmp #$ff
+        bne row
+        lda $90
+        cmp #$40
+        bne done
+        inc @low
+        bne done
+    row:
+        ldx $90
+        bne done
+        cmp #18
+        bcs done
+        sta $c276
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #10
+        bcs done
+        sta $c277
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #2
+        bcs done
+        sta $c279
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #16
+        bcs done
+        sta $c278
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #1
+        bcc done
+        cmp #28
+        bcs done
+        sta $c100
+        lda $c276
+        lsr
+        lsr
+        lsr
+        lsr
+        sta @high
+        lda $c276
+        asl
+        asl
+        asl
+        asl
+        ora $c277
+        sta @low
+    done:
+    }
+    return (@as(u16, high) << 8) | @as(u16, low);
+}
+
+fn readSimple(staging: u8) bool {
+    const record: [*]volatile u8 = @ptrFromInt(0xc100);
+    const ink: *volatile u8 = @ptrFromInt(0xc278);
+    const flags: *volatile u8 = @ptrFromInt(0xc279);
+    if (!codec.readSimpleHeader()) {
+        return false;
+    }
+    dma.clear(staging, 0, 0xc000);
+    var next: u16 = 0;
+    while (true) {
+        const id = codec.readSimpleRecord();
+        if (id >= 0xfffe) {
+            return id == 0xffff;
+        }
+        if (id < next or !codec.readPayload(record[0])) {
+            return false;
+        }
+        if ((record[1] == '=') != (flags.* == 1)) {
+            return false;
+        }
+        dma.stash(staging, id << 5, 0xc100, @as(u16, record[0]) + 1);
+        if (ink.* != 0) {
+            colors.write(staging, id, ink.*);
+        }
+        next = id + 1;
+    }
+    return false;
+}
+
+fn restoreView() void {
+    asm {
+        lda $c275
+        beq done
+        ldx #4
+    copy:
+        lda $c270,x
+        sta $c0ca,x
+        dex
+        bpl copy
+    done:
+    }
+}
+
+// $C260 holds the 16 column bytes. $C0CA holds the five-byte live view.
+fn writeMetadata() bool {
+    var index: u8 = 0;
+    var success: bool = false;
+    asm {
+    next:
+        ldx @index
+        cpx #16
+        bcs view_byte
+        lda $c260,x
+        jmp write
+    view_byte:
+        lda $c0ba,x
+    write:
+        jsr $ffd2
+        jsr $ffb7
+        bne done
+        inc @index
+        lda @index
+        cmp #21
+        bne next
+        lda #1
+        sta @success
+    done:
+    }
+    return success;
+}
+
+// Stage column data and the view together. $C275 is set for a valid v5 view.
+fn readMetadata(version: u8) bool {
+    var index: u8 = 0;
+    var value: u8 = 0;
+    var success: bool = false;
+    asm {
+    next:
+        jsr $ffcf
+        sta @value
+        jsr $ffb7
+        bne invalid
+        lda @version
+        cmp #3
+        bne settings
+        lda @value
+        cmp #5
+        bcs invalid
+        cmp #1
+        beq invalid
+        bne valid_width
+    settings:
+        lda @value
+        and #$0f
+        cmp #5
+        bcs invalid
+        lda @value
+        and #$f0
+        beq valid_width
+        cmp #$40
+        bcc invalid
+        cmp #$d0
+        bcs invalid
+        and #$10
+        beq valid_width
+        lda @version
+        cmp #6
+        bcc invalid
+    valid_width:
+        lda @value
+        ldx @index
+        sta $c260,x
+        inc @index
+        lda @index
+        cmp #16
+        bne next
+        lda @version
+        cmp #5
+        bcs view_byte
+        jmp valid
+    invalid:
+        jmp done
+    view_byte:
+        jsr $ffcf
+        sta @value
+        jsr $ffb7
+        bne done
+        ldx @index
+        lda @value
+        sta $c260,x
+        inc @index
+        lda @index
+        cmp #21
+        bne view_byte
+        lda $c270
+        cmp #96
+        bcs done
+        sec
+        sbc $c272
+        bcc done
+        cmp #18
+        bcs done
+        lda $c272
+        cmp #79
+        bcs done
+        lda $c271
+        cmp #16
+        bcs done
+        cmp $c273
+        bcc done
+        lda $c274
+        cmp #6
+        beq set_view
+        cmp #9
+        bne done
+    set_view:
+        inc $c275
+    valid:
+        lda #1
+        sta @success
+    done:
+    }
+    return success;
+}
+
+fn readSparse(staging: u8, version: u8) bool {
+    var record: [*]volatile u8 = @ptrFromInt(0xc100);
+    dma.clear(staging, 0, 0xc000);
+    var next: u16 = 0;
+    while (true) {
+        const low = disk.readByte();
+        if (disk.readStatus() != 0) {
+            return false;
+        }
+        const high_byte = disk.readByte();
+        if (low == 255 and high_byte == 255) {
+            return disk.readStatus() == 0x40;
+        }
+        if (disk.readStatus() != 0) {
+            return false;
+        }
+        if (version == 6 and high_byte >= 128 and high_byte < 134) {
+            return codec.readColors(staging, low, high_byte);
+        }
+        if (high_byte >= 6) {
+            return false;
+        }
+        const id = (@as(u16, high_byte) << 8) | @as(u16, low);
+        const length = disk.readByte();
+        if (id < next or length == 0 or length > 31 or disk.readStatus() != 0) {
+            return false;
+        }
+        record[0] = length;
+        if (!codec.readPayload(length)) {
+            return false;
+        }
+        dma.stash(staging, id << 5, 0xc100, @as(u16, length) + 1);
+        next = id + 1;
+    }
+    return false;
+}
+
+fn readColors(bank: u8, first_low: u8, first_high: u8) bool {
+    var low = first_low;
+    var high_byte = first_high;
+    var next: u16 = 0;
+    while (high_byte >= 128 and high_byte < 134) {
+        const id = (@as(u16, high_byte - 128) << 8) | @as(u16, low);
+        const ink = disk.readByte();
+        if (id < next or ink == 0 or ink > 15 or disk.readStatus() != 0) {
+            return false;
+        }
+        colors.write(bank, id, ink);
+        next = id + 1;
+        low = disk.readByte();
+        if (disk.readStatus() != 0) {
+            return false;
+        }
+        high_byte = disk.readByte();
+        if (high_byte == 255) {
+            return low == 255 and disk.readStatus() == 0x40;
+        }
+        if (disk.readStatus() != 0) {
+            return false;
+        }
+    }
+    return false;
+}
+
+fn readPayload(length: u8) bool {
+    var cursor: u8 = 1;
+    var byte: u8 = 0;
+    var ok: bool = false;
+    asm {
+read:
+        jsr $ffcf
+        sta @byte
+        jsr $ffb7
+        bne done
+        lda @byte
+        cmp #32
+        bcc done
+        cmp #127
+        bcc store
+        cmp #193
+        bcc done
+        cmp #219
+        bcs done
+store:
+        ldx @cursor
+        sta $c100,x
+        cpx @length
+        beq complete
+        inc @cursor
+        bne read
+complete:
+        lda #1
+        sta @ok
+done:
+    }
+    return ok;
+}
+
+fn readLegacy(staging: u8) bool {
+    var offset: u16 = 0;
+    while (offset < 0xc000) {
+        const final_status: u8 = if (offset == 0xbf00) 0x40 else 0;
+        if (!codec.readLegacyPage(final_status)) {
+            return false;
+        }
+        dma.stash(staging, offset, 0xc100, 256);
+        offset += 256;
+    }
+    return true;
+}
+
+// Validate each legacy byte as it comes in. A compact page loop leaves
+// room for both readers in the same fixed C64 overlay.
+fn readLegacyPage(final_status: u8) bool {
+    var index: u8 = 0;
+    var count: u8 = 0;
+    var byte: u8 = 0;
+    var ok: bool = false;
+    asm {
+read:
+        jsr $ffcf
+        sta @byte
+        jsr $ffb7
+        ldx @index
+        cpx #255
+        bne middle
+        cmp @final_status
+        bne done
+        beq valid
+middle:
+        cmp #0
+        bne done
+valid:
+        txa
+        and #31
+        beq length
+        lda @count
+        beq padding
+        dec @count
+        lda @byte
+        cmp #32
+        bcc done
+        cmp #127
+        bcc store
+        cmp #193
+        bcc done
+        cmp #219
+        bcs done
+        bcc store
+padding:
+        lda @byte
+        bne done
+        beq store
+length:
+        lda @byte
+        cmp #32
+        bcs done
+        sta @count
+store:
+        sta $c100,x
+        inc @index
+        bne read
+        lda #1
+        sta @ok
+done:
+    }
+    return ok;
+}

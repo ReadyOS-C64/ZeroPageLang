@@ -1,0 +1,85 @@
+const colors = @import("colors.zp64");
+const c64 = @import("c64");
+const edit_ui = @import("edit_ui.zp64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+const store = @import("store.zp64");
+
+fn beginEdit(bank: u8, id: u16, formula: bool) void {
+    store.read(bank, id);
+    if (formula) {
+        const raw: [*]volatile u8 = @ptrFromInt(0xc000);
+        tui.rect(1, 8, 38, 7);
+        edit_ui.formula_title();
+        tui.ink(332, 12, 7);
+        edit_ui.edit_commands();
+        tui.ink(523, 27, 15);
+        if (raw[0] == 0 or raw[1] != '=') {
+            raw[0] = 1;
+            raw[1] = '=';
+        }
+    }
+}
+
+fn copy(bank: u8, id: u16) void {
+    store.read(bank, id);
+    asm {
+        ldx #31
+    loop:
+        lda $c000,x
+        sta $c0a0,x
+        dex
+        bpl loop
+    }
+    const valid: *volatile u8 = @ptrFromInt(0xc0f5);
+    const source: *volatile u16 = @ptrFromInt(0xc0f8);
+    source.* = id;
+    valid.* = 1;
+    const ink: *volatile u8 = @ptrFromInt(0xc0fa);
+    ink.* = colors.read(bank, id);
+}
+
+fn erase(bank: u8, id: u16) void {
+    const line: [*]volatile u8 = @ptrFromInt(0xc000);
+    line[0] = 0;
+    store.write(bank, id);
+    colors.write(bank, id, 0);
+    store.invalidate(bank);
+}
+
+fn formula_title() void {
+    asm {
+        ldx #11
+    loop:
+        lda @edit_ui_formula_title_text.data,x
+        cpx #0
+        beq glyph
+        cmp #$61
+        bcc glyph
+        sbc #$60
+    glyph:
+        sta $054c,x
+        dex
+        bpl loop
+    }
+}
+
+fn edit_commands() void {
+    asm {
+        ldx #25
+    loop:
+        lda @edit_ui_edit_commands_text.data,x
+        cmp #$61
+        bcc glyph
+        sbc #$60
+    glyph:
+        sta $060b,x
+        dex
+        bpl loop
+    }
+}
+
+// Edit formula
+const formula_title_text = c64.string.ascii("Edit formula");
+// return: ok  run/stop: exit
+const edit_commands_text = c64.string.ascii("return: ok  run/stop: exit");

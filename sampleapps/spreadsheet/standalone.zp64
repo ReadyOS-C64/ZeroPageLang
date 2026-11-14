@@ -1,0 +1,74 @@
+const colors = @import("colors.zp64");
+const math = @import("numbers.zp64");
+
+const digits = @import("digits.zp64");
+const display = @import("decimal_display.zp64");
+const bytes = @import("bytes.zp64");
+const ZeroPage = @import("ZeroPage");
+const c64 = @import("c64");
+const app = @import("application.zp64");
+const calc = @import("calculate.zp64");
+const dma = @import("dma.zp64");
+const edit_ui = @import("edit_ui.zp64");
+const expression = @import("expression.zp64");
+const grid = @import("grid.zp64");
+const lex = @import("lex.zp64");
+const fp = @import("float_rom.zp64");
+const overlays = @import("overlays.zp64");
+const store = @import("store.zp64");
+const results = @import("results.zp64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+
+memory {
+    region cold_window: c64 at 0xa000 size 0x1f00 bank .ram_under_basic;
+    region sheet_workspace: c64 at 0xc000 size 0x0300;
+    region dma_zero: c64 at 0xc300 size 1;
+    region column_formats: c64 at 0xc310 size 16;
+    region column_layout: c64 at 0xc320 size 32;
+    region visible_colors: c64 at 0xc340 size 144;
+    region rom_work: c64 at 0xc3e0 size 0x00c0;
+    region text_operands: c64 at 0xc500 size 0x0100;
+    region workbook: reu at 0x000000 size 0x010000;
+    region file_staging: reu at 0x010000 size 0x010000;
+    region overlay_cache: reu at 0x020000 size 0x010000;
+    image prg {
+        load_addr = 0x0801;
+        entry_addr = 0x080d;
+        basic_stub = true;
+        address_limit = 0xa000;
+    }
+}
+
+export fn main() void {
+    const session: [*]volatile u8 = @ptrFromInt(0xc0f0);
+    const drive: *volatile u8 = @ptrFromInt(0xc0c4);
+    if (ZeroPage.reu.present()) {
+        // Probe distinct banks; a 128 KB REU aliases bank 2 to bank 0.
+        const marker: *volatile u8 = @ptrFromInt(0xc300);
+        marker.* = 0x5a;
+        dma.stash(2, 0, 0xc300, 1);
+        dma.clear(0, 0, 1);
+        dma.fetch(2, 0, 0xc300, 1);
+        if (marker.* == 0x5a) {
+            fp.install();
+            results.reset(0);
+            dma.clear(0, 0xfc40, 16);
+            dma.clear(0, 0xfd00, 768);
+            dma.clear(2, 0x6000, 4);
+            var i: u8 = 0;
+            while (i < 7) {
+                session[i] = 0;
+                i += 1;
+            }
+            const clip: *volatile u8 = @ptrFromInt(0xc0f5);
+            clip.* = 0;
+            drive.* = 8;
+            const key = app.run(0, 2, 1, false);
+        } else {
+            c64.console.print("ZEROPAGE SHEET NEEDS 256 KB REU OR MORE\n", .{});
+        }
+    } else {
+        c64.console.print("ZEROPAGE SHEET NEEDS A REU\n", .{});
+    }
+}

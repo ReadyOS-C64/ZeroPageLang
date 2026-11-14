@@ -775,3 +775,15 @@ index helper in `pending_index_values.zp64`. Its accepted R40 output fails the
 source oracle; R41 passes. Native matrices and independent QA bind exact final
 CLI artifacts, check live caller stack and source effects, and retain the
 conservative cast/direct-field costs. See `AgentWorking/PENDING_INDEX_VALUE_REPAIR.md`.
+
+## Spreadsheet sample
+
+`ZEROPAGE_EMU_FILTER=spreadsheet zig build emu-test` runs the production formula
+engine with separate Peddle fixtures. `zig build spreadsheet` builds the
+standalone disk and the ReadyOS disk when the Precog 0.5 release manifest is
+available. `zig build spreadsheet-vice` rebuilds the disks and runs their
+keyboard and screen plans serially. The gallery requests full VIC-II frames
+using the harness’s `include_border` option. The plans cover decimal and
+currency formatting, native and SimpleCells loads, rejected files, text
+results after edits and reloading, help, and a 1,536-cell forward reference
+chain. The ReadyOS plan also checks app switching and resume.

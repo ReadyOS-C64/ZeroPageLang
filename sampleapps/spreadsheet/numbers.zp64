@@ -1,0 +1,80 @@
+const math = @import("numbers.zp64");
+// Words hold two's complement signed integers. Use unsigned arithmetic in
+// ZeroPage so the C64's wrapping and sign handling are explicit.
+fn negative(value: u16) bool {
+    return value >= 0x8000;
+}
+
+fn abs(value: u16) u16 {
+    if (math.negative(value)) {
+        return 0 - value;
+    }
+    return value;
+}
+
+fn less(a: u16, b: u16) bool {
+    return (a ^ 0x8000) < (b ^ 0x8000);
+}
+
+fn divide(numerator: u16, denominator: u16) u16 {
+    var bits = numerator;
+    var quotient: u16 = 0;
+    var remainder: u16 = 0;
+    var count: u8 = 16;
+    while (count != 0) {
+        count -= 1;
+        remainder = (remainder << 1) | (bits >> 15);
+        bits = bits << 1;
+        quotient = quotient << 1;
+        if (remainder >= denominator) {
+            remainder -= denominator;
+            quotient |= 1;
+        }
+    }
+    return quotient;
+}
+
+fn signedDivide(a: u16, b: u16) u16 {
+    const aa = math.abs(a);
+    const bb = math.abs(b);
+    const magnitude = math.divide(aa, bb);
+    const a_negative = math.negative(a);
+    const b_negative = math.negative(b);
+    if (a_negative != b_negative) {
+        return 0 - magnitude;
+    }
+    return magnitude;
+}
+
+fn mean(high: u16, low: u16, count: u16) u16 {
+    var upper = high;
+    var lower = low;
+    const sign = math.negative(upper);
+    if (sign) {
+        upper = ~upper;
+        lower = 0 - lower;
+        if (lower == 0) {
+            upper += 1;
+        }
+    }
+    // The magnitude of an average always fits 16 bits, so the upper
+    // half of the dividend is the initial remainder.
+    var quotient: u16 = 0;
+    var rounds: u8 = 16;
+    while (rounds != 0) {
+        rounds -= 1;
+        upper = (upper << 1) | (lower >> 15);
+        lower = lower << 1;
+        quotient = quotient << 1;
+        if (upper >= count) {
+            upper -= count;
+            quotient |= 1;
+        }
+    }
+    const remainder: *volatile u16 = @ptrFromInt(0xc188);
+    remainder.* = upper;
+    if (sign) {
+        return 0 - quotient;
+    }
+    return quotient;
+}

@@ -1,0 +1,158 @@
+const overlays = @import("overlays.zp64");
+const dma = @import("dma.zp64");
+const c64 = @import("c64");
+
+const file_name = c64.string.ascii("ZSFILE,P,R");
+const edit_name = c64.string.ascii("EDIT");
+const help_name = c64.string.ascii("HELP");
+
+// Fixed-address micros share $A000–$BEFF (execution) and a host-owned bank
+// (inactive images). Payloads distributed on disk are padded to the window size.
+fn prepare(cache: u8, kind: u8) bool {
+    const meta: [*]volatile u8 = @ptrFromInt(0xc080);
+    const off = @as(u16, kind) << 13;
+    const marker = @as(u16, kind) + 0x6000;
+    dma.fetch(cache, marker, 0xc080, 1);
+    if (meta[0] != 0x3b) {
+        // OPEN and consume the two-byte PRG header with CHRIN. Only the
+        // first load goes through disk. No unbounded KERNAL LOAD to RAM.
+        var ok: bool = false;
+        asm {
+            ldx #9
+        copy_name:
+            lda @overlays_file_name.data,x
+            sta $c280,x
+            dex
+            bpl copy_name
+            lda @kind
+            beq open_file
+            ldx #3
+            cmp #1
+            beq copy_help
+        copy_edit:
+            lda @overlays_edit_name.data,x
+            sta $c282,x
+            dex
+            bpl copy_edit
+            bmi open_file
+        copy_help:
+            lda @overlays_help_name.data,x
+            sta $c282,x
+            dex
+            bpl copy_help
+        open_file:
+            lda #$03
+            ldx #$08
+            ldy #$03
+            jsr $ffba
+            lda #$0a
+            ldx #$80
+            ldy #$c2
+            jsr $ffbd
+            jsr $ffc0
+            bcs done
+            ldx #$03
+            jsr $ffc6
+            bcs done
+            jsr $ffcf
+            cmp #$00
+            bne done
+            jsr $ffcf
+            cmp #$a0
+            bne done
+            jsr $ffb7
+            bne done
+            lda #$01
+            sta @ok
+done:
+        }
+        if (ok) {
+            ok = overlays.readCode();
+        }
+        asm {
+            jsr $ffcc
+            lda #$03
+            jsr $ffc3
+            jsr $ffcc
+        }
+        if (!ok) {
+            return false;
+        }
+        dma.stash(cache, off, 0xa000, 0x1f00);
+        meta[0] = 0x3b;
+        dma.stash(cache, marker, 0xc080, 1);
+    } else {
+        dma.fetch(cache, off, 0xa000, 0x1f00);
+    }
+    return true;
+}
+
+fn readCode() bool {
+    // The KERNAL may change registers and pointers during CHRIN.
+    // Keep the destination in the filename scratch after OPEN.
+    var ok: bool = false;
+    asm {
+        lda #0
+        sta $c281
+        lda #$a0
+        sta $c280
+    next:
+        jsr $ffcf
+        sta $c282
+        lda $c281
+        sta $fb
+        lda $c280
+        sta $fc
+        ldy #0
+        lda $c282
+        sta ($fb),y
+        inc $c281
+        bne check
+        inc $c280
+        lda $c280
+        cmp #$bf
+        beq final_byte
+    check:
+        lda $90
+        beq next
+        jmp done
+    final_byte:
+        lda $90
+        cmp #$40
+        bne done
+        lda #1
+        sta @ok
+    done:
+    }
+    return ok;
+}
+
+fn call(cache: u8, kind: u8) bool {
+    var port: u8 = 0;
+    // Keep KERNAL and I/O visible while exposing RAM beneath BASIC.
+    asm {
+        lda $01
+        sta @port
+        and #$fe
+        sta $01
+    }
+    const current: *volatile u8 = @ptrFromInt(0xc0cf);
+    var ok = true;
+    if (current.* != kind) {
+        current.* = 255;
+        ok = overlays.prepare(cache, kind);
+        if (ok) {
+            current.* = kind;
+        }
+    }
+    if (ok) {
+        asm {
+            jsr $a000
+        }
+    }
+    asm {
+        lda @port
+        sta $01
+    }
+    return ok;
+}

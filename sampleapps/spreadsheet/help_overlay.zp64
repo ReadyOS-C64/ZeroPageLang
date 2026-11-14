@@ -1,0 +1,40 @@
+const format = @import("format_ui.zp64");
+const store = @import("store.zp64");
+const colors = @import("colors.zp64");
+const color_ui = @import("color_ui.zp64");
+const help = @import("help_ui.zp64");
+const dma = @import("dma.zp64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+const directory = @import("directory.zp64");
+const c64 = @import("c64");
+
+memory {
+    image prg {
+        load_addr = 0xa000;
+        entry_addr = 0xa000;
+        basic_stub = false;
+        address_limit = 0xbf00;
+    }
+}
+
+export fn main() void {
+    const bank: *volatile u8 = @ptrFromInt(0xc0c0);
+    const column: *volatile u8 = @ptrFromInt(0xc0c1);
+    const command: *volatile u8 = @ptrFromInt(0xc0c2);
+    const result: *volatile u8 = @ptrFromInt(0xc0c3);
+    const cache_bank: *volatile u8 = @ptrFromInt(0xc0c7);
+    const cache = cache_bank.*;
+    if (command.* == 2) {
+        result.* = 0;
+        format.menu(bank.*, column.*);
+        if (result.* == 10) {
+            result.* = color_ui.menu(bank.*);
+        }
+    } else if (command.* == 3) {
+        result.* = directory.browse();
+    } else if (help.content(cache)) {
+        help.browse(cache);
+        result.* = 1;
+    }
+}

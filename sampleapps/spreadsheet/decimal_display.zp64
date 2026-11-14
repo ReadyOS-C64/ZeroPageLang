@@ -1,0 +1,208 @@
+// Format BASIC's terminated FOUT string at $c200 into $c220 (at most 12
+// screen characters). Return zero when the rounded value cannot fit.
+// The decimal point index is biased by 40 for FOUT's signed exponent.
+fn fixed(width: u8, places: u8, currency: bool) u8 {
+    var size: u8 = 0;
+    asm {
+        ldy #0
+        sty $c240       ; sign
+        sty $c241       ; decimal point seen
+        ldx #40
+        stx $c242       ; decimal point position
+        ldx #0
+        lda $c200
+        cmp #$2d
+        bne leading_space
+        inc $c240
+        bne next_input
+    leading_space:
+        cmp #$20
+        bne parse
+    next_input:
+        iny
+    parse:
+        lda $c200,y
+        beq render
+        cmp #$45
+        beq scientific
+        cmp #$2e
+        bne digit
+        inc $c241
+        bne next_input
+    digit:
+        sta $c230,x
+        inx
+        lda $c241
+        bne next_input
+        inc $c242
+        bne next_input
+    scientific:
+        stx $c243
+        lda $c202,y
+        and #$0f
+        asl
+        sta $c241
+        asl
+        asl
+        clc
+        adc $c241
+        clc
+        adc $c203,y
+        sec
+        sbc #$30
+        tax
+        lda $c201,y
+        cmp #$2d
+        beq negative_exponent
+        txa
+        jmp add_exponent
+    negative_exponent:
+        txa
+        eor #$ff
+        clc
+        adc #1
+    add_exponent:
+        clc
+        adc $c242
+        sta $c242
+        ldx $c243
+    render:
+        stx $c243       ; digit count
+        lda $c242
+        clc
+        adc @places
+        sta $c244       ; one past the last displayed digit
+        lda $c242
+        cmp #41
+        bcc leading_zero
+        lda #41
+    leading_zero:
+        tax
+        dex
+        ldy #1         ; reserve a leading slot for rounding carry
+        lda #$30
+        sta $c220
+        sta $c245      ; OR of all displayed digits
+    render_next:
+        cpy @width
+        bcc fits
+        beq fits
+        jmp done
+    fits:
+        cpx $c242
+        bne render_digit
+        lda #$2e
+        sta $c220,y
+        iny
+    render_digit:
+        txa
+        sec
+        sbc #40
+        bcc zero_digit
+        cmp $c243
+        bcs zero_digit
+        stx $c247
+        tax
+        lda $c230,x
+        ldx $c247
+        jmp store_digit
+    zero_digit:
+        lda #$30
+    store_digit:
+        sta $c220,y
+        ora $c245
+        sta $c245
+        inx
+        iny
+        cpx $c244
+        bcc render_next
+        txa
+        sec
+        sbc #40
+        bcc prefix
+        cmp $c243
+        bcs prefix
+        tax
+        lda $c230,x
+        cmp #$35
+        bcc prefix
+        inc $c245
+        tya
+        tax
+    round_next:
+        dex
+        lda $c220,x
+        cmp #$2e
+        beq round_next
+        cmp #$39
+        bne round_digit
+        lda #$30
+        sta $c220,x
+        jmp round_next
+    round_digit:
+        inc $c220,x
+    prefix:
+        lda $c245
+        cmp #$30
+        bne has_value
+        sta $c240     ; remaining sign tests use bit zero
+    has_value:
+        lda $c240
+        and #1
+        clc
+        adc @currency
+        sta $c246
+        ldx #0
+        lda $c220
+        cmp #$31
+        beq start_found
+        inx
+    start_found:
+        stx $c241
+        tya
+        sec
+        sbc $c241
+        clc
+        adc $c246
+        cmp @width
+        bcc store_size
+        bne done
+    store_size:
+        sta @size
+        lda $c246
+        cmp $c241
+        beq write_prefix
+        bcc shift_left
+        ldx @size
+    shift_right:
+        dey
+        dex
+        lda $c220,y
+        sta $c220,x
+        cpx $c246
+        bne shift_right
+        beq write_prefix
+    shift_left:
+        ldx #0
+    move_digit:
+        lda $c221,x
+        sta $c220,x
+        inx
+        cpx @size
+        bne move_digit
+    write_prefix:
+        lda $c240
+        lsr
+        bcc write_currency
+        lda #$2d
+        sta $c220
+    write_currency:
+        lda @currency
+        beq done
+        ldx $c246
+        lda #$24
+        sta $c21f,x
+    done:
+    }
+    return size;
+}

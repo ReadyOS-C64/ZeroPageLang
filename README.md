@@ -60,6 +60,10 @@ You should see `HELLO FROM ZEROPAGE` and a green border. Alongside the PRG, `com
 
 Autostart a disk in VICE to run its first program. On a C64, load a named program with `LOAD "HELLO",8`, then enter `RUN`. [Disk sources and rebuild instructions](docs/sample-disks.md)
 
+## ZeroPage Sheet
+
+The spreadsheet sample runs standalone and inside ReadyOS Precog. Follow one cell edit through REU-backed formulas, shared execution windows, and a saved workbook. [Illustrated tutorial](https://readyos-c64.github.io/ZeroPageLang/tutorial-spreadsheet.html) · [Architecture](docs/spreadsheet-showcase.md) · [Sample app](sampleapps/spreadsheet/)
+
 ## Explore and test
 
 The small demos show individual features. Tic-Tac-Toe shows how keyboard input, screen drawing, and game state fit together. [Small demos](examples/small/) · [Tic-Tac-Toe](sampleapps/tictactoe/tictactoe_idiomatic.zp64)

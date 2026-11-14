@@ -12,6 +12,18 @@ This proves that ReadyOS TUI and keypress micro-modules do not need to be linked
 
 The current sample deliberately performs a cold initialization whenever ReadyOS enters `$1000`. ReadyOS restores the cached application image, but the sample then starts a fresh game. Preserving a live game requires the lifecycle entry design below.
 
+## ZeroPage Sheet
+
+The spreadsheet uses a raw PRG at `$1000` and preserves its workbook and
+session across app switches. Its app-side adapter claims three ReadyOS
+schema-5 resources for live data, staging, and cached code and help.
+Three fixed-address PRG overlays share C64 RAM under BASIC ROM, while
+the grid and evaluator stay resident. This sample's adapter is part of
+the application. The compiler-level host adapter below remains a
+separate design.
+[Spreadsheet architecture](spreadsheet-showcase.md) ·
+[Hosted entry point](../sampleapps/spreadsheet/readyos.zp64)
+
 ## Entry points and segmented images
 
 ZeroPage already treats PRG load address and executable entry address independently. ReadyOS currently has one fixed application entry, `$1000`, so a hosted application should retain a tiny, stable trampoline there and allow the actual resident body to start elsewhere.

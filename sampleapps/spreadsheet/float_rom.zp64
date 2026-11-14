@@ -1,0 +1,248 @@
+// Resident bridge to the C64 BASIC 5-byte float routines. The overlay
+// window beneath BASIC stays out of the call path. FAC and CHRGET use
+// BASIC zero page, so preserve the caller's bytes around every ROM call.
+const fp = @import("float_rom.zp64");
+const c64 = @import("c64");
+
+// $c400 saves the hardware stack position and jumps to the ROM routine.
+// BASIC error vector $0300 targets $c407, which discards only the ROM
+// frames and returns to the wrapper with an error flag.
+const trampoline = c64.string.ascii("\xba\x8e\xfc\xc3\x6c\xfa\xc3\xae\xfc\xc3\x9a\xa9\x01\x8d\xfd\xc3\x60");
+
+fn install() void {
+    asm {
+        ldx #16
+    copy:
+        lda @fp_trampoline.data,x
+        sta $c400,x
+        dex
+        bpl copy
+    }
+}
+
+// Dispatch input: A/X/Y at $c3f7–$c3f9, ROM address at $c3fa.
+// Output: A/Y, and $c3fd set to one if BASIC signalled an error.
+// Values: left/result at $c3e0, right at $c3e5. A zero exponent is
+// BASIC's zero. Input for FIN is a terminated string at $c200.
+fn call(mode: u8) bool {
+    asm {
+        ldx #$8d
+    save_zp:
+        lda $02,x
+        sta $c410,x
+        dex
+        bpl save_zp
+        lda $01
+        sta $c3f4
+        ora #$03
+        sta $01
+        lda $0300
+        sta $c3f5
+        lda $0301
+        sta $c3f6
+        lda #$07
+        sta $0300
+        lda #$c4
+        sta $0301
+        lda #$00
+        sta $c3fd
+        cld
+        lda @mode
+        cmp #$01
+        bne loaded_fac
+        lda #$00
+        sta $7a
+        lda #$c2
+        sta $7b
+        jmp invoke
+    loaded_fac:
+        cmp #$02
+        bcc invoke
+        ldy #$c3
+        lda #$e0
+        ldx @mode
+        cpx #$03
+        bne load_fac
+        lda #$e5
+    load_fac:
+        jsr $bba2
+    invoke:
+        ldx $c3f8
+        ldy $c3f9
+        lda $c3f7
+        ; FIN expects the digit flag from CHRGET on entry. Other ROM
+        ; routines in this bridge do not use the incoming carry.
+        cmp #$30
+        bcs digit_test
+        sec
+        bcs dispatch
+    digit_test:
+        cmp #$3a
+    dispatch:
+        jsr $c400
+        sta $c3f7
+        sty $c3f9
+        lda $c3fd
+        bne restore
+        lda @mode
+        cmp #$04
+        bcs restore
+        ldx #$e0
+        ldy #$c3
+        jsr $bbd4
+    restore:
+        lda $c3f5
+        sta $0300
+        lda $c3f6
+        sta $0301
+        lda $c3f4
+        sta $01
+        ldx #$8d
+    restore_zp:
+        lda $c410,x
+        sta $02,x
+        dex
+        bpl restore_zp
+    }
+    const error_flag: *volatile u8 = @ptrFromInt(0xc3fd);
+    return error_flag.* == 0;
+}
+
+fn parse(start: u8, end: u8) bool {
+    asm {
+        ldx @start
+        ldy #0
+    next:
+        cpx @end
+        beq terminate
+        lda $c000,x
+        and #$7f
+        sta $c200,y
+        inx
+        iny
+        bne next
+    terminate:
+        lda #0
+        sta $c200,y
+        lda $c200
+        sta $c3f7
+        lda #$f3
+        sta $c3fa
+        lda #$bc
+        sta $c3fb
+    }
+    return fp.call(1);
+}
+
+fn integer(high: u8, low: u8) bool {
+    asm {
+        lda @high
+        sta $c3f7
+        lda @low
+        sta $c3f9
+        lda #$91
+        sta $c3fa
+        lda #$b3
+        sta $c3fb
+    }
+    return fp.call(0);
+}
+
+fn binary(op: u8) bool {
+    var mode: u8 = 2;
+    asm {
+        lda #$c3
+        sta $c3f9
+        ldy #$e5
+        lda @op
+        cmp #$2b
+        beq add
+        cmp #$2a
+        beq multiply
+        inc @mode
+        ldy #$e0
+        cmp #$2d
+        beq subtract
+        lda $c3e5
+        bne divide
+        sta @mode
+        beq done
+    divide:
+        lda #$0f
+        ldx #$bb
+        bne call
+    subtract:
+        lda #$50
+        bne common
+    multiply:
+        lda #$28
+        ldx #$ba
+        bne call
+    add:
+        lda #$67
+    common:
+        ldx #$b8
+    call:
+        sty $c3f7
+        sta $c3fa
+        stx $c3fb
+    done:
+    }
+    return mode != 0 and fp.call(mode);
+}
+
+// FCOMP returns the sign of FAC minus the packed operand.
+fn compare() u8 {
+    asm {
+        lda #$e5
+        sta $c3f7
+        lda #$c3
+        sta $c3f9
+        lda #$5b
+        sta $c3fa
+        lda #$bc
+        sta $c3fb
+    }
+    if (fp.call(4)) {
+        const result: *volatile u8 = @ptrFromInt(0xc3f7);
+        return result.*;
+    }
+    return 0;
+}
+
+// FOUT returns a pointer to BASIC's formatted string. It remains valid
+// until another ROM operation, so copy it to display scratch immediately.
+fn format() bool {
+    asm {
+        lda #$dd
+        sta $c3fa
+        lda #$bd
+        sta $c3fb
+    }
+    if (!fp.call(4)) {
+        return false;
+    }
+    asm {
+        lda $fb
+        sta $c3f4
+        lda $fc
+        sta $c3f5
+        lda $c3f7
+        sta $fb
+        lda $c3f9
+        sta $fc
+        ldy #0
+    copy:
+        lda ($fb),y
+        sta $c200,y
+        beq done
+        iny
+        bne copy
+    done:
+        lda $c3f4
+        sta $fb
+        lda $c3f5
+        sta $fc
+    }
+    return true;
+}

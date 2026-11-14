@@ -1,0 +1,59 @@
+const test6502 = @import("test6502");
+const display = @import("../../../../../../sampleapps/spreadsheet/decimal_display.zp64");
+
+fn run(start: u8, places: u8, currency: bool, limit: u8) u8 {
+    const text: [*]volatile u8 = @ptrFromInt(0xc200);
+    const sources = [_]u8{
+        '-', '1', '9', '.', '9', '9', '5', 0, 0, 0, 0, 0,
+        ' ', '9', '.', '9', '9', '9', 0, 0, 0, 0, 0, 0,
+        '-', '2', '.', '5', 0, 0, 0, 0, 0, 0, 0, 0,
+        '-', '1', '.', '2', 0x45, '-', '0', '4', 0, 0, 0, 0,
+        ' ', '1', '.', '2', '3', '4', '5', 0x45, '+', '0', '2', 0,
+        ' ', '.', '0', '0', '5', 0, 0, 0, 0, 0, 0, 0,
+        ' ', '1', '.', '2', '5', 0x45, '+', '2', '0', 0, 0, 0,
+    };
+    var i: u8 = 0;
+    while (i < 12) {
+        text[i] = sources[start + i];
+        i += 1;
+    }
+    return display.fixed(limit, places, currency);
+}
+
+fn matches(start: u8, size: u8) bool {
+    const text: [*]volatile u8 = @ptrFromInt(0xc220);
+    const expected = [_]u8{
+        '-', '$', '2', '0', '.', '0', '0',
+        '1', '0', '.', '0', '0', 0, 0,
+        '-', '3', 0, 0, 0, 0, 0,
+        '$', '0', '.', '0', '0', 0, 0,
+        '1', '2', '3', '.', '4', '5', 0,
+        '0', '.', '0', '1', 0, 0, 0,
+    };
+    var i: u8 = 0;
+    while (i < size) {
+        if (text[i] != expected[start + i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 7, run(0, 2, true, 7));
+    test6502.expectEqualBool(2, true, matches(0, 7));
+    test6502.expectEqualU8(3, 5, run(12, 2, false, 5));
+    test6502.expectEqualBool(4, true, matches(7, 5));
+    test6502.expectEqualU8(5, 2, run(24, 0, false, 4));
+    test6502.expectEqualBool(6, true, matches(14, 2));
+    test6502.expectEqualU8(7, 5, run(36, 2, true, 5));
+    test6502.expectEqualBool(8, true, matches(21, 5));
+    test6502.expectEqualU8(9, 6, run(48, 2, false, 6));
+    test6502.expectEqualBool(10, true, matches(28, 6));
+    test6502.expectEqualU8(11, 4, run(60, 2, false, 4));
+    test6502.expectEqualBool(12, true, matches(35, 4));
+    test6502.expectEqualU8(13, 0, run(72, 2, true, 12));
+    test6502.expectEqualU8(14, 0, run(0, 2, true, 6));
+    test6502.pass();
+}

@@ -1,0 +1,315 @@
+const app = @import("application.zp64");
+const c64 = @import("c64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+const grid = @import("grid.zp64");
+const calc = @import("calculate.zp64");
+const store = @import("store.zp64");
+const edit_ui = @import("edit_ui.zp64");
+const overlays = @import("overlays.zp64");
+const dma = @import("dma.zp64");
+
+fn status(state: u8) void {
+    paint.span(920, 40, 32, 15);
+    asm {
+        ldx @state
+        lda @app_status_offsets.data,x
+        tay
+        lda @app_status_offsets.data+1,x
+        sta $fb
+        ldx #0
+    loop:
+        lda @app_status_text.data,y
+        cmp #$61
+        bcc screen_code
+        sbc #$60
+    screen_code:
+        sta $0798,x
+        inx
+        iny
+        cpy $fb
+        bne loop
+    }
+}
+
+fn confirmLoad() bool {
+    tui.rect(7, 9, 26, 6);
+    app.confirm();
+    tui.ink(375, 7, 7);
+    app.discard_edits();
+    app.yes_no();
+    while (true) {
+        const key = c64.keyboard.readPetscii();
+        if (key == 0x59 or key == 217) {
+            return true;
+        }
+        if (key == 0x4e or key == 206 or key == 3 or key == 95) {
+            return false;
+        }
+    }
+    return false;
+}
+
+fn file(bank: u8, cache: u8, staging: u8, save: u8) u8 {
+    const response: *volatile u8 = @ptrFromInt(0xc0c3);
+    asm {
+        lda @bank
+        sta $c0c0
+        lda @staging
+        sta $c0c1
+        lda @save
+        sta $c0c2
+    }
+    if (!overlays.call(cache, if (save == 2) 1 else 0)) {
+        return 6;
+    }
+    if (response.* == 9) {
+        if (!overlays.call(cache, 1)) {
+            return 6;
+        }
+        if (response.* != 1) {
+            return response.*;
+        }
+        if (!overlays.call(cache, 0)) {
+            return 6;
+        }
+    }
+    if (response.* != 1) {
+        return response.*;
+    }
+    if (save != 0) {
+        return 1;
+    }
+    store.invalidate(bank);
+    return 3;
+}
+
+fn edit(bank: u8, cache: u8, id: u16, op: u8) u8 {
+    const result: *volatile u8 = @ptrFromInt(0xc0c3);
+    asm {
+        lda @bank
+        sta $c0c0
+        lda @op
+        sta $c0c1
+        lda app_edit_id
+        sta $c0c8
+        lda app_edit_id+1
+        sta $c0c9
+    }
+    if (op < 2) {
+        edit_ui.beginEdit(bank, id, op != 0);
+    }
+    if (!overlays.call(cache, 2)) {
+        return 6;
+    }
+    return result.*;
+}
+
+fn run(bank: u8, cache: u8, staging: u8, ready: bool) u8 {
+    const session: [*]volatile u8 = @ptrFromInt(0xc0f0);
+    const app_bank = bank;
+    var view = View{ .row = 0, .col = 0, .top = 0, .left = 0, .dirty = false };
+    asm {
+        ldx #4
+    copy:
+        lda $c0f0,x
+        sta app_run_view,x
+        dex
+        bpl copy
+    }
+    session[6] = if (session[6] == 9) 9 else 6;
+    dma.fetch(app_bank, 0xfc40, 0xc310, 16);
+    asm {
+        lda #255
+        sta $c0cf
+        lda app_run_cache
+        sta $c0ef
+    }
+    tui.init();
+    grid.chrome();
+    grid.draw(app_bank, &view);
+    app.status(0);
+    while (true) {
+        const key = c64.keyboard.readPetscii();
+        const id = grid.id(view.row, view.col);
+        if (key == c64.key.cursor_up or key == c64.key.cursor_down or
+            key == c64.key.cursor_left or key == c64.key.cursor_right) {
+            grid.move(app_bank, &view, key);
+        } else if (key == 13 or key == 134) {
+            const edited = app.edit(app_bank, cache, id, if (key == 134) 1 else 0);
+            if (edited == 1) {
+                view.dirty = true;
+            }
+            grid.draw(app_bank, &view);
+            app.status(if (edited == 6) 6 else 0);
+        } else if (key == 20) {
+            edit_ui.erase(app_bank, id);
+            view.dirty = true;
+            grid.draw(app_bank, &view);
+            app.status(0);
+        } else if (key == 0x43 or key == 195) {
+            edit_ui.copy(app_bank, id);
+            app.status(4);
+        } else if (key == 0x56 or key == 214 or key == 0x44 or key == 196) {
+            const paste = key == 0x56 or key == 214;
+            const placed = app.edit(app_bank, cache, id, if (paste) 2 else 3);
+            if (placed == 1) {
+                view.dirty = true;
+                grid.draw(app_bank, &view);
+                app.status(0);
+            } else {
+                app.status(if (placed == 6) 6 else 7);
+            }
+        } else if (key == 139) {
+            grid.toggle(app_bank, &view);
+        } else if (key == 133) {
+            store.invalidate(app_bank);
+            calc.recalculate(app_bank);
+            grid.draw(app_bank, &view);
+            app.status(5);
+        } else if (key == 135 or key == 136 or (key & 127) == 70) {
+            var result: u8 = 0;
+            if (key != 136 or !view.dirty or app.confirmLoad()) {
+                const save: u8 = if (key == 135) 1 else 0;
+                app.saveView(&view);
+                if (key == 135 or key == 136) {
+                    result = app.file(app_bank, cache, staging, save);
+                    if (result == 3) {
+                        app.loadView(&view);
+                    }
+                } else {
+                    result = app.file(app_bank, cache, view.col, 2);
+                }
+            }
+            if (result == 8) {
+                view.dirty = true;
+                result = 0;
+            } else if (result == 1 or result == 3) {
+                view.dirty = false;
+            }
+            grid.draw(app_bank, &view);
+            app.status(result);
+        } else if (key == 140) {
+            const help_result: *volatile u8 = @ptrFromInt(0xc0c3);
+            asm {
+                lda app_run_cache
+                sta $c0c7
+                lda #0
+                sta $c0c2
+                sta $c0c3
+            }
+            const help_ok = overlays.call(cache, 1);
+            grid.draw(app_bank, &view);
+            if (help_ok and help_result.* == 1) {
+                app.status(0);
+            } else {
+                app.status(6);
+            }
+        } else if ((ready and (key == 2 or key == 137 or key == 138)) or key == 3) {
+            asm {
+                ldx #4
+            copy:
+                lda app_run_view,x
+                sta $c0f0,x
+                dex
+                bpl copy
+            }
+            return key;
+        }
+    }
+    return 0;
+}
+
+// The file overlay only updates the view mailbox after validating the stream.
+fn saveView(view: *View) void {
+    asm {
+        lda app_saveView_view
+        sta $fb
+        lda app_saveView_view+1
+        sta $fc
+        ldy #3
+    copy:
+        lda ($fb),y
+        sta $c0ca,y
+        dey
+        bpl copy
+        lda $c0f6
+        sta $c0ce
+    }
+}
+
+fn loadView(view: *View) void {
+    asm {
+        lda app_loadView_view
+        sta $fb
+        lda app_loadView_view+1
+        sta $fc
+        ldy #3
+    copy:
+        lda $c0ca,y
+        sta ($fb),y
+        dey
+        bpl copy
+        lda $c0ce
+        sta $c0f6
+    }
+}
+
+// Confirm
+const confirm_text = c64.string.ascii("\x43\x6f\x6e\x66\x69\x72\x6d");
+// Discard unsaved edits?
+const discard_edits_text = c64.string.ascii("\x44\x69\x73\x63\x61\x72\x64\x20\x75\x6e\x73\x61\x76\x65\x64\x20\x65\x64\x69\x74\x73\x3f");
+// y: yes  n: no
+const yes_no_text = c64.string.ascii("\x79\x3a\x20\x79\x65\x73\x20\x20\x6e\x3a\x20\x6e\x6f");
+
+fn confirm() void {
+    asm {
+        ldx #6
+    loop:
+        lda @app_confirm_text.data,x
+        cpx #0
+        beq glyph
+        cmp #$61
+        bcc glyph
+        sbc #$60
+    glyph:
+        sta $0577,x
+        dex
+        bpl loop
+    }
+}
+
+fn discard_edits() void {
+    asm {
+        ldx #21
+    loop:
+        lda @app_discard_edits_text.data,x
+        cpx #0
+        beq glyph
+        cmp #$61
+        bcc glyph
+        sbc #$60
+    glyph:
+        sta $05c1,x
+        dex
+        bpl loop
+    }
+}
+
+fn yes_no() void {
+    asm {
+        ldx #12
+    loop:
+        lda @app_yes_no_text.data,x
+        cmp #$61
+        bcc glyph
+        sbc #$60
+    glyph:
+        sta $0611,x
+        dex
+        bpl loop
+    }
+}
+
+const status_offsets = c64.string.ascii("\x00\x27\x35\x51\x60\x6b\x7d\x9f\xba");
+const status_text = c64.string.ascii("arrows move  c copy  v paste  f format workbook savedfile error - sheet unchangedworkbook loadedcell copiedsheet recalculatedcold module unavailable on drive 8paste/fill - no cells edits");

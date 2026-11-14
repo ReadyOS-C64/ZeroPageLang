@@ -1,0 +1,346 @@
+// Input record is a length byte and 31 PETSCII bytes. Parser state and
+// token output share one workspace; this parser never calls itself.
+// Use numeric ASCII/PETSCII capitals: ZeroPage chars are screen-coded.
+const lex = @import("lex.zp64");
+
+fn seek(pos: u8) void {
+    asm {
+        lda @pos
+        sta $c040
+    }
+}
+
+fn position() u8 {
+    const scan: *volatile u8 = @ptrFromInt(0xc040);
+    return scan.*;
+}
+
+fn peek() u8 {
+    var ch: u8 = 0;
+    asm {
+        ldx $c040
+        cpx $c000
+        beq read
+        bcs done
+    read:
+        lda $c000,x
+        cmp #$c1
+        bcc save
+        cmp #$db
+        bcs save
+        and #$7f
+    save:
+        sta @ch
+    done:
+    }
+    return ch;
+}
+
+fn advance() void {
+    asm {
+        inc $c040
+    }
+}
+
+fn space() void {
+    asm {
+        ldx $c040
+    next:
+        cpx $c000
+        beq read
+        bcs done
+    read:
+        lda $c000,x
+        cmp #$20
+        bne done
+        inx
+        bne next
+    done:
+        stx $c040
+    }
+}
+
+fn digit(c: u8) bool {
+    return c >= '0' and c <= '9';
+}
+
+fn alpha(c: u8) bool {
+    return c >= 0x41 and c <= 0x5a;
+}
+
+// Return whether at least one digit was consumed. Keep a malformed
+// exponent outside the token so the formula parser can reject it.
+fn numberToken() bool {
+    const start = lex.position();
+    while (lex.digit(lex.peek())) {
+        lex.advance();
+    }
+    var digits = lex.position() != start;
+    if (lex.peek() == '.') {
+        lex.advance();
+        const fraction = lex.position();
+        while (lex.digit(lex.peek())) {
+            lex.advance();
+        }
+        digits = digits or fraction != lex.position();
+    }
+    if (digits and lex.peek() == 0x45) {
+        const exp = lex.position();
+        lex.advance();
+        if (lex.peek() == '-' or lex.peek() == '+') {
+            lex.advance();
+        }
+        const exp_digits = lex.position();
+        while (lex.digit(lex.peek())) {
+            lex.advance();
+        }
+        if (exp_digits == lex.position()) {
+            lex.seek(exp);
+        }
+    }
+    return digits;
+}
+
+// Sentinel: $ffff for “not a reference”, $fffe for “out of bounds”.
+// A token like A0 is a reference error; SUM is an identifier.
+fn reference() u16 {
+    var low: u8 = 255;
+    var high: u8 = 255;
+    asm {
+        ldx $c040
+        lda #0
+        sta $c044
+        sta $c045
+    prefix:
+        lda $c000,x
+        cmp #$24
+        bne column
+        inc $c044
+        inx
+    column:
+        cpx $c000
+        bcc have_column
+        jmp missing
+    have_column:
+        lda $c000,x
+        and #$7f
+        sec
+        sbc #$41
+        cmp #26
+        bcc known_column
+        jmp missing
+    known_column:
+        sta @low
+        inx
+        lda $c000,x
+        cmp #$24
+        bne row
+        lda $c044
+        ora #2
+        sta $c044
+        inx
+    row:
+        cpx $c000
+        beq digit
+        bcs missing
+    digit:
+        lda $c000,x
+        sec
+        sbc #$30
+        cmp #10
+        bcs missing
+    consume:
+        tay
+        lda $c045
+        cmp #10
+        bcs saturated
+        asl
+        asl
+        adc $c045
+        asl
+        sta $c045
+        tya
+        adc $c045
+        sta $c045
+        jmp advance
+    saturated:
+        lda #100
+        sta $c045
+    advance:
+        inx
+        cpx $c000
+        beq next
+        bcs check
+    next:
+        lda $c000,x
+        sec
+        sbc #$30
+        cmp #10
+        bcc consume
+        lda $c000,x
+        and #$7f
+        sec
+        sbc #$41
+        cmp #26
+        bcc invalid
+    check:
+        stx $c040
+        lda @low
+        cmp #16
+        bcs invalid
+        lda $c045
+        beq invalid
+        cmp #97
+        bcs invalid
+        sec
+        sbc #1
+        tay
+        asl
+        asl
+        asl
+        asl
+        ora @low
+        sta @low
+        tya
+        lsr
+        lsr
+        lsr
+        lsr
+        sta @high
+        jmp done
+    invalid:
+        stx $c040
+        lda #254
+        sta @low
+        jmp done
+    missing:
+        lda #255
+        sta @low
+        ldx $c040
+        txa
+        clc
+        adc #4
+        cmp $c000
+        beq error_token
+        bcs done
+    error_token:
+        lda $c000,x
+        cmp #$23
+        bne done
+        lda $c001,x
+        cmp #$52
+        bne done
+        lda $c002,x
+        cmp #$45
+        bne done
+        lda $c003,x
+        cmp #$46
+        bne done
+        lda $c004,x
+        cmp #$21
+        bne done
+        txa
+        clc
+        adc #5
+        sta $c040
+        dec @low
+    done:
+    }
+    return (@as(u16, high) << 8) | @as(u16, low);
+}
+
+fn integer(limit: u16) u16 {
+    var value: u16 = 0;
+    while (lex.digit(lex.peek())) {
+        const digit_value = @as(u16, lex.peek() - '0');
+        if (value <= 3276) {
+            value = value * 10 + digit_value;
+        }
+        lex.advance();
+    }
+    if (value > limit) {
+        return 0xffff;
+    }
+    return value;
+}
+
+fn rangeEnd() u16 {
+    lex.space();
+    if (lex.peek() != ':') {
+        return 0xffff;
+    }
+    lex.advance();
+    lex.space();
+    const end = lex.reference();
+    if (end >= 1536) {
+        return 0xfffe;
+    }
+    return end;
+}
+
+// Canonical top-left and bottom-right corners of an inclusive rectangle.
+// The caller passes two valid IDs. Store the second corner at $C04C.
+fn rangeBounds(first: u16, last: u16) u16 {
+    var top_left: u16 = 0;
+    asm {
+        lda lex_rangeBounds_first
+        and #15
+        sta $c04e
+        lda lex_rangeBounds_last
+        and #15
+        cmp $c04e
+        bcs cols_ordered
+        ldx $c04e
+        sta $c04e
+        txa
+    cols_ordered:
+        sta $c04f
+        lda lex_rangeBounds_first
+        and #$f0
+        tax
+        lda lex_rangeBounds_last
+        and #$f0
+        tay
+        lda lex_rangeBounds_first+1
+        cmp lex_rangeBounds_last+1
+        bcc rows_ordered
+        bne reverse_rows
+        cpx lex_rangeBounds_last
+        bcc rows_ordered
+    reverse_rows:
+        tya
+        ora $c04e
+        sta lex_rangeBounds_top_left
+        txa
+        ora $c04f
+        sta $c04c
+        lda lex_rangeBounds_last+1
+        sta lex_rangeBounds_top_left+1
+        lda lex_rangeBounds_first+1
+        sta $c04d
+        jmp done
+    rows_ordered:
+        txa
+        ora $c04e
+        sta lex_rangeBounds_top_left
+        tya
+        ora $c04f
+        sta $c04c
+        lda lex_rangeBounds_first+1
+        sta lex_rangeBounds_top_left+1
+        lda lex_rangeBounds_last+1
+        sta $c04d
+    done:
+    }
+    return top_left;
+}
+
+fn rangeNext(id: u16, first: u16, end: u16) u16 {
+    if (id == end) {
+        return 0xffff;
+    }
+    if ((id & 15) == (end & 15)) {
+        return (id & 0xfff0) + 16 + (first & 15);
+    }
+    return id + 1;
+}

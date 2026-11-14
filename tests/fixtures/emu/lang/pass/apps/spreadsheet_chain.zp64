@@ -1,0 +1,55 @@
+const test6502 = @import("test6502");
+const fp = @import("../../../../../../sampleapps/spreadsheet/float_rom.zp64");
+const calc = @import("../../../../../../sampleapps/spreadsheet/calculate.zp64");
+const dma = @import("../../../../../../sampleapps/spreadsheet/dma.zp64");
+const store = @import("../../../../../../sampleapps/spreadsheet/store.zp64");
+const results = @import("../../../../../../sampleapps/spreadsheet/results.zp64");
+const expression = @import("../../../../../../sampleapps/spreadsheet/expression.zp64");
+const lex = @import("../../../../../../sampleapps/spreadsheet/lex.zp64");
+const bytes = @import("../../../../../../sampleapps/spreadsheet/bytes.zp64");
+const math = @import("../../../../../../sampleapps/spreadsheet/numbers.zp64");
+
+export fn main() void {
+    const raw: [*]volatile u8 = @ptrFromInt(0xc000);
+    results.reset(0);
+    // A1 = A2+1, A2 = A3+1, …, A32 = A33+1. Forward references
+    // force one deep walk rather than successively warming each cache entry.
+    var row: u8 = 0;
+    var tens: u8 = 0;
+    var ones: u8 = 2;
+    while (row < 32) {
+        raw[1] = '=';
+        raw[2] = 0x41; // PETSCII A
+        raw[3] = '0' + tens;
+        raw[4] = '0' + ones;
+        raw[5] = '+';
+        raw[6] = '1';
+        raw[0] = 6;
+        store.write(0, @as(u16, row) << 4);
+        row += 1;
+        ones += 1;
+        if (ones == 10) {
+            ones = 0;
+            tens += 1;
+        }
+    }
+    raw[1] = '8';
+    raw[0] = 1;
+    store.write(0, 512);
+    calc.evaluate(0, 0);
+    results.loadResult(0, 0);
+    test6502.expectEqualU8(1, 2, results.state());
+    test6502.expectEqualU16(2, 40, results.value());
+
+    // Verify the opposite corner uses a distinct DMA record.
+    raw[1] = '9';
+    raw[0] = 1;
+
+    store.write(0, 1535);
+    calc.evaluate(0, 1535);
+    results.loadResult(0, 1535);
+    test6502.expectEqualU16(3, 9, results.value());
+    results.loadResult(0, 0);
+    test6502.expectEqualU16(4, 40, results.value());
+    test6502.pass();
+}

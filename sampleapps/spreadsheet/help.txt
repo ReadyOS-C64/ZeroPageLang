@@ -1,0 +1,117 @@
+Quick start
+------------------------------------
+1  index / quick start
+2  formula basics
+3  range functions
+4  editing and movement
+5  workbook files
+6  formula errors
+7  speed and capacity
+8  readyos / standalone
+
+press 1-8 for a topic.
+use left/right to browse.
+return / f8 / run-stop closes help.
+---
+Formula basics
+------------------------------------
+f3 opens the formula editor.
+type a formula with a leading =.
+return accepts. run-stop cancels.
+
+=A1+3      add 3 to cell a1
+=(A1+2)*B5 multiply after addition
+=-A1/3     negate and divide
+=ABS(A1-4) absolute value
+=A1+" #"+B1 join text and numbers
+=IF(A1>=2,1.5,0) choose a value
+=LOOKUP(A1,B2:B8,C2:C8) exact key
+decimals and exponents: .5, 1E-3
+---
+Range functions
+------------------------------------
+=SUM(A1:B8)   total
+=AVG(A1:B8)   average
+=MIN(A1:B8)   smallest number
+=MAX(A1:B8)   largest number
+=COUNT(A1:B8) number of numbers
+=PROD(A1:B8)  product
+=SUM(A1*3)   scalar expression
+
+ranges include their endpoints.
+either corner can come first.
+ranges skip text and blank cells.
+formula errors propagate.
+---
+Editing and movement
+------------------------------------
+arrows scroll. return edits a cell.
+f3 opens the formula editor.
+left/right move. del backspaces.
+return saves. run-stop cancels.
+del on the grid clears the cell.
+c/v copy/paste; d fills down/right.
+$A1 locks column; A$1 locks row.
+$A$1 locks both when copied.
+f1 recalculates. f6 sets auto width.
+f: up/down type, left/right size.
+f3 in format sets cell color.
+formats round the display only.
+---
+Workbook files
+------------------------------------
+f5 saves; f7 loads.
+type a name or f3 to browse.
+f1 switches between drive 8 and 9.
+names use 1-15 letters, digits or -.
+save: return new, f3 replace.
+f7 asks before discarding edits.
+a failed load keeps your workbook.
+opens SimpleCells v2 SEQ files.
+saves the current view in ZPSH.
+arrows select/page, return opens.
+keep the program disk in drive 8
+until all three modules are cached.
+---
+Formula errors
+------------------------------------
+#synt  check the expression
+#ref   check cell or range bounds
+#cycle a cell depends on itself
+#type  operand needs a number
+#div0  division by 0 or empty avg
+#num   numeric overflow
+#n/a   no lookup match
+#long  text result over 14 chars
+
+division and avg keep fractions.
+decimals use BASIC floating point.
+---
+Speed and capacity
+------------------------------------
+1,536 cells and 31 raw bytes each.
+up to 1,536 dependency levels.
+the workbook lives in REU ram.
+calculation caches each result.
+only needed cells are calculated.
+f1 rebuilds the whole result cache.
+
+edit, file and help share a window.
+help caches content as REU pages.
+workbook file buffers live in REU.
+save to disk before a power-off.
+---
+ReadyOS / standalone
+------------------------------------
+ReadyOS:
+f2 / f4 change the loaded app.
+ctrl-b or run-stop goes home.
+the sheet resumes while loaded.
+ReadyOS owns the reu allocations.
+
+standalone:
+run-stop returns to BASIC.
+use a 256 kb or larger reu.
+run again for a fresh sheet.
+
+f8 opens help in either version.

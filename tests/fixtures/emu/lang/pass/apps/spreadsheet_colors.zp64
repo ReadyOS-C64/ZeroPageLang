@@ -1,0 +1,19 @@
+const test6502 = @import("test6502");
+const colors = @import("../../../../../../sampleapps/spreadsheet/colors.zp64");
+const dma = @import("../../../../../../sampleapps/spreadsheet/dma.zp64");
+
+export fn main() void {
+    dma.clear(3, 0xfd00, 768);
+    colors.write(3, 0, 7);
+    colors.write(3, 1, 14);
+    colors.write(3, 1534, 5);
+    colors.write(3, 1535, 2);
+    test6502.expectEqualU8(1, 7, colors.read(3, 0));
+    test6502.expectEqualU8(2, 14, colors.read(3, 1));
+    test6502.expectEqualU8(3, 5, colors.read(3, 1534));
+    test6502.expectEqualU8(4, 2, colors.read(3, 1535));
+    colors.write(3, 1535, 0);
+    test6502.expectEqualU8(5, 0, colors.read(3, 1535));
+    test6502.expectEqualU8(6, 5, colors.read(3, 1534));
+    test6502.pass();
+}

@@ -1,0 +1,158 @@
+const help = @import("help_ui.zp64");
+const c64 = @import("c64");
+const dma = @import("dma.zp64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+
+fn content(cache: u8) bool {
+    const buffer: [*]volatile u8 = @ptrFromInt(0xc100);
+    dma.fetch(cache, 0x6003, 0xc100, 1);
+    if (buffer[0] == 0x37) {
+        return true;
+    }
+    const name: [*]volatile u8 = @ptrFromInt(0xc0d0);
+    name[0] = 0x5a;
+    name[1] = 0x53;
+    name[2] = 0x50;
+    name[3] = 0x41;
+    name[4] = 0x47;
+    name[5] = 0x45;
+    name[6] = 0x53;
+    name[7] = ',';
+    name[8] = 0x53;
+    name[9] = ',';
+    name[10] = 0x52;
+    var ok: bool = false;
+    asm {
+        lda #$03
+        ldx #$08
+        ldy #$03
+        jsr $ffba
+        lda #$0b
+        ldx #$d0
+        ldy #$c0
+        jsr $ffbd
+        jsr $ffc0
+        bcs finish
+        ldx #$03
+        jsr $ffc6
+        bcs finish
+        lda #$01
+        sta @ok
+finish:
+    }
+    if (ok) {
+        ok = help.readPages(cache);
+    }
+    asm {
+        jsr $ffcc
+        lda #$03
+        jsr $ffc3
+        jsr $ffcc
+    }
+    if (ok) {
+        buffer[0] = 0x37;
+        dma.stash(cache, 0x6003, 0xc100, 1);
+    }
+    return ok;
+}
+
+fn readPages(cache: u8) bool {
+    const buffer: [*]volatile u8 = @ptrFromInt(0xc100);
+    var offset: u16 = 0x7000;
+    while (offset < 0x8000) {
+        var i: u8 = 0;
+        while (true) {
+            var byte: u8 = 0;
+            var status: u8 = 0;
+            asm {
+                jsr $ffcf
+                sta @byte
+                jsr $ffb7
+                sta @status
+            }
+            if (offset == 0x7f00 and i == 255) {
+                if (status != 0x40) {
+                    return false;
+                }
+            } else if (status != 0) {
+                return false;
+            }
+            buffer[i] = byte;
+            if (i == 255) {
+                break;
+            }
+            i += 1;
+        }
+        dma.stash(cache, offset, 0xc100, 256);
+        offset += 256;
+    }
+    return true;
+}
+
+fn page(cache: u8, topic: u8) void {
+    // Assemble only this one page into C64 RAM, then draw its 36x14 body.
+    dma.fetch(cache, 0x7000 + (@as(u16, topic) << 9), 0xc100, 512);
+    const buffer: [*]volatile u8 = @ptrFromInt(0xc100);
+    var offset: u16 = 243;
+    var i: u16 = 0;
+    while (i < 504) {
+        var col: u8 = 0;
+        while (col < 36) {
+            const color: u8 = if (i < 36) 7 else 1;
+            paint.put(offset + @as(u16, col), buffer[i], color);
+            i += 1;
+            col += 1;
+        }
+        offset += 40;
+    }
+    paint.put(809, '1' + topic, 3);
+}
+
+fn browse(cache: u8) void {
+    tui.rect(1, 4, 38, 18);
+    help.help_title();
+    tui.ink(174, 10, 7);
+    help.help_commands();
+    tui.ink(803, 34, 15);
+    var topic: u8 = 0;
+    help.page(cache, topic);
+    while (true) {
+        const key = c64.keyboard.readPetscii();
+        const previous = topic;
+        if (key == 13 or key == 3 or key == 95 or key == 140) {
+            break;
+        }
+        if (key >= '1' and key <= '8') {
+            topic = key - '1';
+        } else if (key == c64.key.cursor_left) {
+            topic = (topic + 7) & 7;
+        } else if (key == c64.key.cursor_right) {
+            topic = (topic + 1) & 7;
+        }
+        if (topic != previous) {
+            help.page(cache, topic);
+        }
+    }
+}
+
+// Sheet help
+const help_title_text = [_]u8{ 0x53, 'h', 'e', 'e', 't', ' ', 'h', 'e', 'l', 'p' };
+// topic 0/8    1-8 / arrows / return
+const help_commands_text = [_]u8{ 't', 'o', 'p', 'i', 'c', ' ', '0', '/', '8', ' ', ' ', ' ', ' ', '1', '-', '8', ' ', '/', ' ', 'a', 'r', 'r', 'o', 'w', 's', ' ', '/', ' ', 'r', 'e', 't', 'u', 'r', 'n' };
+
+fn help_title() void {
+    var i: u8 = 0;
+    while (i < 10) {
+        paint.put(174 + @as(u16, i), help.help_title_text[i], 1);
+        i += 1;
+    }
+}
+
+fn help_commands() void {
+    var i: u8 = 0;
+    while (i < 34) {
+        paint.put(803 + @as(u16, i), help.help_commands_text[i], 1);
+        i += 1;
+    }
+}

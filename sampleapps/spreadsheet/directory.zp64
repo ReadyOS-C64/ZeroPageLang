@@ -1,0 +1,348 @@
+const directory = @import("directory.zp64");
+const c64 = @import("c64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+
+const request = c64.string.ascii("$");
+const title = c64.string.ascii("Browse workbooks");
+const commands = c64.string.ascii("arrows select/page  ret open");
+const drive_hint = c64.string.ascii("f1 drive   stop cancel");
+const empty = c64.string.ascii("no sequential files");
+const help_asset = c64.string.ascii("ZSPAGES");
+
+// Read eight names, plus a ninth to detect the next page. BASIC directory
+// lines have two link bytes, a block count, and zero-terminated PETSCII.
+fn readPage(skip: u16) u8 {
+    var count: u8 = 0;
+    var length: u8 = 0;
+    var first: u8 = 1;
+    var slot: u8 = 0;
+    var valid: u8 = 0;
+    asm {
+        lda #4
+        ldx $c0c4
+        ldy #0
+        jsr $ffba
+        lda #1
+        ldx #<@directory_request.data
+        ldy #>@directory_request.data
+        jsr $ffbd
+        jsr $ffc0
+        bcc select_channel
+        jmp done
+    select_channel:
+        ldx #4
+        jsr $ffc6
+        bcc directory_header
+        jmp done
+    directory_header:
+        jsr $ffcf
+        jsr $ffcf
+    line:
+        jsr $ffcf
+        sta $c290
+        jsr $ffcf
+        ora $c290
+        bne blocks
+        jmp done
+    blocks:
+        jsr $ffcf
+        jsr $ffcf
+        lda #0
+        sta @length
+        sta @valid
+    opening:
+        jsr $ffcf
+        ldx $90
+        bne early_exit
+        cmp #0
+        bne opening_byte
+        jmp next
+    opening_byte:
+        cmp #$22
+        bne opening
+    filename:
+        jsr $ffcf
+        ldx $90
+        bne early_exit
+        cmp #0
+        bne filename_byte
+        jmp next
+    filename_byte:
+        cmp #$22
+        beq suffix
+        sta $c291
+        ldx @length
+        cpx #16
+        bcs filename
+        ; Keep DOS delimiters and wildcard characters out of literal opens.
+        cmp #$24
+        beq bad_name
+        cmp #$2a
+        beq bad_name
+        cmp #$2c
+        beq bad_name
+        cmp #$3a
+        beq bad_name
+        cmp #$3f
+        bne keep
+    bad_name:
+        inc @valid
+    keep:
+        txa
+        clc
+        adc @slot
+        tax
+        lda $c291
+        sta $c100,x
+        inc @length
+        jmp filename
+    early_exit:
+        jmp done
+    suffix:
+        jsr $ffcf
+        ldx $90
+        bne early_exit
+        cmp #0
+        bne suffix_byte_1
+        jmp next
+    suffix_byte_1:
+        cmp #$20
+        beq suffix
+        cmp #$a0
+        beq suffix
+        and #$7f
+        cmp #$53
+        bne rest
+        jsr $ffcf
+        bne suffix_byte_2
+        jmp next
+    suffix_byte_2:
+        and #$7f
+        cmp #$45
+        bne rest
+        jsr $ffcf
+        bne suffix_byte_3
+        jmp next
+    suffix_byte_3:
+        and #$7f
+        cmp #$51
+        bne rest
+        lda @first
+        ora @valid
+        bne rest
+        lda @length
+        beq rest
+        cmp #7
+        bne count_entry
+        ldx @slot
+        ldy #0
+    match_asset:
+        lda $c100,x
+        and #$7f
+        cmp @directory_help_asset.data,y
+        bne count_entry
+        inx
+        iny
+        cpy #7
+        bne match_asset
+        beq rest
+    count_entry:
+        lda directory_readPage_skip
+        ora directory_readPage_skip+1
+        beq matched
+        lda directory_readPage_skip
+        bne decrement
+        dec directory_readPage_skip+1
+    decrement:
+        dec directory_readPage_skip
+        jmp rest
+    matched:
+        ldx @count
+        lda @length
+        sta $c190,x
+        inc @count
+        lda @count
+        cmp #9
+        beq done
+        lda @slot
+        clc
+        adc #16
+        sta @slot
+    rest:
+        jsr $ffcf
+        ldx $90
+        bne done
+        cmp #0
+        bne rest
+    next:
+        lda #0
+        sta @first
+        jsr $ffb7
+        bne done
+        jmp line
+    done:
+        jsr $ffcc
+        lda #4
+        jsr $ffc3
+        jsr $ffcc
+    }
+    return count;
+}
+
+fn captions() void {
+    asm {
+        ldx #15
+    title_next:
+        lda @directory_title.data,x
+        cpx #0
+        beq title_store
+        cmp #$61
+        bcc title_store
+        sbc #$60
+    title_store:
+        sta $04fc,x
+        lda #7
+        sta $d8fc,x
+        dex
+        bpl title_next
+        ldx #27
+    command_next:
+        lda @directory_commands.data,x
+        cmp #$61
+        bcc command_store
+        sbc #$60
+    command_store:
+        sta $06d8,x
+        dex
+        bpl command_next
+        ldx #21
+    drive_next:
+        lda @directory_drive_hint.data,x
+        cmp #$61
+        bcc drive_store
+        sbc #$60
+    drive_store:
+        sta $0700,x
+        dex
+        bpl drive_next
+        lda $c0c4
+        ora #$30
+        sta $0709
+    }
+}
+
+fn emptyPage() void {
+    asm {
+        ldx #18
+    next:
+        lda @directory_empty.data,x
+        cmp #$61
+        bcc store
+        sbc #$60
+    store:
+        sta $0590,x
+        dex
+        bpl next
+    }
+}
+
+fn draw(count: u8, picked: u8) void {
+    const names: [*]volatile u8 = @ptrFromInt(0xc100);
+    const lengths: [*]volatile u8 = @ptrFromInt(0xc190);
+    var row: u8 = 0;
+    var screen: u16 = 328;
+    while (row < 8) {
+        const mask: u8 = if (row == picked and row < count) 128 else 0;
+        paint.span(screen, 22, 32 | mask, if (mask != 0) 7 else 1);
+        if (row < count) {
+            var at: u8 = 0;
+            while (at < lengths[row]) {
+                const letter = names[(row << 4) + at];
+                paint.put(screen + @as(u16, at), paint.glyph(letter) | mask, if (mask != 0) 7 else 1);
+                at += 1;
+            }
+        }
+        row += 1;
+        screen += 40;
+    }
+    if (count == 0) {
+        directory.emptyPage();
+    }
+}
+
+fn choose(picked: u8) void {
+    asm {
+        lda @picked
+        asl
+        asl
+        asl
+        asl
+        tax
+        ldy @picked
+        lda $c190,y
+        sta $c290
+        ldy #0
+    name_next:
+        lda $c100,x
+        sta $c0d0,y
+        inx
+        iny
+        cpy $c290
+        bne name_next
+        lda #$2c
+        sta $c0d0,y
+        sta $c0d2,y
+        lda #$53
+        sta $c0d1,y
+        lda #$52
+        sta $c0d3,y
+        tya
+        clc
+        adc #4
+        sta $c0c5
+    }
+}
+
+fn browse() u8 {
+    const drive: *volatile u8 = @ptrFromInt(0xc0c4);
+    var skip: u16 = 0;
+    var picked: u8 = 0;
+    var count = directory.readPage(skip);
+    tui.rect(2, 6, 36, 15);
+    directory.captions();
+    directory.draw(count, picked);
+    while (true) {
+        const key = c64.keyboard.readPetscii();
+        if (key == 3 or key == 95) {
+            return 0;
+        }
+        if (key == 13 and count != 0) {
+            directory.choose(picked);
+            return 1;
+        }
+        if (key == 133) {
+            drive.* = if (drive.* == 8) 9 else 8;
+            skip = 0;
+        } else if (key == c64.key.cursor_left and skip != 0) {
+            skip -= 8;
+        } else if (key == c64.key.cursor_right and count == 9) {
+            skip += 8;
+        } else {
+            if (key == c64.key.cursor_up and picked != 0) {
+                picked -= 1;
+            } else if (key == c64.key.cursor_down and picked < 7 and picked + 1 < count) {
+                picked += 1;
+            } else {
+                continue;
+            }
+            directory.draw(count, picked);
+            continue;
+        }
+        count = directory.readPage(skip);
+        picked = 0;
+        directory.captions();
+        directory.draw(count, picked);
+    }
+    return 0;
+}

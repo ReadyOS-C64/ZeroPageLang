@@ -1,0 +1,42 @@
+# Cash forecast
+# column A 12 general
+# column B 8 currency
+# column C 8 currency
+# column D 8 currency
+# color A1 yellow
+# color A3 light-blue
+# color B3 light-blue
+# color C3 light-blue
+# color D3 light-blue
+# color D8 yellow
+# color D9 yellow
+# color D12 red
+A1	CASH PLAN
+A3	WEEK
+B3	IN
+C3	OUT
+D3	NET
+A4	MAR 02
+B4	280
+C4	198.5
+D4	=B4-C4
+A5	MAR 09
+B5	235
+C5	267.25
+D5	=B5-C5
+A6	MAR 16
+B6	310
+C6	205
+D6	=B6-C6
+A8	TOTAL
+B8	=SUM(B4:B6)
+C8	=SUM(C4:C6)
+D8	=B8-C8
+A9	AVG NET
+D9	=AVG(D4:D6)
+A11	START CASH
+D11	200
+A12	RESERVE
+D12	=IF(D8>100,50,20)
+A13	END CASH
+D13	=SUM(D11+D8-D12)

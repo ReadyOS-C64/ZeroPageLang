@@ -1,0 +1,108 @@
+
+// KERNAL sequential I/O. CHRIN/CHROUT operate on the selected file, and
+// READST must be sampled after each byte (EOI can accompany the final byte).
+fn open(mode: u8) bool {
+    var ok: bool = false;
+    asm {
+        ldx $c0c4
+        cpx #$08
+        beq drive_ok
+        ldx #$09
+drive_ok:
+        lda #$02
+        ldy #$02
+        jsr $ffba
+        lda $c0c5
+        ldx #$d0
+        ldy #$c0
+        jsr $ffbd
+        jsr $ffc0
+        bcs finish
+        lda @mode
+        bne writing
+        ldx #$02
+        jsr $ffc6
+        jmp checked
+writing:
+        ldx #$02
+        jsr $ffc9
+checked:
+        bcs finish
+        lda #1
+        sta @ok
+finish:
+    }
+    return ok;
+}
+
+fn close() void {
+    asm {
+        jsr $ffcc
+        lda #$02
+        jsr $ffc3
+        jsr $ffcc
+    }
+}
+
+// DOS can report a delayed write/close error even when KERNAL I/O succeeded.
+// Read the two-digit status from the command channel after closing the file.
+fn writeCompleted() bool {
+    var ok: bool = false;
+    asm {
+        lda #15
+        ldx $c0c4
+        ldy #15
+        jsr $ffba
+        lda #0
+        jsr $ffbd
+        jsr $ffc0
+        bcs finish
+        ldx #15
+        jsr $ffc6
+        bcs finish
+        jsr $ffcf
+        cmp #$30
+        bne finish
+        jsr $ffcf
+        cmp #$30
+        bne finish
+        lda #1
+        sta @ok
+    finish:
+        jsr $ffcc
+        lda #15
+        jsr $ffc3
+        jsr $ffcc
+    }
+    return ok;
+}
+
+fn readByte() u8 {
+    var byte: u8 = 0;
+    asm {
+        jsr $ffcf
+        sta @byte
+        jsr $ffb7
+        sta $c0c6
+    }
+    return byte;
+}
+
+fn readStatus() u8 {
+    const status: *volatile u8 = @ptrFromInt(0xc0c6);
+    return status.*;
+}
+
+fn writeByte(byte: u8) bool {
+    var ok: bool = false;
+    asm {
+        lda @byte
+        jsr $ffd2
+        jsr $ffb7
+        bne finish
+        lda #1
+        sta @ok
+finish:
+    }
+    return ok;
+}

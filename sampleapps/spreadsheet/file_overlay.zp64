@@ -1,0 +1,66 @@
+const colors = @import("colors.zp64");
+const file_ui = @import("file_ui.zp64");
+const codec = @import("file_codec.zp64");
+const disk = @import("disk.zp64");
+const dma = @import("dma.zp64");
+const store = @import("store.zp64");
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+const c64 = @import("c64");
+
+memory {
+    image prg {
+        load_addr = 0xa000;
+        entry_addr = 0xa000;
+        basic_stub = false;
+        address_limit = 0xbf00;
+    }
+}
+
+export fn main() void {
+    const live: *volatile u8 = @ptrFromInt(0xc0c0);
+    const staging: *volatile u8 = @ptrFromInt(0xc0c1);
+    const command: *volatile u8 = @ptrFromInt(0xc0c2);
+    const result: *volatile u8 = @ptrFromInt(0xc0c3);
+    const save = command.*;
+    result.* = 0;
+    if (save == 3 or file_ui.modal(save)) {
+        const writing: u8 = if (save == 1) 1 else 0;
+        if (disk.open(writing)) {
+            var success = false;
+            if (writing != 0) {
+                codec.copyPages(live.*, staging.*);
+                dma.fetch(live.*, 0xfc40, 0xc260, 16);
+                success = codec.writeImage(staging.*);
+            } else {
+                asm {
+                    lda #0
+                    ldx #15
+                clear_modes:
+                    sta $c260,x
+                    dex
+                    bpl clear_modes
+                }
+                success = codec.readImage(staging.*);
+                if (success) {
+                    codec.restoreView();
+                    codec.copyPages(staging.*, live.*);
+                    dma.stash(live.*, 0xfc40, 0xc260, 16);
+                    dma.fetch(live.*, 0xfc40, 0xc310, 16);
+                }
+            }
+            disk.close();
+            if (writing != 0 and !disk.writeCompleted()) {
+                success = false;
+            }
+            if (success) {
+                result.* = 1;
+            } else {
+                result.* = 2;
+            }
+        } else {
+            disk.close();
+            result.* = 2;
+        }
+    }
+}

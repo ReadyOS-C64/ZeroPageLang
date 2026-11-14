@@ -1,0 +1,35 @@
+const colors = @import("colors.zp64");
+const bytes = @import("bytes.zp64");
+const c64 = @import("c64");
+const editor = @import("editor.zp64");
+const paint = @import("paint.zp64");
+const store = @import("store.zp64");
+const dma = @import("dma.zp64");
+const relocate = @import("relocate.zp64");
+const lex = @import("lex.zp64");
+
+memory {
+    image prg {
+        load_addr = 0xa000;
+        entry_addr = 0xa000;
+        basic_stub = false;
+        address_limit = 0xbf00;
+    }
+}
+
+export fn main() void {
+    const bank: *volatile u8 = @ptrFromInt(0xc0c0);
+    const operation: *volatile u8 = @ptrFromInt(0xc0c1);
+    const result: *volatile u8 = @ptrFromInt(0xc0c3);
+    const cell: *volatile u16 = @ptrFromInt(0xc0c4 + 4);
+    const op = operation.*;
+    var changed = false;
+    if (op < 2) {
+        changed = editor.edit(bank.*, cell.*);
+    } else if (op == 2) {
+        changed = editor.paste(bank.*, cell.*);
+    } else {
+        changed = editor.fill(bank.*, cell.*);
+    }
+    result.* = if (changed) 1 else 0;
+}

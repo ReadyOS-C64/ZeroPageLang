@@ -46,3 +46,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+
+# Bootable ZeroPage Sheet sample and workbook disk.
+!sampleapps/spreadsheet/zeropage-sheet.d64
+!sampleapps/spreadsheet/sheet-examples.d81

@@ -1,0 +1,111 @@
+const results = @import("results.zp64");
+const dma = @import("dma.zp64");
+
+fn reset(bank: u8) void {
+    dma.clear(bank, 0, 0xe400);
+}
+
+fn loadResult(bank: u8, id: u16) void {
+    dma.fetch(bank, 0xc000 + id * 6, 0xc020, 6);
+}
+
+fn saveResult(bank: u8, id: u16, state: u8, value: u16) void {
+    asm {
+        lda @state
+        sta $c020
+        cmp #11
+        beq float
+        lda results_saveResult_value
+        sta $c022
+        lda results_saveResult_value+1
+        sta $c023
+        jmp done
+    float:
+        ldx #4
+    copy:
+        lda $c3e0,x
+        sta $c021,x
+        dex
+        bpl copy
+    done:
+    }
+    if (state == 13) {
+        results.text(id, 0, 0xc5, 0x90);
+    }
+    dma.stash(bank, 0xc000 + id * 6, 0xc020, 6);
+}
+
+// 16 bytes per cell at $8000–$DFFF of the module cache bank. The live
+// result tag is the validity bit, so invalidation needs no second clear.
+// The buffer is within one page. The index selects its 16-byte entry.
+fn text(id: u16, index: u8, page: u8, command: u8) void {
+    asm {
+        lda @index
+        asl
+        asl
+        asl
+        asl
+        sta $df02
+        lda @page
+        sta $df03
+        lda results_text_id
+        asl
+        asl
+        asl
+        asl
+        sta $df04
+        lda results_text_id+1
+        asl
+        asl
+        asl
+        asl
+        ora #$80
+        sta $df05
+        lda results_text_id
+        lsr
+        lsr
+        lsr
+        lsr
+        ora $df05
+        sta $df05
+        lda $c0ef
+        sta $df06
+        lda #16
+        sta $df07
+        lda #0
+        sta $df08
+        sta $df09
+        sta $df0a
+        lda @command
+        sta $df01
+    }
+}
+
+fn copyFloat(from: u16, to: u16) void {
+    asm {
+        lda results_copyFloat_from
+        sta $fb
+        lda results_copyFloat_from+1
+        sta $fc
+        lda results_copyFloat_to
+        sta $fd
+        lda results_copyFloat_to+1
+        sta $fe
+        ldy #4
+    copy:
+        lda ($fb),y
+        sta ($fd),y
+        dey
+        bpl copy
+    }
+}
+
+fn state() u8 {
+    const byte: *volatile u8 = @ptrFromInt(0xc020);
+    return byte.*;
+}
+
+fn value() u16 {
+    const word: *volatile u16 = @ptrFromInt(0xc022);
+    return word.*;
+}

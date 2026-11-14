@@ -1,0 +1,1161 @@
+const expression = @import("expression.zp64");
+const lex = @import("lex.zp64");
+const store = @import("store.zp64");
+const results = @import("results.zp64");
+const math = @import("numbers.zp64");
+const bytes = @import("bytes.zp64");
+const fp = @import("float_rom.zp64");
+const dma = @import("dma.zp64");
+
+
+fn failure(code: u8) u16 {
+    const err: *volatile u8 = @ptrFromInt(0xc041);
+    err.* = code;
+    return 0;
+}
+
+fn scalar(bank: u8, id: u16) u16 {
+    results.loadResult(bank, id);
+    const state = results.state();
+    if (state == 2) {
+        return results.value();
+    }
+    if (state == 11) {
+        results.copyFloat(0xc021, 0xc3e0);
+        return 0;
+    }
+    if (state == 4) {
+        return 0;
+    }
+    if (state == 3 or state == 13) {
+        return expression.failure(8);
+    }
+    return expression.failure(state);
+}
+
+fn aggregate(bank: u8, first: u16, end: u16, operation: u8) u16 {
+    var id = first;
+    var count: u16 = 0;
+    var value: u16 = 0;
+    // AVG keeps a 32-bit signed sum. Fall back to floating point as soon
+    // as a sum or product can no longer be represented by an integer.
+    var high: u16 = 0;
+    if (operation == 6) {
+        value = 1;
+    }
+    while (id != 0xffff) {
+        results.loadResult(bank, id);
+        const state = results.state();
+        if (state == 2) {
+            const item = results.value();
+            if (operation == 1 or operation == 2) {
+                const old = value;
+                value += item;
+                if (operation == 1 and expression.addOverflow(old, item, value)) {
+                    return expression.floatRange(bank, first, end, operation);
+                }
+                if (value < old) {
+                    high += 1;
+                }
+                if (math.negative(item)) {
+                    high -= 1;
+                }
+            } else if (operation == 3) {
+                if (count == 0 or math.less(item, value)) {
+                    value = item;
+                }
+            } else if (operation == 4) {
+                if (count == 0 or math.less(value, item)) {
+                    value = item;
+                }
+            } else if (operation == 6) {
+                if (!expression.smallProduct(value, item)) {
+                    return expression.floatRange(bank, first, end, operation);
+                }
+                value *= item;
+            }
+            count += 1;
+        } else if (state == 11) {
+            return expression.floatRange(bank, first, end, operation);
+        } else if (state >= 5 and state != 13) {
+            return expression.failure(state);
+        }
+        id = lex.rangeNext(id, first, end);
+    }
+    if (operation == 2) {
+        if (count == 0) {
+            return expression.failure(9);
+        }
+        const quotient = math.mean(high, value, count);
+        const remainder: *volatile u16 = @ptrFromInt(0xc188);
+        if (remainder.* != 0) {
+            return expression.floatRange(bank, first, end, operation);
+        }
+        return quotient;
+    }
+    if (operation == 5) {
+        return count;
+    }
+    return value;
+}
+
+// Restart a promoted range so every operand contributes at full precision.
+fn floatRange(bank: u8, first: u16, end: u16, op: u8) u16 {
+    const kind: *volatile u8 = @ptrFromInt(0xc047);
+    var count: u16 = 0;
+    var id = first;
+    while (id != 0xffff) {
+        results.loadResult(bank, id);
+        const state = results.state();
+        if (state == 2 or state == 11) {
+            if (op != 5) {
+                if (state == 2) {
+                    const value = results.value();
+                    if (!fp.integer(bytes.low(value >> 8), bytes.low(value))) {
+                        return expression.failure(10);
+                    }
+                } else {
+                    results.copyFloat(0xc021, 0xc3e0);
+                }
+                if (count == 0) {
+                    results.copyFloat(0xc3e0, 0xc180);
+                } else {
+                    results.copyFloat(0xc3e0, 0xc3e5);
+                    results.copyFloat(0xc180, 0xc3e0);
+                    if (op == 3 or op == 4) {
+                        const order = fp.compare();
+                        if ((op == 3 and order == 1) or (op == 4 and order == 255)) {
+                            results.copyFloat(0xc3e5, 0xc180);
+                        }
+                    } else {
+                        if (!fp.binary(if (op == 6) '*' else '+')) {
+                            return expression.failure(10);
+                        }
+                        results.copyFloat(0xc3e0, 0xc180);
+                    }
+                }
+            }
+            count += 1;
+        } else if (state >= 5 and state != 13) {
+            return expression.failure(state);
+        }
+        id = lex.rangeNext(id, first, end);
+    }
+    if (op == 5) {
+        return count;
+    }
+    if (op == 2) {
+        if (!fp.integer(bytes.low(count >> 8), bytes.low(count))) {
+            return expression.failure(10);
+        }
+        results.copyFloat(0xc3e0, 0xc3e5);
+        results.copyFloat(0xc180, 0xc3e0);
+        if (!fp.binary('/')) {
+            return expression.failure(10);
+        }
+    } else {
+        results.copyFloat(0xc180, 0xc3e0);
+    }
+    kind.* = 11;
+    return 0;
+}
+
+fn functionName() u8 {
+    if (lex.peek() == 0x49) {
+        const start = lex.position();
+        lex.advance();
+        if (lex.peek() == 0x46) {
+            lex.advance();
+            return 8;
+        }
+        lex.seek(start);
+    }
+    if (lex.peek() == 0x4c) {
+        const suffix = expression.lookupName();
+        if (suffix) {
+            return 9;
+        }
+    }
+    // Base-26 encoding of the next three letters. Fixed arity makes
+    // truncated names and unknown identifiers unambiguous.
+    var tag: u16 = 0;
+    var letters: u8 = 3;
+    while (letters != 0) {
+        letters -= 1;
+        const c = lex.peek();
+        if (!lex.alpha(c)) {
+            return 0;
+        }
+        tag = tag * 26 + @as(u16, c - 0x41);
+        lex.advance();
+    }
+    if (tag == 10596 and lex.peek() == 0x44) {
+        lex.advance();
+        return 6;
+    }
+    if (tag == 1736 and lex.peek() == 0x4e) {
+        lex.advance();
+        if (lex.peek() == 0x54) {
+            lex.advance();
+            return 5;
+        }
+        return 0;
+    }
+    return switch (tag) {
+        12700 => 1, // SUM
+        552 => 2, // AVG
+        8333 => 3, // MIN
+        8135 => 4, // MAX
+        44 => 7, // ABS
+        else => 0,
+    };
+}
+
+fn lookupName() bool {
+    var matched: u8 = 0;
+    asm {
+        ldx $c040
+        lda $c000
+        sec
+        sbc $c040
+        cmp #5
+        bcc done
+        lda $c001,x
+        and #$7f
+        cmp #$4f
+        bne done
+        lda $c002,x
+        and #$7f
+        cmp #$4f
+        bne done
+        lda $c003,x
+        and #$7f
+        cmp #$4b
+        bne done
+        lda $c004,x
+        and #$7f
+        cmp #$55
+        bne done
+        lda $c005,x
+        and #$7f
+        cmp #$50
+        bne done
+        txa
+        clc
+        adc #6
+        sta $c040
+        lda #1
+        sta @matched
+    done:
+    }
+    return matched != 0;
+}
+
+fn callRange(bank: u8, operation: u8) u16 {
+    lex.space();
+    if (lex.peek() != '(') {
+        return expression.failure(5);
+    }
+    lex.advance();
+    lex.space();
+    const start = lex.position();
+    var first = lex.reference();
+    if (first == 0xfffe) {
+        return expression.failure(6);
+    }
+    if (first == 0xffff) {
+        return expression.scalarAggregate(start);
+    }
+    var end = lex.rangeEnd();
+    if (end == 0xffff) {
+        lex.space();
+        if (lex.peek() != ')') {
+            return expression.scalarAggregate(start);
+        }
+        end = first;
+    }
+    if (end >= 1536) {
+        return expression.failure(6);
+    }
+    lex.space();
+    if (lex.peek() != ')') {
+        return expression.failure(5);
+    }
+    lex.advance();
+    first = lex.rangeBounds(first, end);
+    const bottom: *volatile u16 = @ptrFromInt(0xc04c);
+    return expression.aggregate(bank, first, bottom.*, operation);
+}
+
+fn scalarAggregate(start: u8) u16 {
+    // Resume through the main expression parser. The caller pushes a
+    // function marker so nested calls use the existing operator stack.
+    lex.seek(start);
+    const kind: *volatile u8 = @ptrFromInt(0xc047);
+    kind.* = 255;
+    return 0;
+}
+
+// Exact numeric lookup, first match, in two equally sized vertical ranges.
+// Arguments are a key cell and the search and result ranges respectively.
+fn lookup(bank: u8) u16 {
+    const call_kind: *volatile u8 = @ptrFromInt(0xc047);
+    const key = expression.lookupArg('(');
+    const search = expression.lookupArg(',');
+    const search_end = lex.rangeEnd();
+    const output = expression.lookupArg(',');
+    const output_end = lex.rangeEnd();
+    if (key >= 1536 or search >= 1536 or output >= 1536 or search_end >= 1536 or output_end >= 1536) {
+        return expression.failure(6);
+    }
+    if ((search & 15) != (search_end & 15) or (output & 15) != (output_end & 15) or search > search_end or output > output_end or search_end - search != output_end - output) {
+        return expression.failure(6);
+    }
+    lex.space();
+    if (lex.peek() != ')') {
+        return expression.failure(5);
+    }
+    lex.advance();
+    results.loadResult(bank, key);
+    const key_state = results.state();
+    if (key_state >= 5 and key_state != 11 and key_state != 13) {
+        return expression.failure(key_state);
+    }
+    if (!expression.lookupNumber()) {
+        return expression.failure(8);
+    }
+    results.copyFloat(0xc3e0, 0xc185);
+    var id = search;
+    while (id <= search_end) {
+        results.loadResult(bank, id);
+        if (expression.lookupNumber()) {
+            results.copyFloat(0xc185, 0xc3e5);
+            if (fp.compare() == 0) {
+                const result = expression.scalar(bank, output + (id - search));
+                call_kind.* = if (results.state() == 11) 11 else 2;
+                return result;
+            }
+        }
+        id += 16;
+    }
+    return expression.failure(12);
+}
+
+fn lookupArg(delimiter: u8) u16 {
+    lex.space();
+    if (lex.peek() != delimiter) {
+        return 0xfffe;
+    }
+    lex.advance();
+    lex.space();
+    return lex.reference();
+}
+
+fn lookupNumber() bool {
+    const state = results.state();
+    if (state == 11) {
+        results.copyFloat(0xc021, 0xc3e0);
+        return true;
+    }
+    if (state == 2) {
+        const value = results.value();
+        return fp.integer(bytes.low(value >> 8), bytes.low(value));
+    }
+    return false;
+}
+
+fn precedence(op: u8) u8 {
+    return switch (op) {
+        '=', '<', '>', '?', '&', '!' => 1,
+        '+', '-' => 2,
+        '*', '/' => 3,
+        '~', '@' => 4,
+        else => 0,
+    };
+}
+
+fn pushValue(value: u16) void {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const values: [*]volatile u16 = @ptrFromInt(0xc070);
+    values[counts[1]] = value;
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    kinds[counts[1]] = 0;
+    counts[1] += 1;
+}
+
+fn slot(index: u8) u16 {
+    return 0xc100 + @as(u16, index) * 5;
+}
+
+fn pushFloat() void {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    kinds[counts[1]] = 1;
+    results.copyFloat(0xc3e0, expression.slot(counts[1]));
+    counts[1] += 1;
+}
+
+// Operand tags: 0 integer, 1 float, 2 text, 3 blank. Each text entry at
+// $C500 holds a length and up to 14 raw PETSCII bytes.
+fn pushTextRef(bank: u8, id: u16, state: u8) void {
+    const count: *volatile u8 = @ptrFromInt(0xc043);
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    var index = count.*;
+    kinds[index] = if (state == 4) 3 else 2;
+    count.* = index + 1;
+    if (state == 13) {
+        results.text(id, index, 0xc5, 0x91);
+    } else if (state == 3) {
+        dma.fetch(bank, id << 5, 0xc500 + (@as(u16, index) << 4), 16);
+        asm {
+            lda @index
+            asl
+            asl
+            asl
+            asl
+            tax
+            lda $c500,x
+            cmp #15
+            bcc done
+            lda #14
+            sta $c500,x
+        done:
+        }
+    } else {
+        asm {
+            lda @index
+            asl
+            tax
+            lda #0
+            sta $c070,x
+            sta $c071,x
+        }
+    }
+}
+
+fn quoted() bool {
+    var ok: bool = false;
+    asm {
+        lda $c043
+        asl
+        asl
+        asl
+        asl
+        tay
+        sty $fb
+        ldx $c040
+        inx
+    next:
+        cpx $c000
+        bcc read
+        bne missing
+    read:
+        lda $c000,x
+        cmp #$22
+        beq close
+        inx
+        iny
+        tya
+        and #$0f
+        cmp #15
+        bcs long
+        lda $c000-1,x
+        sta $c500,y
+        bne next
+    close:
+        inx
+        stx $c040
+        tya
+        and #$0f
+        ldy $fb
+        sta $c500,y
+        ldx $c043
+        lda #2
+        sta $c160,x
+        inc $c043
+        inc @ok
+        bne done
+    long:
+        lda #14
+        bne error
+    missing:
+        lda #5
+    error:
+        sta $c041
+    done:
+    }
+    return ok;
+}
+
+// Append one operand to the temporary text result at $C1A0.
+fn appendText(index: u8) bool {
+    var ok: bool = false;
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    var kind = kinds[index];
+    if (kind < 2) {
+        if (!expression.unpack(index, 0xc3e0) or !fp.format()) {
+            expression.failure(10);
+            return false;
+        }
+    }
+    asm {
+        lda #$c5
+        sta $fc
+        lda @index
+        asl
+        asl
+        asl
+        asl
+        sta $fb
+        ldx $c1a0
+        ldy #1
+        lda @kind
+        cmp #3
+        beq success
+        cmp #2
+        beq text
+        lda #$c2
+        sta $fc
+        lda #0
+        sta $fb
+        lda $c200
+        cmp #$20
+        beq number
+        dey
+    number:
+        lda ($fb),y
+        beq success
+        cpx #14
+        bcs long
+        inx
+        sta $c1a0,x
+        iny
+        bne number
+    text:
+        tya
+        ldy #0
+        cmp ($fb),y
+        beq copy
+        bcs success
+    copy:
+        tay
+        lda ($fb),y
+        cpx #14
+        bcs long
+        inx
+        sta $c1a0,x
+        iny
+        bne text
+    success:
+        stx $c1a0
+        inc @ok
+        bne done
+    long:
+        lda #14
+        sta $c041
+    done:
+    }
+    return ok;
+}
+
+fn join(right: u8) bool {
+    const length: *volatile u8 = @ptrFromInt(0xc1a0);
+    length.* = 0;
+    if (!expression.appendText(right - 1) or !expression.appendText(right)) {
+        return false;
+    }
+    asm {
+        ldx @right
+        stx $c043
+        dex
+        lda #2
+        sta $c160,x
+        txa
+        asl
+        asl
+        asl
+        asl
+        tax
+        ldy #0
+    copy:
+        lda $c1a0,y
+        sta $c500,x
+        inx
+        iny
+        cpy #16
+        bne copy
+    }
+    return true;
+}
+
+fn unpack(index: u8, dest: u16) bool {
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    if (kinds[index] == 1) {
+        results.copyFloat(expression.slot(index), dest);
+        return true;
+    }
+    const values: [*]volatile u16 = @ptrFromInt(0xc070);
+    const value = values[index];
+    if (!fp.integer(bytes.low(value >> 8), bytes.low(value))) {
+        return false;
+    }
+    if (dest != 0xc3e0) {
+        results.copyFloat(0xc3e0, dest);
+    }
+    return true;
+}
+
+fn numeric(negative: bool) bool {
+    const err: *volatile u8 = @ptrFromInt(0xc041);
+    const first = lex.position();
+    if (!lex.numberToken()) {
+        err.* = 5;
+        return false;
+    }
+    const end = lex.position();
+    lex.seek(first);
+    const limit: u16 = if (negative) 32768 else 32767;
+    const value = lex.integer(limit);
+    if (lex.position() == end and value != 0xffff) {
+        expression.pushValue(if (negative) 0 - value else value);
+        return true;
+    }
+    lex.seek(end);
+    if (!fp.parse(first, end)) {
+        err.* = 10;
+        return false;
+    }
+    if (negative) {
+        const number_bytes: [*]volatile u8 = @ptrFromInt(0xc3e0);
+        if (number_bytes[0] != 0) {
+            number_bytes[1] = number_bytes[1] ^ 128;
+        }
+    }
+    expression.pushFloat();
+    return true;
+}
+
+fn pushOperator(op: u8) void {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const ops: [*]volatile u8 = @ptrFromInt(0xc050);
+    ops[counts[0]] = op;
+    counts[0] += 1;
+}
+
+fn top() u8 {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const ops: [*]volatile u8 = @ptrFromInt(0xc050);
+    if (counts[0] == 0) {
+        return 0;
+    }
+    return ops[counts[0] - 1];
+}
+
+fn reduce() bool {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const values: [*]volatile u16 = @ptrFromInt(0xc070);
+    const err: *volatile u8 = @ptrFromInt(0xc041);
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    const op = expression.top();
+    if (op == 0 or op == '(' or counts[1] == 0) {
+        err.* = 5;
+        return false;
+    }
+    counts[0] -= 1;
+    const right_at = counts[1] - 1;
+    if (op == '~' or op == '@') {
+        if (kinds[right_at] == 2) {
+            err.* = 8;
+            return false;
+        }
+        if (kinds[right_at] == 1) {
+            const number_bytes: [*]volatile u8 = @ptrFromInt(expression.slot(right_at));
+            if (op == '@') {
+                number_bytes[1] = number_bytes[1] & 127;
+            } else if (number_bytes[0] != 0) {
+                number_bytes[1] = number_bytes[1] ^ 128;
+            }
+            return true;
+        }
+    } else if (right_at != 0) {
+        if (kinds[right_at] == 2 or kinds[right_at - 1] == 2) {
+            if (op == '+') {
+                return expression.join(right_at);
+            }
+            err.* = 8;
+            return false;
+        }
+        if (kinds[right_at] == 1 or kinds[right_at - 1] == 1) {
+            return expression.reduceFloat(op, right_at);
+        }
+    }
+    const right = values[right_at];
+    if (op == '~' or op == '@') {
+        kinds[right_at] = 0;
+        if (right == 0x8000) {
+            if (!fp.integer(128, 0)) {
+                err.* = 10;
+                return false;
+            }
+            const sign: *volatile u8 = @ptrFromInt(0xc3e1);
+            sign.* = 0;
+            counts[1] = right_at;
+            expression.pushFloat();
+        } else {
+            values[right_at] = if (op == '~') 0 - right else math.abs(right);
+        }
+        return true;
+    }
+    if (right_at == 0) {
+        err.* = 5;
+        return false;
+    }
+    const left_at = right_at - 1;
+    const left = values[left_at];
+    var output: u16 = 0;
+    var promote = false;
+    if (expression.precedence(op) == 1) {
+        var order: u8 = 0;
+        if (left != right) {
+            order = if (math.less(left, right)) 255 else 1;
+        }
+        output = expression.compareResult(op, order);
+    } else if (op == '+') {
+        output = left + right;
+        promote = expression.addOverflow(left, right, output);
+    } else if (op == '-') {
+        output = left - right;
+        promote = ((left ^ right) & (left ^ output)) >= 0x8000;
+    } else if (op == '*') {
+        promote = !expression.smallProduct(left, right);
+        if (!promote) {
+            output = left * right;
+        }
+    } else if (right != 0) {
+        output = math.signedDivide(left, right);
+        promote = output * right != left or (left == 0x8000 and right == 0xffff);
+    } else {
+        err.* = 9;
+        return false;
+    }
+    if (promote) {
+        return expression.reduceFloat(op, right_at);
+    }
+    counts[1] = right_at;
+    kinds[left_at] = 0;
+    values[left_at] = output;
+    return true;
+}
+
+fn addOverflow(left: u16, right: u16, sum: u16) bool {
+    return ((left ^ sum) & (right ^ sum)) >= 0x8000;
+}
+
+// Two magnitudes of 181 or less always fit a signed word. Larger
+// products go directly to BASIC rather than using a second division.
+fn smallProduct(left: u16, right: u16) bool {
+    return math.abs(left) <= 181 and math.abs(right) <= 181;
+}
+
+fn compareResult(op: u8, order: u8) u16 {
+    var yes: u8 = 0;
+    asm {
+        lda @op
+        ldx @order
+        cmp #$3d
+        beq equal
+        cmp #$3c
+        beq less
+        cmp #$3e
+        beq greater
+        cmp #$3f
+        beq at_most
+        cmp #$26
+        beq at_least
+        cpx #0
+        bne matched
+        beq done
+    equal:
+        cpx #0
+        beq matched
+        bne done
+    less:
+        cpx #255
+        beq matched
+        bne done
+    greater:
+        cpx #1
+        beq matched
+        bne done
+    at_most:
+        cpx #1
+        bne matched
+        beq done
+    at_least:
+        cpx #255
+        beq done
+    matched:
+        inc @yes
+    done:
+    }
+    return @as(u16, yes);
+}
+
+fn choose() bool {
+    var ok: bool = false;
+    asm {
+        lda $c043
+        sec
+        sbc #3
+        bcs have_arguments
+        jmp done
+    have_arguments:
+        tax
+        tay
+        lda $c160,x
+        cmp #2
+        bne numeric
+        lda #8
+        sta $c041
+        jmp done
+    numeric:
+        iny
+        cmp #1
+        beq float_condition
+        txa
+        asl
+        tax
+        lda $c070,x
+        ora $c071,x
+        bne select
+        beq false_choice
+    float_condition:
+        txa
+        asl
+        asl
+        sta $fb
+        txa
+        clc
+        adc $fb
+        tax
+        lda $c100,x
+        bne select
+    false_choice:
+        iny
+    select:
+        lda $c043
+        sec
+        sbc #3
+        tax
+        lda $c160,y
+        sta $c160,x
+        cmp #2
+        beq text
+        cmp #1
+        beq float
+        txa
+        asl
+        tax
+        tya
+        asl
+        tay
+        lda $c070,y
+        sta $c070,x
+        lda $c071,y
+        sta $c071,x
+        jmp success
+    text:
+        txa
+        asl
+        asl
+        asl
+        asl
+        tax
+        tya
+        asl
+        asl
+        asl
+        asl
+        tay
+        lda #16
+        sta $fb
+    copy_text:
+        lda $c500,y
+        sta $c500,x
+        inx
+        iny
+        dec $fb
+        bne copy_text
+        beq success
+    float:
+        txa
+        asl
+        asl
+        sta $fb
+        txa
+        clc
+        adc $fb
+        tax
+        tya
+        asl
+        asl
+        sta $fb
+        tya
+        clc
+        adc $fb
+        tay
+        lda #5
+        sta $fb
+    copy_float:
+        lda $c100,y
+        sta $c100,x
+        inx
+        iny
+        dec $fb
+        bne copy_float
+    success:
+        dec $c043
+        dec $c043
+        inc @ok
+    done:
+    }
+    return ok;
+}
+
+fn reduceFloat(op: u8, right_at: u8) bool {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const err: *volatile u8 = @ptrFromInt(0xc041);
+    const right: *volatile u8 = @ptrFromInt(0xc3e5);
+    if (!expression.unpack(right_at, 0xc3e5) or !expression.unpack(right_at - 1, 0xc3e0)) {
+        err.* = 10;
+        return false;
+    }
+    if (expression.precedence(op) == 1) {
+        const order = fp.compare();
+        const yes = expression.compareResult(op, order);
+        counts[1] -= 2;
+        expression.pushValue(yes);
+        return true;
+    }
+    if (op == '/' and right.* == 0) {
+        err.* = 9;
+        return false;
+    }
+    if (!fp.binary(op)) {
+        err.* = 10;
+        return false;
+    }
+    counts[1] -= 2;
+    expression.pushFloat();
+    return true;
+}
+
+fn calculate(bank: u8) u16 {
+    const counts: [*]volatile u8 = @ptrFromInt(0xc042);
+    const values: [*]volatile u16 = @ptrFromInt(0xc070);
+    const err: *volatile u8 = @ptrFromInt(0xc041);
+    const result_kind: *volatile u8 = @ptrFromInt(0xc046);
+    result_kind.* = 2;
+    counts[0] = 0;
+    counts[1] = 0;
+    err.* = 0;
+    lex.seek(2);
+    var operand = true;
+    while (err.* == 0) {
+        lex.space();
+        const c = lex.peek();
+        if (c == 0) {
+            break;
+        }
+        if (operand) {
+            if (c == '(' or c == '+' or c == '-') {
+                lex.advance();
+                if (c == '(') {
+                    expression.pushOperator(c);
+                } else if (c == '-') {
+                    if (lex.digit(lex.peek()) or lex.peek() == '.') {
+                        if (!expression.numeric(true)) {
+                            return 0;
+                        }
+                        operand = false;
+                    } else {
+                        expression.pushOperator('~');
+                    }
+                }
+            } else if (c == '"') {
+                if (!expression.quoted()) {
+                    return 0;
+                }
+                operand = false;
+            } else if (lex.digit(c) or c == '.') {
+                if (!expression.numeric(false)) {
+                    return 0;
+                }
+                operand = false;
+            } else {
+                const id = lex.reference();
+                if (id < 1536) {
+                    results.loadResult(bank, id);
+                    const state = results.state();
+                    if (state == 3 or state == 4 or state == 13) {
+                        expression.pushTextRef(bank, id, state);
+                    } else if (state == 11) {
+                        results.copyFloat(0xc021, 0xc3e0);
+                        expression.pushFloat();
+                    } else if (state == 2) {
+                        expression.pushValue(results.value());
+                    } else {
+                        return expression.failure(state);
+                    }
+                    operand = false;
+                } else if (id == 0xfffe) {
+                    return expression.failure(6);
+                } else {
+                    const operation = expression.functionName();
+                    if (operation == 7) {
+                        lex.space();
+                        if (lex.peek() != '(') {
+                            return expression.failure(5);
+                        }
+                        expression.pushOperator('@');
+                    } else if (operation == 8) {
+                        lex.space();
+                        if (lex.peek() != '(') {
+                            return expression.failure(5);
+                        }
+                        lex.advance();
+                        expression.pushOperator('[');
+                    } else if (operation != 0) {
+                        const call_kind: *volatile u8 = @ptrFromInt(0xc047);
+                        call_kind.* = 2;
+                        const range_value = if (operation == 9) expression.lookup(bank) else expression.callRange(bank, operation);
+                        if (call_kind.* == 255) {
+                            expression.pushOperator(operation | 128);
+                        } else {
+                            if (call_kind.* == 11) {
+                                expression.pushFloat();
+                            } else {
+                                expression.pushValue(range_value);
+                            }
+                            operand = false;
+                        }
+                    } else {
+                        return expression.failure(5);
+                    }
+                }
+            }
+        } else if (c == ')' or c == ',') {
+            while (expression.precedence(expression.top()) != 0) {
+                if (!expression.reduce()) {
+                    return 0;
+                }
+            }
+            const frame_type = expression.top();
+            if (c == ',') {
+                if (frame_type != '[' and frame_type != ']') {
+                    return expression.failure(5);
+                }
+                const ops: [*]volatile u8 = @ptrFromInt(0xc050);
+                ops[counts[0] - 1] = if (frame_type == '[') ']' else '{';
+                operand = true;
+            } else {
+                if (frame_type == '{') {
+                    if (!expression.choose()) {
+                        return expression.failure(if (err.* == 0) 5 else err.*);
+                    }
+                } else if (frame_type >= 128) {
+                    var frame = frame_type;
+                    asm {
+                        ldx $c043
+                        dex
+                        lda $c160,x
+                        cmp #2
+                        bcc number
+                        lda @frame
+                        cmp #129
+                        beq zero
+                        cmp #133
+                        beq zero
+                        lda #9
+                        sta $c041
+                        bne done
+                    number:
+                        lda @frame
+                        cmp #133
+                        bne done
+                        ldy #1
+                        bne write
+                    zero:
+                        ldy #0
+                    write:
+                        lda #0
+                        sta $c160,x
+                        txa
+                        asl
+                        tax
+                        tya
+                        sta $c070,x
+                        lda #0
+                        sta $c071,x
+                    done:
+                    }
+                } else if (frame_type != '(') {
+                    return expression.failure(5);
+                }
+                counts[0] -= 1;
+            }
+            lex.advance();
+        } else {
+            const level = expression.precedence(c);
+            if (level == 0 or level == 4 or c == '?' or c == '&' or c == '!') {
+                return expression.failure(5);
+            }
+            while (expression.precedence(expression.top()) >= level) {
+                if (!expression.reduce()) {
+                    return 0;
+                }
+            }
+            lex.advance();
+            var op = c;
+            if (c == '<' or c == '>') {
+                if (lex.peek() == '=') {
+                    op = if (c == '<') '?' else '&';
+                    lex.advance();
+                } else if (c == '<' and lex.peek() == '>') {
+                    op = '!';
+                    lex.advance();
+                }
+            }
+            expression.pushOperator(op);
+            operand = true;
+        }
+    }
+    if (err.* != 0) {
+        return 0;
+    }
+    if (operand) {
+        return expression.failure(5);
+    }
+    while (counts[0] != 0) {
+        if (expression.precedence(expression.top()) == 0) {
+            return expression.failure(5);
+        }
+        if (!expression.reduce()) {
+            return 0;
+        }
+    }
+    if (counts[1] != 1) {
+        return expression.failure(5);
+    }
+    const kinds: [*]volatile u8 = @ptrFromInt(0xc160);
+    if (kinds[0] == 2) {
+        result_kind.* = 13;
+        return 0;
+    }
+    if (kinds[0] == 1) {
+        results.copyFloat(0xc100, 0xc3e0);
+        result_kind.* = 11;
+        return 0;
+    }
+    return values[0];
+}

@@ -1,0 +1,18 @@
+const test6502 = @import("test6502");
+const math = @import("../../../../../../sampleapps/spreadsheet/numbers.zp64");
+
+export fn main() void {
+    const a = math.less(0xfffe, 0);
+    test6502.expectEqualBool(1, true, a);
+    const b = math.less(32767, 0x8000);
+    test6502.expectEqualBool(2, false, b);
+    const c = math.divide(65535, 255);
+    test6502.expectEqualU16(3, 257, c);
+    const d = math.divide(32768, 10);
+    test6502.expectEqualU16(4, 3276, d);
+    const e = math.signedDivide(0xfff5, 3);
+    test6502.expectEqualU16(5, 0xfffd, e);
+    const f = math.signedDivide(0xfff5, 0xfffd);
+    test6502.expectEqualU16(6, 3, f);
+    test6502.pass();
+}

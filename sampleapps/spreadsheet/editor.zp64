@@ -1,0 +1,132 @@
+const colors = @import("colors.zp64");
+const editor = @import("editor.zp64");
+const c64 = @import("c64");
+const paint = @import("paint.zp64");
+const store = @import("store.zp64");
+const relocate = @import("relocate.zp64");
+const lex = @import("lex.zp64");
+
+fn edit(bank: u8, id: u16) bool {
+    const raw: [*]volatile u8 = @ptrFromInt(0xc000);
+    const edit_mode: *volatile u8 = @ptrFromInt(0xc0c1);
+    const offset: u16 = if (edit_mode.* != 0) 403 else 125;
+    var cursor = raw[0];
+    while (true) {
+        paint.span(offset, 32, 32, 1);
+        var i: u8 = 0;
+        while (i < raw[0]) {
+            const byte = raw[i + 1];
+            const code = if (raw[1] == '=') paint.formulaGlyph(byte) else paint.glyph(byte);
+            const marker: u8 = if (i == cursor) 128 else 0;
+            const ink: u8 = if (i == cursor) 7 else 1;
+            paint.put(offset + @as(u16, i), code | marker, ink);
+            i += 1;
+        }
+        if (cursor == raw[0]) {
+            paint.put(offset + @as(u16, cursor), 160, 7);
+        }
+        var key: u8 = 0;
+        while (key == 0) {
+            key = c64.keyboard.readPetscii();
+        }
+        if (key == 13) {
+            store.write(bank, id);
+            store.invalidate(bank);
+            return true;
+        }
+        if (key == 3 or key == 95) {
+            return false;
+        }
+        if (key == c64.key.cursor_left) {
+            if (cursor != 0) {
+                cursor -= 1;
+            }
+        } else if (key == c64.key.cursor_right) {
+            if (cursor < raw[0]) {
+                cursor += 1;
+            }
+        } else if (key == 19) {
+            cursor = 0;
+        } else if (key == 20) {
+            if (cursor != 0) {
+                i = cursor;
+                while (i < raw[0]) {
+                    raw[i] = raw[i + 1];
+                    i += 1;
+                }
+                cursor -= 1;
+                raw[0] = raw[0] - 1;
+            }
+        } else if (((key >= 32 and key <= 126) or (key >= 193 and key <= 218)) and raw[0] < 31) {
+            i = raw[0];
+            while (i > cursor) {
+                raw[i + 1] = raw[i];
+                i -= 1;
+            }
+            cursor += 1;
+            raw[cursor] = key;
+            raw[0] = raw[0] + 1;
+        }
+    }
+    return false;
+}
+
+fn preparePaste(id: u16) bool {
+    const valid: *volatile u8 = @ptrFromInt(0xc0f5);
+    const source: *volatile u16 = @ptrFromInt(0xc0f8);
+    if (valid.* == 0) {
+        return false;
+    }
+    asm {
+        ldx #31
+    next:
+        lda $c0a0,x
+        sta $c000,x
+        dex
+        bpl next
+    }
+    return relocate.adjust(source.*, id);
+}
+
+fn paste(bank: u8, id: u16) bool {
+    if (!editor.preparePaste(id)) {
+        return false;
+    }
+    editor.place(bank, id);
+    store.invalidate(bank);
+    return true;
+}
+
+// The copied cell anchors a rectangle. Check all translations before
+// touching the sheet, then invalidate results once after writing it.
+fn fill(bank: u8, last: u16) bool {
+    const source: *volatile u16 = @ptrFromInt(0xc0f8);
+    const valid: *volatile u8 = @ptrFromInt(0xc0f5);
+    const first = source.*;
+    if (valid.* == 0 or first == last or (last & 15) < (first & 15) or (last >> 4) < (first >> 4)) {
+        return false;
+    }
+    var id = lex.rangeNext(first, first, last);
+    while (id != 0xffff) {
+        if (!editor.preparePaste(id)) {
+            return false;
+        }
+        id = lex.rangeNext(id, first, last);
+    }
+    id = lex.rangeNext(first, first, last);
+    while (id != 0xffff) {
+        if (editor.preparePaste(id)) {
+            editor.place(bank, id);
+        }
+        id = lex.rangeNext(id, first, last);
+    }
+    store.invalidate(bank);
+    return true;
+}
+
+
+fn place(bank: u8, id: u16) void {
+    const ink: *volatile u8 = @ptrFromInt(0xc0fa);
+    store.write(bank, id);
+    colors.write(bank, id, ink.*);
+}

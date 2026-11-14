@@ -1,0 +1,5 @@
+fn low(value: u16) u8 {
+    var local = value;
+    const bytes: [*]u8 = @ptrFromInt(@intFromPtr(&local));
+    return bytes[0];
+}

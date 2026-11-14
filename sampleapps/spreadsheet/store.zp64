@@ -1,0 +1,18 @@
+const store = @import("store.zp64");
+
+const dma = @import("dma.zp64");
+
+// A1:P96. ID = (row << 4) | col. Every record owns its full 31-byte input.
+// Cached values and the iterative traversal stack never occupy the disk image.
+
+fn invalidate(bank: u8) void {
+    dma.clear(bank, 0xc000, 0x2400);
+}
+
+fn read(bank: u8, id: u16) void {
+    dma.fetch(bank, id << 5, 0xc000, 32);
+}
+
+fn write(bank: u8, id: u16) void {
+    dma.stash(bank, id << 5, 0xc000, 32);
+}

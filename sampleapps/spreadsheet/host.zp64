@@ -1,0 +1,193 @@
+const bytes = @import("bytes.zp64");
+const host = @import("host.zp64");
+const dma = @import("dma.zp64");
+
+// ReadyOS schema 5 resource ownership. Match the app-side owned allocator,
+// including resource records needed for launcher unload to free our banks.
+fn read(offset: u16) u8 {
+    const control: *volatile u8 = @ptrFromInt(0xc83b);
+    const scratch: *volatile u8 = @ptrFromInt(0xc83d);
+    dma.fetch(control.*, offset, 0xc83d, 1);
+    return scratch.*;
+}
+
+fn write(offset: u16, value: u8) void {
+    const control: *volatile u8 = @ptrFromInt(0xc83b);
+    const scratch: *volatile u8 = @ptrFromInt(0xc83d);
+    scratch.* = value;
+    dma.stash(control.*, offset, 0xc83d, 1);
+}
+
+fn appId() u8 {
+    const current: *volatile u8 = @ptrFromInt(0xc834);
+    if (current.* == 0 or host.read(0xb600) != 0x52 or host.read(0xb601) != 0x43 or
+        host.read(0xb602) != 0x42 or host.read(0xb603) != 0x35 or host.read(0xb604) != 5) {
+        return 255;
+    }
+    const token = @as(u16, current.*);
+    const status = host.read(0xb840 + token);
+    if ((status & 1) == 0) {
+        return 255;
+    }
+    return host.read(0xbe00 + token);
+}
+
+// Claim a ReadyOS-owned bank. A compact direct DMA loop reads the
+// 64 allocation records into the same 16-byte scratch used by the loader.
+fn claim(app: u8, slot: u8) u16 {
+    var free_lo: u8 = 0;
+    var free_hi: u8 = 0;
+    var out: u8 = 255;
+    var fresh: u8 = 0;
+    asm {
+        lda #$40
+        sta $c090
+        lda #$c2
+        sta $c091
+    scan:
+        lda #$80
+        sta $df02
+        lda #$c0
+        sta $df03
+        lda $c090
+        sta $df04
+        lda $c091
+        sta $df05
+        lda $c83b
+        sta $df06
+        lda #16
+        sta $df07
+        lda #0
+        sta $df08
+        sta $df09
+        sta $df0a
+        lda #$91
+        sta $df01
+        lda $c080
+        cmp #255
+        bne check_owner
+        lda @free_hi
+        bne next
+        beq remember
+    check_owner:
+        cmp @app
+        bne next
+        lda $c082
+        cmp #6
+        bne next
+        lda $c08a
+        cmp @slot
+        bne next
+        lda $c08c
+        cmp #$5a
+        bne next
+        lda $c08d
+        cmp #$53
+        bne next
+        lda $c08e
+        cmp #$48
+        bne next
+        lda $c08f
+        cmp #$31
+        bne next
+        lda $c083
+        cmp #255
+        beq remember
+        sta @out
+        jmp found
+    remember:
+        lda $c090
+        sta @free_lo
+        lda $c091
+        sta @free_hi
+    next:
+        lda $c090
+        clc
+        adc #16
+        sta $c090
+        bcc check_end
+        inc $c091
+    check_end:
+        lda $c091
+        cmp #$c6
+        bne again
+        lda $c090
+        cmp #$40
+        beq found
+    again:
+        jmp scan
+    found:
+    }
+    if (out != 255) {
+        if (host.read(0xb640 + @as(u16, out)) == 3) {
+            return @as(u16, out);
+        }
+        const old_slot: [*]volatile u8 = @ptrFromInt(0xc090);
+        free_lo = old_slot[0];
+        free_hi = old_slot[1];
+        out = 255;
+    }
+    if (free_hi != 0) {
+        const first = host.read(0xb60c);
+        var candidate = @as(u16, first);
+        while (candidate < 255) {
+            if (host.read(0xb640 + candidate) == 0) {
+                out = bytes.low(candidate);
+                host.write(0xb640 + candidate, 3);
+                fresh = 1;
+                break;
+            }
+            candidate += 1;
+        }
+    }
+    if (fresh != 0) {
+        asm {
+            lda @app
+            sta $c080
+            lda #0
+            sta $c081
+            sta $c084
+            sta $c085
+            sta $c08b
+            lda #6
+            sta $c082
+            lda @out
+            sta $c083
+            lda #255
+            sta $c086
+            sta $c087
+            sta $c089
+            lda #1
+            sta $c088
+            lda @slot
+            sta $c08a
+            lda #$5a
+            sta $c08c
+            lda #$53
+            sta $c08d
+            lda #$48
+            sta $c08e
+            lda #$31
+            sta $c08f
+            lda #$80
+            sta $df02
+            lda #$c0
+            sta $df03
+            lda @free_lo
+            sta $df04
+            lda @free_hi
+            sta $df05
+            lda $c83b
+            sta $df06
+            lda #16
+            sta $df07
+            lda #0
+            sta $df08
+            sta $df09
+            sta $df0a
+            lda #$90
+            sta $df01
+        }
+    }
+    return (@as(u16, fresh) << 8) | @as(u16, out);
+}

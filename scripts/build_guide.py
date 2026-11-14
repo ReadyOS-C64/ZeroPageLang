@@ -1,5 +1,6 @@
 from html import escape
 import re
+import shutil
 from pathlib import Path
 from textwrap import dedent
 from pygments import highlight
@@ -157,6 +158,7 @@ if (RegionDll.load()) {
       <li>{download("examples/zeropage-demos.d64", "ZeroPage demos")} includes <code>HELLO</code> and a banked-memory example.</li>
       <li>{download("sampleapps/tictactoe/tictactoe.d64", "Tic-Tac-Toe")} includes the standalone and classic variants.</li>
       <li>{download("examples/zeropage-reu.d64", "ZeroPage REU")} boots a disk-loaded DLL example with a 16 MiB REU configured.</li>
+      <li><a href="tutorial-spreadsheet.html">ZeroPage Sheet</a> includes ten workbooks and uses the REU for data and overlays.</li>
     </ul>
     <p>{doc("sample-disks", "Disk commands and rebuild instructions")}</p>
     </div>
@@ -369,6 +371,7 @@ tutorial_parts = [
     ]),
     ("Read and diagnose applications", [
         ("tutorial-game", "Trace a move through a complete game"),
+        ("tutorial-spreadsheet", "Build a spreadsheet around the REU"),
         ("tutorial-debug", "Diagnose a program on the C64"),
     ]),
 ]
@@ -379,7 +382,7 @@ tutorial_outcomes = [
     "Build a PRG, handle input, and use inline assembly to call firmware.",
     "Plan RAM, reuse storage, and bring a batch of records in from REU.",
     "Call a disk-loaded rule, share a window, and preserve state across swaps.",
-    "Follow a complete game and trace its target behavior in VICE.",
+    "Trace a complete game and a spreadsheet, then diagnose their behavior in VICE.",
 ]
 reading_order = "".join(
     f'<div><h3>{name}</h3><p>{outcome}</p><ol start="{start}">'
@@ -494,6 +497,7 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-module-lifecycle.html#state-cycle">Keep a byte across DLL unload and reload</a>.</li>
 <li><a href="guide-module-lifecycle.html#policy-lab">Compare preload, on-demand, and explicit loading</a> for the same exports.</li>
 <li><a href="guide-module-lifecycle.html#reuse-producer">Package one DLL build for two applications</a> with different loading policies.</li>
+<li><a href="tutorial-spreadsheet.html">Trace a spreadsheet</a> through REU-backed formulas, disk staging, and fixed-address overlays.</li>
 <li><a href="guide-memory-plan.html">Build a disk-backed score updater</a> and diagnose a bad memory plan, signature, or disk.</li>
 <li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
 <li><a href="guide-abi.html#frame-trace">Trace a word argument through a nested call</a>.</li>
@@ -2246,6 +2250,89 @@ x64sc -autostart sampleapps/tictactoe/tictactoe.d64:tictactoe
 <p>In <code>renderOutcome</code>, change the <code>2P X WINS</code> branch from <code>setBorderAsm(2)</code> to <code>setBorderAsm(5)</code>. Rebuild the standalone source and replay the round. The same moves should give the same winner. The border now turns green instead of red.</p>
 {example_run(game_path, "tutorial-game", anchor="tutorial-game-source")}
 <p>The board and history fit in resident C64 RAM. A larger game's roster can use <a href="tutorial-reu-pages.html#enemy-roster">REU batches</a>, and independently loaded rules can use the <a href="tutorial-dll-cache.html">DLL window</a>. Compare the <a href="guide-application.html#hosted">ReadyOS variant</a> when the host owns startup and application switching.</p>'''),
+])
+
+sheet_dir = Path("sampleapps/spreadsheet")
+sheet_site = Path("docs/site/spreadsheet")
+sheet_site.mkdir(exist_ok=True)
+for capture in ("dispatch-board", "cash-forecast", "market-format"):
+    shutil.copyfile(sheet_dir / "screenshots" / f"{capture}.png", sheet_site / f"{capture}.png")
+
+def sheet_excerpt(file, start, stop, label):
+    source = (sheet_dir / file).read_text()
+    offset = source.index(start)
+    excerpt = source[offset:source.index(stop, offset)].rstrip()
+    return block(f"{file} · {label}", dedent(excerpt) + "\n")
+
+sheet_title = "Build a spreadsheet around the REU"
+sheet_lead = "Follow ZeroPage Sheet from a cell edit to a recalculated value, a saved workbook, and a resumed ReadyOS session."
+guide_page("tutorial-spreadsheet", sheet_title, sheet_lead, [
+    ("try", "Open a workbook and follow one formula", f'''
+<p>ZeroPage Sheet is a 40-column Commodore 64 spreadsheet with 1,536 addressable cells, from A1 through P96. The same grid, formula engine, file dialogs, and help browser run from BASIC or inside ReadyOS Precog 0.5. Text, decimal values, currency, and chained formulas share the same workbook.</p>
+<figure class="sheet-capture"><img src="site/spreadsheet/dispatch-board.png" width="504" height="312" alt="VICE frame with the full C64 border. ZeroPage Sheet shows box counts, decimal weights, dollar charges, and the selected formula for a dispatch label."><figcaption>The Dispatch workbook combines a cached label, an <code>IF</code> decision, and a rate locked with <code>$D$12</code>.</figcaption></figure>
+<p>Boot with a 256 KiB or larger REU, press F7, and open <code>ORDERS</code>. Select A10 to see <code>=A9+IF(B4&gt;5," XL"," STD")</code> in the raw bar. Change B4 from 6 to 4 and watch the label and charge update. Press F to see the selected column's format and width. F8 opens the help index.</p>
+<p>{download("sampleapps/spreadsheet/zeropage-sheet.d64", "Download the standalone D64")} · {download("sampleapps/spreadsheet/sheet-examples.d81", "Download the workbook disk")} · {example_link("sampleapps/spreadsheet/README.md", "App controls and ReadyOS setup")}</p>
+{shell("""
+x64sc -reu -reusize 256 -autostart zeropage-sheet.d64:zsheet
+
+# From the ZeroPageLang checkout, with c1541 installed:
+zig build spreadsheet
+""", "Boot the download or rebuild the app", "boot")}
+'''),
+    ("layout", "Separate the parts that need different lifetimes", f'''
+<p>The resident program owns input dispatch, rendering, formula evaluation, and the bridge to the C64 BASIC math ROM. Three smaller programs share one execution window for occasional work. The REU holds raw workbook records, calculation state, save/load staging, inactive code, and help pages. A drive supplies the executable images at first use and stores compact workbooks across power cycles.</p>
+<table><thead><tr><th scope="col">Location</th><th scope="col">What lives there</th></tr></thead><tbody>
+<tr><td>C64 RAM below <code>$A000</code></td><td>Resident app. BASIC starts the standalone PRG loaded at <code>$0801</code>. ReadyOS loads and enters its PRG at <code>$1000</code>.</td></tr>
+<tr><td>C64 RAM <code>$A000–$BEFF</code></td><td>One active file, help, or editor image. This window sits under BASIC ROM. KERNAL and I/O stay visible during overlay calls.</td></tr>
+<tr><td>Live REU bank</td><td>48 KiB of 32-byte input records, 9 KiB of tagged formula results, 6 KiB of dependency frames, and workbook settings and colors.</td></tr>
+<tr><td>Staging REU bank</td><td>Temporary workbook records and colors for validation or serialization.</td></tr>
+<tr><td>Cache REU bank</td><td>Three 8 KiB slots for inactive code, plus help pages and a separate area for calculated text.</td></tr>
+</tbody></table>
+{sheet_excerpt("standalone.zp64", "    region workbook:", "    image prg", "Standalone REU reservations")}
+<p>Standalone gives the three roles fixed bank numbers. ReadyOS supplies the physical banks through the app's schema-5 resource adapter. Before switching apps, the hosted build saves its view and clipboard to the live bank. Re-entry reads them and resumes the workbook as long as the app stays loaded. <a href="guide-memory.html">Named regions and image limits</a> · {example_link("sampleapps/spreadsheet/readyos.zp64", "Hosted entry and session state")}</p>
+'''),
+    ("cell", "Read one cell with a typed micromodule", f'''
+<p>A row and column map to a numeric ID. With 16 columns, the four low bits give the column. A 32-byte record starts at <code>id &lt;&lt; 5</code> and holds a length byte plus up to 31 PETSCII bytes. B3 has zero-based coordinates (2, 1), so its ID is 33 and its record begins at <code>$0420</code> within the live bank.</p>
+{sheet_excerpt("grid.zp64", "fn id(", "fn chrome(", "Row and column to cell ID")}
+{sheet_excerpt("store.zp64", "fn read(", "fn write(", "Fetch one cell into C64 scratch at $C000")}
+<p><code>store.zp64</code> imports the small <code>dma.zp64</code> source library. That helper accepts a runtime bank number and uses ZeroPage <code>asm {{ ... }}</code> to write the REU controller registers.</p>
+{sheet_excerpt("dma.zp64", "        lda @bank", "        lda #0", "Send the bank and transfer size to the REU")}
+<p>Here <code>@bank</code> names a ZeroPage byte parameter. The store to <code>$DF06</code> selects the physical REU bank, and <code>$DF07–$DF08</code> set the transfer length. Source imports are compiled into the calling image. On a warm render, the grid fetches cached values and reads raw cell text when needed. <a href="tutorial-composition.html">Source imports</a> · <a href="tutorial-dma.html">Raw DMA exercise</a></p>
+'''),
+    ("recalculate", "Keep formula chains off the CPU stack", f'''
+<p>When a formula refers to another formula, the evaluator saves a compact frame in REU and visits that dependency. It records which cells are being visited to detect cycles, and memoizes finished results. The top frame is copied into C64 scratch when it is needed. A four-byte frame packs the cell ID, token cursor, and the next range member. The 1,536-cell CHAIN workbook evaluates A1 through P96.</p>
+{sheet_excerpt("calculate.zp64", "fn frame(", "    if (command == 0x90)", "Index a four-byte dependency frame")}
+{sheet_excerpt("store.zp64", "fn invalidate(", "fn read(", "Invalidate the result cache with one DMA fill")}
+<p>The live input is the source of truth. After an edit, the grid recomputes the results it needs. F1 rebuilds the full result cache. The engine keeps an exact 16-bit integer fast path and promotes fractional or large results to the BASIC ROM's five-byte float format. Currency and decimal formatting round the display while dependent formulas still use the cached value. <a href="tutorial-firmware.html">Calling ROM from ZeroPage</a> · {example_link("sampleapps/spreadsheet/float_rom.zp64", "Spreadsheet ROM bridge")}</p>
+<figure class="sheet-capture"><img src="site/spreadsheet/cash-forecast.png" width="504" height="312" loading="lazy" alt="Cash forecast with a negative week, colored totals, and a chained SUM yielding $304.25."><figcaption>The final balance depends on other calculated cells and displays as <code>$304.25</code>.</figcaption></figure>
+'''),
+    ("overlays", "Load occasional code into one shared window", f'''
+<table><thead><tr><th scope="col">Disk image entry</th><th scope="col">Work it handles</th></tr></thead><tbody>
+<tr><td><code>ZSFILE</code></td><td>Load and save dialogs, native workbook serialization, and SimpleCells import.</td></tr>
+<tr><td><code>ZSHELP</code></td><td>Help, directory browser, column formats, and cell colors.</td></tr>
+<tr><td><code>ZSEDIT</code></td><td>Cell and formula editing, paste, and fill with adjusted references.</td></tr>
+</tbody></table>
+{sheet_excerpt("file_overlay.zp64", "memory", "export fn main", "Fixed-address image declaration")}
+{sheet_excerpt("overlays.zp64", "        dma.stash(cache, off", "    return true;", "Seed or activate an REU slot")}
+<p>Each of these images is compiled as a small PRG with entry <code>$A000</code>. The resident loader validates the header and size, reads the image once from drive 8, and stashes the bytes in REU. A later call to a different cached image restores it by DMA. Repeating a call to the current image skips the copy. Command and result bytes in a shared C64 mailbox form the interface. The app uses its own fixed-address loading convention. ZeroPage's compiler-managed DLL path adds typed exports and relocations, as shown in the <a href="tutorial-dll-cache.html">shared DLL window tutorial</a>.</p>
+<figure class="sheet-capture"><img src="site/spreadsheet/market-format.png" width="504" height="312" loading="lazy" alt="Column format dialog over the market workbook, with currency selected and a width of 10."><figcaption>The format dialog uses the help overlay. The live workbook and its calculated values stay in REU.</figcaption></figure>
+'''),
+    ("disk", "Stage a workbook before replacing live data", f'''
+<p>A native ZPSH v6 file stores column settings, the view, occupied cells, and explicit colors. Empty cells take no records on disk. Loading first fills a separate staging bank, so a malformed record or missing end marker can be rejected while the open workbook remains editable. Saving copies the live records into the same staging bank and serializes them through a 256-byte C64 buffer.</p>
+{sheet_excerpt("file_overlay.zp64", "                success = codec.readImage(", "            }" + chr(10) + "            disk.close", "Commit a staged load after validation")}
+<p>Help uses a different REU range in the cache bank. Eight 512-byte pages share one C64 buffer. After the help data has been loaded, choosing a topic fetches just that page.</p>
+{sheet_excerpt("help_ui.zp64", "    dma.fetch(cache, 0x7000", "    const buffer:", "Fetch one help page")}
+<p>{example_link("sampleapps/spreadsheet/FILE_FORMAT.md", "ZPSH and SimpleCells format notes")}</p>
+'''),
+    ("verify", "Check the behavior and inspect the build", f'''
+<p>The Peddle fixtures run the compiled formula engine and check results without the UI. The optional VICE plans check keyboard input, formatting, the full-sheet chain, a rejected import, and saved disk bytes. The ReadyOS plan also changes a loaded workbook, switches through the launcher and Editor, then returns to the sheet, edits it again, and saves it.</p>
+{shell("""
+ZEROPAGE_EMU_FILTER=spreadsheet zig build emu-test
+python3 -m unittest discover -s tests -p test_spreadsheet_examples.py
+zig build spreadsheet-vice
+""", "Run the host and VICE checks", "checks")}
+<p>Compare the resident and overlay <code>.zpmap.json</code> files after a build. The resident image must end below <code>$A000</code>. Each overlay has <code>$BF00</code> as its exclusive limit. The REU stays in use for data and inactive images while the grid and formula engine stay resident. <a href="guide-verification.html">Inspect generated artifacts</a> · {example_link("sampleapps/spreadsheet/screenshots/README.md", "Full-border screenshot gallery")}</p>
+'''),
 ])
 
 guide_page("tutorial-debug", "Diagnose a program on the C64", "Start with the result you expected and pick the smallest observation that can explain the difference.", [

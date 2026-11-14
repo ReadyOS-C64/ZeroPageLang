@@ -1,0 +1,133 @@
+const tui = @import("tui.zp64");
+const paint = @import("paint.zp64");
+const c64 = @import("c64");
+
+fn rect(x: u8, y: u8, w: u8, h: u8) void {
+    var rows: u8 = 0;
+    var left: u8 = 0;
+    var right: u8 = 0;
+    asm {
+        lda @x
+        sta $fb
+        lda #$04
+        sta $fc
+        ldx @y
+        beq color_ptr
+    seek:
+        lda $fb
+        clc
+        adc #40
+        sta $fb
+        bcc seek_same_page
+        inc $fc
+    seek_same_page:
+        dex
+        bne seek
+    color_ptr:
+        lda $fb
+        sta $fd
+        lda $fc
+        clc
+        adc #$d4
+        sta $fe
+        lda @h
+        sta @rows
+        lda #$70
+        sta @left
+        lda #$6e
+        sta @right
+        ldx #$40
+    row:
+        ldy #0
+        lda @left
+        sta ($fb),y
+        lda #14
+        sta ($fd),y
+        iny
+    interior:
+        iny
+        cpy @w
+        beq edge
+        dey
+        txa
+        sta ($fb),y
+        lda #1
+        cpx #$20
+        beq ink
+        lda #14
+    ink:
+        sta ($fd),y
+        iny
+        bne interior
+    edge:
+        dey
+        lda @right
+        sta ($fb),y
+        lda #14
+        sta ($fd),y
+        dec @rows
+        beq done
+        lda $fb
+        clc
+        adc #40
+        sta $fb
+        sta $fd
+        bcc next_row
+        inc $fc
+        inc $fe
+    next_row:
+        lda @rows
+        cmp #1
+        beq bottom
+        lda #$5d
+        sta @left
+        sta @right
+        ldx #$20
+        bne row
+    bottom:
+        lda #$6d
+        sta @left
+        lda #$7d
+        sta @right
+        ldx #$40
+        bne row
+    done:
+    }
+}
+
+fn init() void {
+    c64.screen.clear();
+    c64.vic.border = 6;
+    asm {
+        lda #$06
+        sta $d021
+
+        lda #$40
+        sta $028a
+        lda #$00
+        sta $00c6
+        ; ReadyOS lowercase/uppercase character ROM at $1800.
+        lda #$16
+        sta $d018
+    }
+}
+
+fn ink(start: u16, len: u8, color: u8) void {
+    asm {
+        lda @len
+        beq done
+        lda tui_ink_start
+        sta $fb
+        lda tui_ink_start+1
+        clc
+        adc #$d8
+        sta $fc
+        lda @color
+        ldy @len
+    paint:
+        dey
+        sta ($fb),y
+        bne paint
+    done:
+    }
+}
