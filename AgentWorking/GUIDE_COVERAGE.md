@@ -5,14 +5,16 @@ Each chapter uses complete repository sources or labels code as excerpts.
 For runnable examples, compare the published blocks with their source and
 run the target program when its behavior is part of the lesson.
 
-The tutorial has twelve chapters in three parts. The reader starts with a PRG,
-byte and word arithmetic, and an interactive sector survey. Screen and device
-access lead into inline assembly, then RAM regions, near arenas, fixed-block
+The tutorial has seventeen chapters in three parts. The reader starts with a
+PRG, byte and word arithmetic, and an interactive sector survey. Local imports
+and typed input events lead into screen access and inline assembly. The memory
+part covers near arenas, banked placements, software-stack frames, fixed-block
 pools, and paged REU storage. The final part introduces typed and named DLL
-calls, builds two producers that share one execution window, and follows their
-runtime activity in the VICE monitor. Use chapter links for the learning path
-and guide links for reference. Demonstrate results through screen output or
-target memory. Keep compiler test hooks in compiler testing material.
+calls, builds two producers that share one execution window, saves and restores
+module state, and combines a scoring DLL with a separate REU arena. The VICE
+monitor lesson traces the cache behavior. Use chapter links for the learning
+path and guide links for reference. Demonstrate results through screen output
+or target memory. Keep compiler test hooks in compiler testing material.
 
 Chapter pages use the tutorial or guide order for their navigation. The
 desktop sidebar marks the current chapter, and the mobile chapter picker
@@ -23,8 +25,11 @@ The shared-window exercise was checked with a 256 KiB REU in VICE. Its trace
 hits two disk loader paths followed by three activations in Terrain, FixedMath,
 Terrain order. A disk missing FixedMath takes the red-border failure path.
 The REU exercise runs with and without the scratch reset. The pool exercise
-checks the original two-block layout and the three-block variation. The
-tutorial still uses the guide for the full call-frame and placed-image paths.
+checks the original two-block layout and the three-block variation. VICE also
+checks all four survey input events, the banked lookup, recursive and nested
+calls, the exact-fit frame budget and the one-byte-short trap, and both DLL
+state policies. The combined score disk runs with a 256 KiB REU. The compiler
+rejects a direct resident read of hidden data and an overlapping score arena.
 
 | Area | Current guide evidence | Sources for the next review |
 | --- | --- | --- |

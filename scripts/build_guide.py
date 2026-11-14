@@ -117,8 +117,8 @@ index = f'''
       <article><h3>A first program</h3><p>Use a built-in API to print PETSCII text and write the VIC-II border register.</p>{sample("examples/hello.zp64")}</article>
       <article><h3>Inline 6510 assembly</h3><p>A block-local loop increments a ZeroPage byte through <code>@color</code>. The compiler restores A, X, and status. The byte and VIC-II writes persist. <a href="guide-assembly.html">Assembly chapter</a></p>{sample("docs/tutorial-examples/asm-border.zp64")}</article>
       <article><h3>Read record fields from assembly</h3><p>The static function reads the nested byte <code>actor.pos.x</code> through its flattened name. It stores the result in a local so ZeroPage can return it after A and status are restored. <a href="guide-assembly.html#bindings">Source operands and storage</a></p>{block("By-value record parameter · excerpt", "fn adjustedX" + Path("docs/tutorial-examples/asm-record.zp64").read_text().split("fn adjustedX", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
-      <article><h3>Bring a firmware result back into ZeroPage</h3><p>KERNAL GETIN returns a byte in A. Store it before the wrapper restores A, then return it as a typed value. <a href="guide-assembly.html#kernal-result">Firmware calls and register preservation</a></p>{block("Keyboard read · excerpt", "fn readKey" + Path("docs/tutorial-examples/asm-getin.zp64").read_text().split("fn readKey", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
-      <article><h3>Activate a DLL from REU</h3><p>The typed binding declares the export signature. Loading seeds the REU cache from the resident PRG. A loaded module can be activated again after another module takes its execution window. <a href="guide-modules.html#swap">Cache and window walkthrough</a></p>{block("Load and dispatch · excerpt", """extern module RegionDll = region_dll {
+      <article><h3>Bring a firmware result back into ZeroPage</h3><p>KERNAL GETIN returns a byte in A. Store it before the wrapper restores A, then return it as a typed value. <a href="tutorial-assembly.html#wrapper">Read the source and generated wrapper side by side</a>.</p>{block("Keyboard read · excerpt", "fn readKey" + Path("docs/tutorial-examples/asm-getin.zp64").read_text().split("fn readKey", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
+      <article><h3>Activate a DLL from REU</h3><p>The typed binding declares the export signature. Loading seeds the REU cache from the resident PRG. A loaded module can be activated again after another module takes its execution window. <a href="tutorial-dll-cache.html">Walk through disk loading and REU activation</a>.</p>{block("Load and dispatch · excerpt", """extern module RegionDll = region_dll {
     fn tick(value: u8) u8;
 }
 
@@ -130,9 +130,9 @@ if (RegionDll.load()) {
 }
 """)}</article>
       <article><h3>Make memory ownership explicit</h3><p>This declaration reserves visible RAM for short-lived allocations and REU space for far records. <a href="guide-arenas.html">Arena and pool chapter</a></p>{block("Region declaration", Path("docs/tutorial-examples/reu-records.zp64").read_text().split("memory {", 1)[1].split("export fn", 1)[0].join(("memory {", "")))}</article>
-      <article><h3>Move records into C64 RAM</h3><p>Bring two records into a scratch arena, edit one, and flush the range back to the REU. The local index is relative to the start of the range. <a href="guide-reu.html">Far-memory chapter</a></p>{block("Materialized range excerpt", dedent(Path("docs/tutorial-examples/reu-records.zp64").read_text().split("        if (enemies.materializeRange", 1)[1].split("\n\n            const saved", 1)[0].join(("        if (enemies.materializeRange", "\n        }\n"))))}</article>
+      <article><h3>Move records into C64 RAM</h3><p>Bring two records into a scratch arena, edit one, and flush the range back to the REU. The local index is relative to the start of the range. <a href="tutorial-reu.html">Edit a page of a map in REU</a>.</p>{block("Materialized range excerpt", dedent(Path("docs/tutorial-examples/reu-records.zp64").read_text().split("        if (enemies.materializeRange", 1)[1].split("\n\n            const saved", 1)[0].join(("        if (enemies.materializeRange", "\n        }\n"))))}</article>
     </div>
-    <p><a href="tutorial.html">Read the language introduction</a> · <a href="guide.html">Browse the full guide</a></p>
+    <p><a href="tutorial.html">Start the programming tutorial</a> · <a href="guide.html">Browse the full guide</a></p>
   </div></section>
   <section id="philosophy" class="section"><div class="wrap split">
     <h2>Philosophy</h2>
@@ -344,11 +344,14 @@ tutorial_parts = [
         ("tutorial-first", "Build and read a first PRG"),
         ("tutorial-values", "Choose types, widths, and conversions"),
         ("tutorial-state", "Keep state and handle input"),
+        ("tutorial-composition", "Split source and model input events"),
         ("tutorial-hardware", "Draw and talk to hardware"),
         ("tutorial-assembly", "Pass values through inline assembly"),
     ]),
     ("Give data a place to live", [
         ("tutorial-memory", "Plan RAM and reuse scratch storage"),
+        ("tutorial-placement", "Place code and tables in banked RAM"),
+        ("tutorial-frames", "Choose static and software-stack frames"),
         ("tutorial-pools", "Keep independent records in a pool"),
         ("tutorial-reu", "Edit one page of a map in REU"),
         ("tutorial-reu-pages", "Reuse one buffer across a far table"),
@@ -356,6 +359,8 @@ tutorial_parts = [
     ("Load code and verify it", [
         ("tutorial-dll", "Build and call a disk-loaded DLL"),
         ("tutorial-dll-cache", "Share a RAM window between DLLs"),
+        ("tutorial-dll-state", "Preserve DLL state across activations"),
+        ("tutorial-score", "Combine a disk rule with REU records"),
         ("tutorial-debug", "Diagnose a program on the C64"),
     ]),
 ]
@@ -1769,6 +1774,60 @@ x64sc -reu -reusize 256 -autostart "$out/survey.d64:boot"
 <p>The <a href="guide-module-lifecycle.html">DLL lifecycle guide</a> extends this example with graph acquire, automatic loading policies, state snapshots, and RAM under ROM. The <a href="guide-memory-plan.html">score updater</a> shows how to combine a cache with a separate REU data arena.</p>'''),
 ])
 
+guide_page("tutorial-dll-state", "Preserve DLL state across activations", "Separate an export's temporary frame, its cached code, and the bytes that must survive when the module leaves RAM.", [
+    ("ownership", "Decide which bytes must outlive a call", '''
+<p>A module can finish a call and leave useful data behind, such as the selected sector or the last result. Locals in the call frame expire on return. A persistent range belongs to the module and remains available after a later activation. Decide which values need this lifetime before assigning offsets.</p>
+<table><thead><tr><th scope="col">Storage</th><th scope="col">What survives</th><th scope="col">Who manages it</th></tr></thead><tbody>
+<tr><td>Software-stack frame</td><td>Arguments and locals for one invocation.</td><td>Call and return code.</td></tr>
+<tr><td>REU payload cache</td><td>Code and original data needed to activate a loaded DLL.</td><td>Module loader.</td></tr>
+<tr><td>REU state snapshot</td><td>Selected modified bytes from the active window.</td><td>Module loader, using declared offsets.</td></tr>
+<tr><td>Resident RAM record</td><td>Application-owned data while different modules use the window.</td><td>Application.</td></tr>
+</tbody></table>'''),
+    ("cycle", "Save one byte, clear RAM, and activate again", f'''
+<p>The execution window starts at <code>$c000</code>. An offset of <code>$0780</code> selects byte <code>$c780</code>. This program calls <code>Counter.tick(5)</code>, writes the result to the state byte, and unloads the active module. It then clears the window byte itself. The next <code>Counter.load()</code> must restore the value from the saved state for the exercise to succeed.</p>
+{sample("docs/tutorial-examples/dll-state-cycle.zp64")}
+{example_run("docs/tutorial-examples/dll-state-cycle.zp64", "tutorial-state-cycle", True, anchor="tutorial-state-cycle")}
+<p>Expect <code>STATE 06</code> and <code>STATE CYCLE OK</code>. The typed call is unavailable after unload until the module is loaded again. The direct call to the resident <code>tick</code> function still works. This example seeds the payload from the boot PRG, so the observed state cycle needs only a PRG and an REU.</p>'''),
+    ("compare", "Choose what happens to state at unload", '''
+<p>Replace <code>persist_in_reu at 0x0780 size 1;</code> with <code>discard_on_unload;</code> and rebuild. The manually cleared byte stays zero after reload. Expect <code>STATE 00</code> and <code>STATE CYCLE FAILED</code>. Restore the snapshot declaration and compare the results.</p>
+<p>Snapshots also cover replacement by another module in the same window. The loader saves the outgoing module's declared bytes, copies and relocates the next payload, then restores that module's saved bytes. Keep state offsets inside the assigned window and separate from code. State consumes REU space in addition to the payload cache. The <a href="guide-modules.html#swap">shared-window state example</a> writes two bytes and checks them after another DLL runs.</p>'''),
+])
+
+guide_page("tutorial-score", "Combine a disk rule with REU records", "Update an application record in an arena while a disk-loaded rule uses a separate REU cache and execution window.", [
+    ("predict", "Predict the update before planning the addresses", '''
+<p>The score starts at <code>$0200</code> after three rounds. The rule adds 3 to the round count and returns 6 points. The new score is <code>$0206</code> after round 4. The application owns the score record. The DLL only receives one byte and returns one byte, so the same rule can serve a caller with a different storage layout.</p>
+<ol><li>Acquire the scoring rule from disk.</li><li>Bring the score record from REU into a C64 scratch arena.</li><li>Call the rule through the execution window and update the local record.</li><li>Flush the record, reset scratch, and verify the new score with a far read.</li></ol>'''),
+    ("layout", "Reserve a separate range for each owner", '''
+<table><thead><tr><th scope="col">Range starts at</th><th scope="col">Owner</th><th scope="col">When it is in use</th></tr></thead><tbody>
+<tr><td>C64 <code>$6000</code></td><td>Execution window</td><td>While the scoring rule is active.</td></tr>
+<tr><td>C64 <code>$8000</code></td><td>Near arena</td><td>While the materialized score is live.</td></tr>
+<tr><td>C64 <code>$9000</code></td><td>Disk staging</td><td>While the loader reads the payload.</td></tr>
+<tr><td>C64 <code>$c800</code></td><td>Software stack</td><td>While the scoring call has a live frame.</td></tr>
+<tr><td>REU <code>$010000</code></td><td>Score arena</td><td>Until the application resets the far arena.</td></tr>
+<tr><td>REU <code>$030000</code></td><td>Module loader</td><td>While the registry's payloads occupy their cache slots.</td></tr>
+</tbody></table>
+<p>The two REU regions have distinct owners. A write-back to the score arena never needs to touch the cached DLL. The near score stays live while the export runs, so scratch RAM and the execution window also need separate ranges.</p>'''),
+    ("run", "Follow the score through the rule call", f'''
+{block("Edit and flush · from play", dedent("        if (table.materialize" + Path("docs/tutorial-examples/memory-plan.zp64").read_text().split("        if (table.materialize", 1)[1].split("\n    }\n    scratch.reset();", 1)[0]) + "\n")}
+<p>The producer exports <code>bias</code> as a stack-frame function. The caller declares the same <code>u8 → u8</code> signature. The rule sees only the current round count. The application widens the returned points before adding them to the word total. After the flush it resets scratch and reads the score back from the far table.</p>
+<p>{example_link("docs/tutorial-examples/memory-plan-math.zp64", "Complete scoring rule")} · {example_link("docs/tutorial-examples/memory-plan.zp64", "Complete score application")}</p>
+<p>Expect <code>MEMORY PLAN OK</code> and a green border.</p>
+{shell(r"""
+mkdir -p build
+score_build=$(mktemp -d build/score-tutorial.XXXXXX)
+compiler=./zig-out/bin/zp64c
+"$compiler" compile docs/tutorial-examples/memory-plan-math.zp64 -o "$score_build/math.prg"
+"$compiler" compile docs/tutorial-examples/memory-plan.zp64 -o "$score_build/score.prg" \
+  --dependency-module "fixed_math=$score_build/math.prg.zpmod.json" \
+  --dependency-relocsim "fixed_math=$score_build/math.prg.zpmod.relocsim.json"
+c1541 -format 'memory plan,01' d64 "$score_build/score.d64" \
+  -write "$score_build/score.prg" boot \
+  -write "$score_build/math.prg.zpmod.disk.prg" fixedmath
+x64sc -reu -reusize 256 -autostart "$score_build/score.d64:boot"
+""", "Build the scoring rule and boot the score disk", "tutorial-score-disk")}
+<p>Change the <code>score_reu</code> region base to <code>$030000</code> and rebuild the caller. Its data region would overlap the module cache, so the compiler rejects the declaration. Restore the base before trying a runtime failure such as a disk with no <code>fixedmath</code> entry. The <a href="guide-memory-plan.html#repair">guide's repair exercise</a> also checks an ABI mismatch.</p>'''),
+])
+
 guide_page("tutorial-first", "Build and read a first PRG", "Start with one observable result, then follow the source to the program that runs on the C64.", [
     ("read", "Read the program before installing tools", f'''
 <p>Three lines do the work. Clear the console, print a greeting, and set the border color. <code>c64</code> is the built-in module that supplies those operations. The formatter accepts an argument tuple. Here the empty tuple means the message contains no values to insert.</p>
@@ -1821,6 +1880,21 @@ guide_page("tutorial-values", "Choose types, widths, and conversions", "Predict 
 <ol><li>Try <code>0xfe</code> as both inputs. The byte result is <code>FF</code> and the word result is <code>00FF</code>.</li>
 <li>Restore <code>0xff</code>. Imagine a visit total of <code>$00ff</code>. One more visit in the survey should display <code>0100</code>.</li>
 <li>Use the <a href="guide-language.html">language guide</a> when you need signed comparisons, a fixed array, or an optional result. Keep array indexes within the declared length because runtime indexing is unchecked.</li></ol>'''),
+])
+
+guide_page("tutorial-composition", "Split source and model input events", "Move a rule to a separate source file, then use a typed event to give a keypress a meaning.", [
+    ("imports", "Put reusable rules in a local import", f'''
+<p>As a program grows, put calculations in a separate <code>.zp64</code> file and import it by filename. The compiler includes the functions used by the caller in the same PRG. <code>@import("c64")</code> and <code>@import("ZeroPage")</code> instead name compiler-provided modules. The DLL chapters introduce a separate runtime loading path.</p>
+{paired_examples("Call from the application", "06_module_main.zp64", 'const math = @import("06_module_math.zp64");\n\n// In main:\nvar total: u8 = math.add8(2, 5);\n', "Define the rule", "06_module_math.zp64", Path("examples/small/06_module_math.zp64").read_text())}
+{example_run("examples/small/06_module_main.zp64", "tutorial-local-import", anchor="tutorial-local-import")}
+<p>Expect <code>IMPORT CALL OK</code> and <code>TOTAL=07</code>. Keep both files in the same directory when moving the example. Try changing 5 to 6 and update the expected comparison from 7 to 8.</p>'''),
+    ("events", "Choose a type for an event and for a missing result", f'''
+<p>The survey can dispatch a few keys directly. When different keys carry different kinds of data, a narrow tagged union gives each event its own payload. The selection holds a <code>Mark</code> enum, confirmation carries the PETSCII byte, and an ignored key needs no payload. <code>switch</code> exposes only the payload of the selected branch.</p>
+{sample("docs/tutorial-examples/survey-events.zp64")}
+{example_run("docs/tutorial-examples/survey-events.zp64", "tutorial-input-events", anchor="tutorial-input-events")}
+<p>Press 1 for <code>MARK 01</code> or 2 for <code>MARK 02</code>. Reboot between inputs. Return follows the empty optional path but still carries a key byte, so expect <code>CONFIRM 0D</code>. Press A for <code>NO MARK</code>. The numeric key comparisons use PETSCII bytes from the keyboard. The <a href="tutorial-hardware.html#choose">next chapter</a> distinguishes those from screen codes.</p>'''),
+    ("subset", "Know what carries over from Zig", '''
+<p>Functions, local imports, records, and these captures use Zig syntax. The compiler parses the ordinary source with Zig's parser, then lowers the supported subset for the 6510. Choose fixed arrays, scalar results, and explicit optional captures for the patterns used here. General slices, generic functions, error unions, and <code>std</code> are outside the current subset. The <a href="guide-language.html">language guide</a> gives the supported forms and the target-specific arithmetic and layout rules.</p>'''),
 ])
 
 guide_page("tutorial-hardware", "Draw and talk to hardware", "Use C64 helpers for display, a volatile pointer for a register, and assembly when you need its operands.", [
@@ -1916,6 +1990,51 @@ guide_page("tutorial-pools", "Keep independent records in a pool", "Store two su
     ("practice", "Predict what changes when you add a block", '''
 <p>Change the region from eight to twelve bytes while keeping four-byte blocks. The third allocation can succeed, so <code>NOTES FULL</code> disappears. The successful branch returns the spare block, and the three notes still print in the same order.</p>
 <p>Restore the eight-byte region for the original result. Use <code>reset</code> only when every pointer from the pool can expire together. For a richer actor record and a guide to choosing block size, see <a href="guide-arenas.html#record">Arenas, pools, and records</a>.</p>'''),
+])
+
+placement_source = Path("examples/small/95_memory_regions_placement.zp64").read_text()
+guide_page("tutorial-placement", "Place code and tables in banked RAM", "Read one byte from a table under KERNAL ROM and check where the compiler puts the table and the code that reads it.", [
+    ("addresses", "Separate the three addresses before choosing a region", '''
+<p>Suppose the survey needs a table of tile properties. The C64 has RAM at <code>$e000</code>, but the default CPU mapping shows KERNAL ROM there. Put the table and its reader together in that RAM, and keep console calls in resident code where KERNAL remains visible.</p>
+<table><thead><tr><th scope="col">Address</th><th scope="col">What it controls</th><th scope="col">In this program</th></tr></thead><tbody>
+<tr><td>PRG load</td><td>Where the loader puts the image.</td><td><code>$0801</code>, including a BASIC stub.</td></tr>
+<tr><td>Program entry</td><td>Where the stub transfers control.</td><td><code>$1000</code>, where startup begins.</td></tr>
+<tr><td>Placed section run</td><td>Where the CPU uses the bytes after startup.</td><td><code>$2000</code> for direct code and <code>$e000</code> for the copied section.</td></tr>
+</tbody></table>
+<p>A raw image can omit the BASIC stub. Its loader must transfer control to the declared entry. See the <a href="guide-memory.html#image">raw-entry example</a> when building for a host that supplies that transfer.</p>'''),
+    ("lookup", "Place the reader beside the table", f'''
+{paired_examples("Declare where it runs", "From the memory declaration", """region hidden_code: c64 at 0xe000 size 0x0100
+    bank .ram_under_kernal;
+
+placement hidden in hidden_code load .startup_copy;
+""", "Declare what goes there", "Table and reader", placement_source.splitlines()[2] + "\n\n" + "fn hiddenLookup" + placement_source.split("fn hiddenLookup", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}
+<p>Startup copies the bytes to RAM under ROM. When resident code calls <code>hiddenLookup(1)</code>, a generated gateway exposes that RAM, calls the reader, then restores the CPU mapping while keeping the result. Predict <code>$42</code> from the second table element. The complete program also calls a visible function placed directly at <code>$2000</code> and uses a separate near arena.</p>
+{example_run("examples/small/95_memory_regions_placement.zp64", "tutorial-placement", anchor="tutorial-placement")}
+<p>Expect <code>PLACEMENT ARENA OK</code>. Open the generated <code>.zpmap.json</code> and find <code>memory_placements</code>. The direct section has matching load and run addresses. The hidden section loads with the resident image and runs at <code>$e000</code>. Read your build's map for the exact load address.</p>'''),
+    ("claims", "Keep the banking and zero-page contracts separate", f'''
+<p>Banking changes what the CPU sees at addresses such as <code>$e000</code>. Zero-page policy governs the low 256 bytes, where the compiler, firmware, and your assembly may all need scratch space. Name each reservation where you declare the memory plan.</p>
+<p>Try reading <code>hidden_values[1]</code> directly from the resident <code>main</code> in place of the call. The compiler rejects the access because the resident mapping would see ROM. Restore the call and keep console output outside the hidden reader.</p>
+<p>In the separate reservation exercise, use a <code>.kernal</code> zero-page profile and reserve <code>$30–$31</code>. The program saves the previous byte before borrowing it and restores it after the operation. Compare <code>reserved_ranges</code> and <code>claims</code> in the map. Expect <code>INPUT AND STORE 81D4</code>.</p>
+{example_run("docs/tutorial-examples/zero-page-reservation.zp64", "tutorial-zero-page", anchor="tutorial-zero-page")}'''),
+])
+
+guide_page("tutorial-frames", "Choose static and software-stack frames", "Follow a recursive call, then measure where a nested word result and its live frames fit.", [
+    ("choose", "Choose where a call keeps its arguments and locals", '''
+<table><thead><tr><th scope="col">Call</th><th scope="col">Storage</th><th scope="col">Use it when</th></tr></thead><tbody>
+<tr><td>Static frame</td><td>Fixed cells owned by the callee.</td><td>Each invocation finishes before the same function enters again.</td></tr>
+<tr><td><code>callconv(.stack)</code></td><td>A new frame in a declared C64 RAM region.</td><td>Supported recursion needs live arguments from earlier calls, or a DLL export uses the stack ABI.</td></tr>
+</tbody></table>
+<p>Both use the 6510 hardware stack for machine return addresses. Inline assembly also uses that hardware stack for register saves. The software stack gives arguments and locals their own storage. A byte return uses A. A word return uses its low byte in A and its high byte in X.</p>'''),
+    ("recurse", "Give each recursive call its own argument", f'''
+{sample("examples/small/32_stack_recursive_border.zp64")}
+<p>Follow the argument from 4 to 0. Five invocations of <code>borderFrom</code> are live at the deepest point. When the base case returns 5, every pending call returns the same value. The border turns green. Static recursion would reuse the same parameter cell, so the compiler requires a supported stack-frame call for this pattern.</p>
+{example_run("examples/small/32_stack_recursive_border.zp64", "tutorial-recursion", anchor="tutorial-recursion")}'''),
+    ("budget", "Check a frame reservation at its boundary", f'''
+<p>The word example uses a twelve-byte software stack at <code>$c8fc</code>. Follow <code>main → relay → identity</code>. The frame at the deepest call ends at <code>$c908</code>, the first byte outside the reservation. The two-byte saved frame pointer before a nested frame is part of the budget.</p>
+{sample("docs/tutorial-examples/stack-result.zp64")}
+{example_run("docs/tutorial-examples/stack-result.zp64", "tutorial-stack-word", anchor="tutorial-stack-word")}
+<p>After the program runs, use <code>m c100 c101</code> in the VICE monitor. Expect <code>5a 80</code>, the returned word in little-endian order. The bridge restores the caller frame and delivers A/X to the caller, which passes the result to the static <code>store</code> helper. This example uses an options declaration to select the default frame and override one function.</p>
+<p>Reduce the stack to eleven bytes. Set a breakpoint at <code>.zeropage_stack_overflow_trap</code> using its address in the new labels file and rerun. The nested call traps before the word is stored. Restore twelve bytes to recover. See the <a href="guide-abi.html#frame-trace">annotated frame bytes</a> if you want to inspect each active frame.</p>'''),
 ])
 
 guide_page("tutorial-debug", "Diagnose a program on the C64", "Start with the result you expected and pick the smallest observation that can explain the difference.", [

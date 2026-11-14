@@ -1,0 +1,47 @@
+const c64 = @import("c64");
+
+const Mark = enum(u8) { surveyed = 1, revisit = 2 };
+const Event = union(enum) { ignore, select: Mark, confirm: u8 };
+
+fn eventFromKey(key: u8) Event {
+    if (key == 0x31) {
+        return Event{ .select = .surveyed };
+    }
+    if (key == 0x32) {
+        return Event{ .select = .revisit };
+    }
+    if (key == c64.key.return_) {
+        return Event{ .confirm = key };
+    }
+    return Event{ .ignore = {} };
+}
+
+fn selectedMark(event: Event) ?Mark {
+    switch (event) {
+        .select => |mark| {
+            return mark;
+        },
+        else => {
+            return null;
+        },
+    }
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("1 SURVEY  2 REVISIT  RETURN CONFIRM\n", .{});
+    const event = eventFromKey(c64.keyboard.waitPetscii());
+    const maybe_mark = selectedMark(event);
+    if (maybe_mark) |mark| {
+        c64.console.print("MARK {x}\n", .{mark});
+    } else {
+        switch (event) {
+            .confirm => |key| {
+                c64.console.print("CONFIRM {x}\n", .{key});
+            },
+            else => {
+                c64.console.print("NO MARK\n", .{});
+            },
+        }
+    }
+}
