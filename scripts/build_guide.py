@@ -117,6 +117,7 @@ index = f'''
       <article><h3>A first program</h3><p>Use a built-in API to print PETSCII text and write the VIC-II border register.</p>{sample("examples/hello.zp64")}</article>
       <article><h3>Inline 6510 assembly</h3><p>A block-local loop increments a ZeroPage byte through <code>@color</code>. The compiler restores A, X, and status. The byte and VIC-II writes persist. <a href="guide-assembly.html">Assembly chapter</a></p>{sample("docs/tutorial-examples/asm-border.zp64")}</article>
       <article><h3>Read record fields from assembly</h3><p>The static function reads the nested byte <code>actor.pos.x</code> through its flattened name. It stores the result in a local so ZeroPage can return it after A and status are restored. <a href="guide-assembly.html#bindings">Source operands and storage</a></p>{block("By-value record parameter · excerpt", "fn adjustedX" + Path("docs/tutorial-examples/asm-record.zp64").read_text().split("fn adjustedX", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
+      <article><h3>Bring a firmware result back into ZeroPage</h3><p>KERNAL GETIN returns a byte in A. Store it before the wrapper restores A, then return it as a typed value. <a href="guide-assembly.html#kernal-result">Firmware calls and register preservation</a></p>{block("Keyboard read · excerpt", "fn readKey" + Path("docs/tutorial-examples/asm-getin.zp64").read_text().split("fn readKey", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
       <article><h3>Activate a DLL from REU</h3><p>The typed binding declares the export signature. Loading seeds the REU cache from the resident PRG. A loaded module can be activated again after another module takes its execution window. <a href="guide-modules.html#swap">Cache and window walkthrough</a></p>{block("Load and dispatch · excerpt", """extern module RegionDll = region_dll {
     fn tick(value: u8) u8;
 }
@@ -310,8 +311,10 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-language.html#width">Carry a byte counter into a word</a> and predict its displayed bytes.</li>
 <li><a href="guide-data.html#ownership">Choose a snapshot or an in-place update</a> for game state.</li>
 <li><a href="guide-assembly.html#strings">Pass a string address and length to assembly</a> and trace what the wrapper preserves.</li>
+<li><a href="guide-assembly.html#kernal-result">Capture a KERNAL register result</a> in a typed function.</li>
 <li><a href="guide-memory.html#reservation">Reserve bytes for application code</a> and read the resulting zero-page map.</li>
 <li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
+<li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
 <li><a href="guide-modules.html#disk">Call the same disk DLL two ways</a>, then <a href="guide-module-lifecycle.html#relocation">trace an address into the execution window</a>.</li>
 <li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
 <li><a href="guide-verification.html#policy-cost">Measure a zero-page policy</a> with the same source workload and assertions.</li>
@@ -371,6 +374,19 @@ test6502.expectEqualU8(3, 1, count);
     ("sum-types", "Enums, optionals, and tagged unions", f'''
 <p>An <code>enum(u8)</code> has byte tags. A scalar optional stores presence and payload. A supported pointer optional uses address zero for null. Narrow tagged unions select a payload through a <code>switch</code> capture. This demo models a small event instead of passing a tag and value separately.</p>
 {sample("examples/small/24_optional_union_event.zp64")}'''),
+    ("array-table", "Use a fixed table and guard a runtime lookup", f'''
+<p>Use <code>[_]u8</code> when the initializer determines the length. A declaration such as <code>var bytes: [4]u8 = .{{ 1, 2, 3, 4 }};</code> gives the initializer its type from the binding. Both allocate four contiguous bytes. A word table with four entries needs eight bytes. <code>.len</code> counts elements, so the same bounds check applies to either table.</p>
+{block("Fixed lookup with an early return", """const tile_colors = [_]u8{ 0, 5, 7, 2 };
+
+fn colorFor(tile: u8) u8 {
+    if (tile >= tile_colors.len) {
+        return 0;
+    }
+    return tile_colors[tile];
+}
+""")}
+<p>For tile 2 the function returns 7. For tile 4 it returns the fallback before touching the table. A runtime index has no automatic bounds check. A function can return from within a loop or an <code>if</code>. Use <code>break</code> when only the loop should end, and <code>return</code> when the caller should get control back. A discard such as <code>_ = step();</code> still runs <code>step</code> and keeps its effects.</p>
+<p>{fixture_link("lang/pass/parity/arrays_for_switch/arrays", "Fixed tables, mutable arrays, and element operations")} · {fixture_link("lang/pass/parity/calls/broad_language_parity_extra", "Early return and discarded-call effects")} · {example_link("examples/small/07_loop_control.zp64", "Break and continue on screen")}</p>'''),
     ("imports", "Share code and tables within one program", f'''
 <p>Put reusable declarations in a local source file and use its import alias from the caller. The compiler can include read-only tables from an imported file and refer to them through the same alias. These tables are built into the program, so they have no loader or disk lifecycle. If the feature instead needs its own load window and export ABI, use the module chapter.</p>
 {paired_examples("Asset file", "Excerpt from the imported data fixture", Path("tests/fixtures/emu/lang/pass/parity/modules/_rodata_assets.zp64").read_text(),
@@ -436,6 +452,16 @@ guide_page("assembly", chapters[2][1], chapters[2][2], [
 <p>The host runner can set registers before entering a block and sample them afterward. This excerpt starts with A, X, Y, and P set to known values. The block changes each register, plus carry and overflow. The assertions check the restored registers and selected flags. The mask in <code>expectP</code> selects which status bits to compare.</p>
 {block("From the inline assembly fixture", Path("tests/fixtures/emu/lang/pass/parity/strings_asm/inline_asm.zp64").read_text().split("    test6502.primeRegs(15,",1)[1].split("    test6502.primeRegs(20,",1)[0].join(("    test6502.primeRegs(15,", "")).strip() + "\n")}
 <p>{fixture_link("lang/pass/parity/strings_asm/inline_asm", "Full fixture including a KERNAL call and parameter mutation")} · {fixture_link("lang/fail_compile/inline_asm_buffer_len_immediate", "Rejected immediate buffer length")}</p>'''),
+    ("word", "Pass a word through byte-sized operands", f'''
+<p>Give the two bytes explicit names in a by-value record. The block reads <code>@counter_low</code> and <code>@counter_high</code> and writes two mutable local cells. <code>CLD</code> selects binary arithmetic and <code>CLC</code> clears incoming carry. The first <code>ADC</code> produces the low byte and leaves carry set on overflow. <code>STA</code> and <code>LDA</code> leave carry intact, so <code>ADC #0</code> propagates it into the high byte. At fallthrough the wrapper restores incoming flags, including decimal mode and carry. The two stores are the result.</p>
+{sample("docs/tutorial-examples/asm-word.zp64")}
+{example_run("docs/tutorial-examples/asm-word.zp64", "asm-word", anchor="asm-word")}
+<p>Expect <code>COUNTER 1300</code>. The wrapper function widens the result bytes before shifting and joining them. For a routine that consumes a genuine pointer, use the <a href="#strings">address and indirect forms</a>.</p>'''),
+    ("kernal-result", "Capture the result of a KERNAL call", f'''
+<p>GETIN at <code>$ffe4</code> returns the next PETSCII byte from the keyboard buffer when the keyboard is the input channel. A zero result means no byte is ready. <code>JSR</code> causes ZeroPage to save A, X, Y, and status. Capture A with <code>STA @key</code> inside the block, then return the byte through ordinary ZeroPage code. If a ROM routine reports a condition in flags, branch on those flags inside the block and store a Boolean byte before fallthrough.</p>
+{sample("docs/tutorial-examples/asm-getin.zp64")}
+{example_run("docs/tutorial-examples/asm-getin.zp64", "asm-getin", anchor="asm-getin")}
+<p>With KERNAL visible and the standard keyboard input selected, press A at the prompt. The unshifted A key on the default C64 keyboard configuration prints <code>KEY 41</code>. For ordinary keyboard reads, <code>c64.keyboard.readPetscii()</code> provides the built-in operation. The assembly example exposes the register boundary you also use with other firmware calls.</p>'''),
     ("control", "External calls, terminal jumps, and rejected forms", f'''
 <p>External <code>jsr</code> accepts a numeric address or an assembler-resolved symbol and must return with the hardware stack balanced. Local <code>jsr</code>, inline <code>rts</code>/<code>rti</code>/<code>brk</code>, and stack manipulation such as <code>pha</code> or <code>txs</code> are rejected. Keep directives, includes, macros, and data declarations outside the inline form. Use a static-frame function. Stack frames and DLL exports have stricter body rules.</p>
 {block("ReadyOS terminal transfer · requires the resident shim", "asm {\n    jmp $c80c\n}\n")}
@@ -581,6 +607,12 @@ test6502.expectNull(12, oom);
 """)}
 <p>Both forms require the matching record type. Equal byte widths alone give no conversion between types. If you are migrating a record format, read the old fields, construct a new record explicitly, and write it through the new view. When troubleshooting, check type, count, and destination start before looking at DMA or banking.</p>
 <p>{fixture_link("lang/fail_compile/far_view_flush_wrong_count", "Whole-view count mismatch")} · {fixture_link("lang/fail_compile/far_view_flush_range_wrong_type", "Range flush record-type mismatch")} · {fixture_link("lang/pass/parity/abi/far_reu_materialize_range", "Successful partial write-back")}</p>'''),
+    ("working-set", "Process a table larger than its C64 working space", f'''
+<p>Four three-byte sectors occupy twelve bytes in REU. The C64 scratch arena has six bytes, enough for two sectors. Process starts 0 and 2 in sequence. For each range, bring in both records, run three update passes in C64 RAM, and write back once. The same arena serves the next range after reset. This works because the first near view has gone out of use before the second allocation.</p>
+{sample("docs/tutorial-examples/reu-working-set.zp64")}
+{example_run("docs/tutorial-examples/reu-working-set.zp64", "reu-working-set", True, anchor="reu-working-set")}
+<p>Predict the final scores <code>1003</code>, <code>2006</code>, <code>3003</code>, and <code>4006</code>. Every sector has three visits. The repeated edits use only near view operations. A fresh set of far reads checks the flushes. Expect <code>WORKING SET OK</code> and a green border with the REU enabled. Boot with it disabled to see <code>WORKING SET FAILED</code> and a red border.</p>
+<p>The range count is fixed at two, and the runtime start advances by two. For a table with an odd record count, handle the last record with a single <code>get</code> and <code>set</code> or a separate range with literal count one. The sample allocates through a far arena and verifies copies through the target REU. It allocates no additional C64 working range for the second pair.</p>'''),
 ])
 
 embedded_source = Path("examples/small/96_memory_regions_dll.zp64").read_text()
@@ -782,6 +814,19 @@ test6502.expectEqualBool(4, false, ZeroPage.module.isLoaded("fixed_math"));
 {block("Missing prerequisite · host fixture directives", "\n".join(Path("tests/fixtures/emu/lang/pass/parity/abi/module_dependency_graph_load_missing.zp64").read_text().splitlines()[:5]) + "\n")}
 <p>Here the disk contains <code>mathcore</code> but omits <code>fixedmath</code>. The loader visits <code>fixed_math</code> first. The graph operation reports failure, and both rows remain unloaded with zero references. The assertions check the public result and loaded state. The directives also inspect the internal bytes via the emitted labels. If your program has already taken a reference, pair its successful acquisition with its own release. A failed operation rolls back the references it took, so an existing owner remains responsible for its reference.</p>
 <p>In the registry-initialization fixture, all three rows start unloaded. Their cache slots begin at <code>030000</code>, <code>030800</code>, and <code>031000</code>. Each gets one window-sized slot in that configuration. Increasing the number of rows consumes more REU capacity, even when the disk payloads are small. {module_fixture("module_registry_rows", "Registry rows and initial cache contents")} · {module_fixture("module_dependency_graph_load_missing", "Failed prerequisite load")} · {module_fixture("module_typed_dependency_graph_ownership", "Shared graph ownership")}</p>'''),
+    ("rollback", "Preserve an existing owner when a later graph load fails", f'''
+<p>Imagine a program that already uses <code>MathCore</code>. It tries to acquire a second feature, <code>pathing</code>, which also needs <code>math_core</code>. This fixture supplies the MathCore disk entry and omits Pathing. The graph can acquire MathCore before it reaches the missing file. When the root fails, the loader releases the reference it just took. The first owner can still call <code>MathCore.add</code>.</p>
+{sample("tests/fixtures/emu/lang/pass/parity/abi/module_graph_rollback_shared_owner.zp64", "Complete host fixture · failed graph acquire")}
+<table><thead><tr><th scope="col">Step</th><th scope="col">MathCore references</th><th scope="col">Pathing</th></tr></thead><tbody>
+<tr><td>Acquire MathCore directly</td><td>1</td><td>Unloaded</td></tr>
+<tr><td>Acquire MathCore as a prerequisite</td><td>2</td><td>Load attempted next</td></tr>
+<tr><td>Pathing load fails and graph rolls back</td><td>1</td><td>Unloaded</td></tr>
+</tbody></table>
+<p>The fixture checks the final reference bytes and calls the still-owned export. An application would continue using its original MathCore reference and release it when that owner is done. Release a graph only after its acquire reports success.</p>
+{shell("""
+ZEROPAGE_EMU_FILTER=module_graph_rollback_shared_owner zig build emu-test
+""", "Run the shared-owner rollback fixture", "shared-owner")}
+<p>{module_fixture("module_graph_rollback_shared_owner", "Source and registry assertions")} · <a href="#ownership">Acquire and release rules</a></p>'''),
     ("banks", "Choose a visible window or RAM under ROM", f'''
 <p>A visible RAM window is the easiest place to start. If you need more visible RAM for the main program, put the window under BASIC or KERNAL ROM. The range must fit entirely within the selected bank. The loader restores the processor port after the banked operation.</p>
 {paired_examples("Under BASIC ROM", "Region inside memory", """region module_window: c64 at 0xa000 size 0x0800
@@ -798,6 +843,17 @@ test6502.expectEqualBool(4, false, ZeroPage.module.isLoaded("fixed_math"));
 }
 """)}
 <p>Persistent ranges are saved separately from the payload before replacement or final unload and restored after copy and relocation. They consume REU capacity. The compiler checks bounds, overlap, and available cache space. {example_link("examples/small/66_module_state_runtime.zp64", "Write two bytes, unload, clear the window, and reload")} · {doc("reu-overlays", "State and cache reservations")}</p>'''),
+    ("window-plan", "Read a two-window memory plan", f'''
+<p>The <a href="guide-modules.html#swap">disk and REU cache exercise</a> reserves two independent execution windows. Only the auxiliary one is exercised by the MathCore and FixedMath calls. The current module's <code>tick</code> calls in this example are direct resident calls. A separate window gives the loader room to keep a different row active there if the program uses it.</p>
+<table><thead><tr><th scope="col">Resource</th><th scope="col">Address range</th><th scope="col">Role in the example</th></tr></thead><tbody>
+<tr><td>Auxiliary window</td><td>C64 <code>$6000–$67ff</code></td><td>MathCore and FixedMath alternate here.</td></tr>
+<tr><td>Disk staging</td><td>C64 <code>$9000–$97ff</code></td><td>KERNAL reads each payload here before it goes to REU.</td></tr>
+<tr><td>Main window</td><td>C64 <code>$c000–$c7ff</code></td><td>Default window for unassigned rows.</td></tr>
+<tr><td>Software stack</td><td>C64 <code>$c800–$cbff</code></td><td>Frames for module calls and scalar helpers.</td></tr>
+<tr><td>Cache reservation</td><td>REU <code>$030000–$033fff</code></td><td>Payload slots plus space for declared saved state.</td></tr>
+</tbody></table>
+<p>Inspect the caller's <code>.zpmod.json</code>. <code>loader.load_windows</code> lists the two address ranges. <code>loader.window_assignments</code> maps MathCore row 1 and FixedMath row 3 to <code>aux</code>. <code>dependency_graph.rows</code> includes the transitive row. <code>state.deps</code> shows the MathCore snapshot address <code>$032800</code> for this configuration. Its two source bytes are at <code>$6400–$6401</code> while MathCore owns the auxiliary window.</p>
+<p>Change one declaration at a time while planning your own layout. Moving the window changes where the caller dispatches, where the relocation applies, and where window-relative state lives. Keep the RAM reservations disjoint and rebuild the caller against matching producer artifacts. {example_link("examples/small/85_module_typed_multi_window_binding.zp64", "Complete caller and memory plan")} · {doc("memory-model", "Region overlap and bank rules")}</p>'''),
     ("artifacts", "Know which file goes where", f'''
 <table><thead><tr><th scope="col">File</th><th scope="col">Who uses it</th></tr></thead><tbody>
 <tr><td><code>.zpmod.json</code></td><td>Caller build and inspection. Describes ids, ABI, export signatures and ordinals.</td></tr>
@@ -892,6 +948,16 @@ test6502.expectEqualU16(25, 2, @offsetOf(Nested, "header.word"));
 <p>The captured <code>*Board</code> can still refer to mutable data. The optional changes whether the address is available. A pointer field embedded in a copied record keeps its two address bytes, and both copies can refer to the same target. A record copy gives you an independent set of fields while pointed-to data can remain shared.</p>
 <p>Use <code>@ptrFromInt</code> for supported scalar addresses such as hardware registers. Form a typed struct pointer using <code>&amp;record</code> or the address of a supported nested field. Integer-to-struct casts, volatile struct pointers, and pointer-to-pointer types are outside this subset.</p>
 <p>{fixture_link("lang/pass/parity/optionals/optional_pointers", "Optional pointer branches and updates")} · {fixture_link("lang/pass/parity/pointers/pointer_field_widths", "Two-byte pointer fields across copies and calls")}</p>'''),
+    ("indexed-pointers", "Pass a base address and an index", f'''
+<p>A many-item pointer carries a base address, with no array length alongside it. The indexing demo takes the address of the first scalar element, passes through the supported integer conversion, and constructs a many-item pointer. Mutating element 1 through that pointer changes <code>values[1]</code>. Use a fixed array and its <code>.len</code> while you own the table. If you pass a pointer to another function, pass or otherwise establish the available length as part of the function's contract.</p>
+{block("From the indexed pointer demo", """var values = [_]u8{ 1, 2, 3, 4 };
+const value_ptr: [*]u8 = @ptrFromInt(@intFromPtr(&values[0]));
+value_ptr[1] = 0x20;
+value_ptr[1] += 0x0a;
+value_ptr[2] = value_ptr[1] + 1;
+""")}
+<p>The demo also passes a many-item volatile pointer to a screen-writing helper. Use a literal target base for hardware and add an index through the pointer operand. Pointer arithmetic, comparison, and slice formation are outside the supported subset. A mutable scalar or a literal-index scalar array element can supply an address. For an indexed update whose index calculation has side effects, the compiler evaluates the index before loading a direct many-item pointer's value. It captures a struct pointer before evaluating an index into one of its array fields. Keep index calculations simple unless the order is part of what you intend to test.</p>
+<p>{example_link("examples/small/22_pointer_indexing.zp64", "Runnable local and volatile pointer example")} · {fixture_link("lang/pass/parity/pointers/pending_index_values", "Index evaluation and pending values")} · {doc("language", "Supported pointer forms")}</p>'''),
     ("variants", "Choose a representation for a missing value or a variant", f'''
 <p>A scalar optional uses a presence byte followed by its payload. The byte value zero and the absence of a byte are separate cases. A tagged union has a tag and a fixed payload area. Use an optional for a value that may be absent. Use a tagged union for a value whose payload depends on which event or state you received.</p>
 {paired_examples("One payload that can be absent", "Optional scalar · example excerpt", """if (maybe_score) |score| {
@@ -958,7 +1024,17 @@ mkdir -p build
 x64sc -autostart build/tictactoe.prg
 """, "Compile and run the application from source")}'''),
     ("hosted", "Read the hosted ReadyOS variant", f'''
-<p>The standalone app begins from a BASIC stub. The ReadyOS variant uses a raw PRG at <code>$1000</code> and transfers through documented resident shim vectors when switching apps or returning to the launcher. Its memory map must respect the shim's reserved range. It currently initializes the game on entry. The ReadyOS design notes describe the remaining work for resume-aware state and host-managed REU allocation.</p>
+<p>Both variants initialize a game, read PETSCII input, and render to the C64 screen. The difference starts at the executable boundary. The standalone PRG loads at <code>$0801</code> and its BASIC stub calls the generated entry. The hosted PRG loads and enters at <code>$1000</code>. ReadyOS provides the resident shim and transfers control there. The hosted program's exclusive limit <code>$c600</code> leaves <code>$c600–$c9ff</code> available to the shim.</p>
+{block("Hosted image and reserved shim range", Path("sampleapps/tictactoe_readyos/tictactoe_readyos.zp64").read_text().split("memory {", 1)[1].split("const Cell", 1)[0].join(("memory {", "")))}
+<p>Pressing Ctrl-B reaches the shim's launcher vector at <code>$c80c</code>. F2 and F4 look for a loaded application and, when one is found, the selection helper stores its logical token at <code>$c820</code>. The handler then jumps through the switch vector at <code>$c80f</code>. The inline terminal jump lets the handler transfer directly without adding a separate helper call. The shim owns the switch and the host's REU cache.</p>
+{block("Hosted key dispatch · excerpt", Path("sampleapps/tictactoe_readyos/tictactoe_readyos.zp64").read_text().split("    if (key == 2) {", 1)[1].split("    } else if (key == c64.key.f1)", 1)[0].join(("    if (key == 2) {", "    }\n")))}
+<p>To compare the builds, inspect each map's <code>prg.load</code>, <code>prg.entry</code>, and memory region list. The hosted binary needs ReadyOS for the navigation vectors. Test launcher return and application switching under that host. Re-entry at <code>$1000</code> currently starts a fresh game. The ReadyOS design notes describe the remaining work for resume-aware state and host-managed REU allocation.</p>
+{shell("""
+mkdir -p build
+./zig-out/bin/zp64c compile sampleapps/tictactoe/tictactoe_idiomatic.zp64 -o build/tictactoe.prg
+./zig-out/bin/zp64c compile sampleapps/tictactoe_readyos/tictactoe_readyos.zp64 -o build/tictactoe-hosted.prg
+python3 -m json.tool build/tictactoe-hosted.prg.zpmap.json
+""", "Build both variants and inspect the hosted map", "hosted-map")}
 <p>{example_link("sampleapps/tictactoe_readyos/tictactoe_readyos.zp64", "Hosted game source")} · {doc("readyos-precog", "ReadyOS integration and ownership")}</p>'''),
 ])
 

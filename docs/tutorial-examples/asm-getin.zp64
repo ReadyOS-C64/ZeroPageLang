@@ -1,0 +1,20 @@
+const c64 = @import("c64");
+
+fn readKey() u8 {
+    var key: u8 = 0;
+    asm {
+        jsr $ffe4
+        sta @key
+    }
+    return key;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("PRESS A KEY\n", .{});
+    var key: u8 = 0;
+    while (key == 0) {
+        key = readKey();
+    }
+    c64.console.print("KEY {x}\n", .{key});
+}

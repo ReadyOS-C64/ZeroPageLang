@@ -1,0 +1,25 @@
+const c64 = @import("c64");
+
+const Counter = struct { low: u8, high: u8 };
+
+fn addByte(counter: Counter, delta: u8) u16 {
+    var low: u8 = 0;
+    var high: u8 = 0;
+    asm {
+        cld
+        clc
+        lda @counter_low
+        adc @delta
+        sta @low
+        lda @counter_high
+        adc #0
+        sta @high
+    }
+    return (@as(u16, high) << 8) | @as(u16, low);
+}
+
+export fn main() void {
+    c64.console.clear();
+    const result = addByte(Counter{ .low = 0xff, .high = 0x12 }, 1);
+    c64.console.print("COUNTER {x16}\n", .{result});
+}

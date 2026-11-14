@@ -187,6 +187,22 @@ parameter, adjusts a mutable nested field, and stores an enum tag. The
 [buffer example](../examples/small/16_inline_asm_strings.zp64) copies a string
 using indexed addressing and updates the buffer length.
 
+### Pass word data and capture a KERNAL result
+
+For a two-byte counter, put the low and high bytes in a record. The
+[word example](tutorial-examples/asm-word.zp64) reads them as
+`@counter_low` and `@counter_high`. It clears decimal mode and carry, adds
+the low byte, stores it, then propagates carry into the high byte.
+`LDA` and `STA` leave carry intact. The wrapper restores the incoming
+flags, so the two result cells carry the answer back to source code.
+ZeroPage widens and combines those bytes into a `u16`.
+
+The [GETIN example](tutorial-examples/asm-getin.zp64) calls the visible
+KERNAL jump table at `$ffe4`. Store A to a mutable byte with `sta @key`
+inside the block. The wrapper restores the caller's A before execution
+returns to source code. For a routine that communicates through flags,
+branch inside the block and store a byte result before fallthrough.
+
 ## Preservation at a glance
 
 The analyzer combines clobbers across the entire block, including instructions

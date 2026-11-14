@@ -67,6 +67,15 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></article>
+      <article><h3>Bring a firmware result back into ZeroPage</h3><p>KERNAL GETIN returns a byte in A. Store it before the wrapper restores A, then return it as a typed value. <a href="guide-assembly.html#kernal-result">Firmware calls and register preservation</a></p><div class="codebox"><div class="codebar"><span class="mono">Keyboard read · excerpt</span></div><pre tabindex="0"><code><span class="k">fn</span><span class="w"> </span><span class="n">readKey</span><span class="p">()</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">key</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">jsr</span><span class="w"> </span><span class="err">$</span><span class="n">ffe4</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@key</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></article>
       <article><h3>Activate a DLL from REU</h3><p>The typed binding declares the export signature. Loading seeds the REU cache from the resident PRG. A loaded module can be activated again after another module takes its execution window. <a href="guide-modules.html#swap">Cache and window walkthrough</a></p><div class="codebox"><div class="codebar"><span class="mono">Load and dispatch · excerpt</span></div><pre tabindex="0"><code><span class="kr">extern</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="n">RegionDll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">region_dll</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">tick</span><span class="p">(</span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span>
 <span class="p">}</span>

@@ -1,0 +1,56 @@
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row1_refcount=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row2_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row2_refcount=$00
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+extern module MathCore = math_core {
+    fn add(value: u8) u8;
+}
+
+memory {
+    region frames: c64 at 0xc800 size 0x0400;
+    region execution: c64 at 0xc000 size 0x0800;
+    region cache: reu at 0x030000 size 0x1800;
+    region staging: c64 at 0x9000 size 0x0800;
+    stack in frames;
+}
+
+module_loader {
+    window main in execution;
+    reu_cache in cache;
+    disk_staging in staging;
+    capacity = 3;
+
+    current {
+        file = "rollback";
+    }
+    dependency math_core {
+        file = "mathcore";
+        requires = .{};
+    }
+    dependency pathing {
+        file = "pathing";
+        requires = .{ .math_core };
+    }
+}
+
+module rollback_demo abi 1 {
+    export tick;
+    dependency math_core;
+    dependency pathing;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, true, MathCore.acquire());
+    test6502.expectEqualBool(2, false, ZeroPage.module.acquireDependencyGraph("pathing"));
+    test6502.expectEqualBool(3, false, ZeroPage.module.isLoaded("pathing"));
+    test6502.expectSomeU8(4, 5, MathCore.add(3));
+    test6502.pass();
+}

@@ -74,7 +74,44 @@
 <p>The repository includes a host fixture for the game's rules. It checks state transitions and outcomes using <code>test6502</code>. The standalone sample exercises keyboard input and rendering in VICE. For a new game, isolate rules that can be verified from memory and check the hardware-facing behavior separately.</p>
 <p><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/tests/fixtures/emu/lang/pass/integration/tictactoe_core.zp64">Tic-Tac-Toe rules fixture</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/testing.md">Test layers and fixture conventions</a></p>
 <p id="commands-2" class="command-link"><a href="guide-application-commands.html#commands-2">Compile and run the application from source</a></p></section><section id="hosted"><h2>Read the hosted ReadyOS variant</h2>
-<p>The standalone app begins from a BASIC stub. The ReadyOS variant uses a raw PRG at <code>$1000</code> and transfers through documented resident shim vectors when switching apps or returning to the launcher. Its memory map must respect the shim's reserved range. It currently initializes the game on entry. The ReadyOS design notes describe the remaining work for resume-aware state and host-managed REU allocation.</p>
+<p>Both variants initialize a game, read PETSCII input, and render to the C64 screen. The difference starts at the executable boundary. The standalone PRG loads at <code>$0801</code> and its BASIC stub calls the generated entry. The hosted PRG loads and enters at <code>$1000</code>. ReadyOS provides the resident shim and transfers control there. The hosted program's exclusive limit <code>$c600</code> leaves <code>$c600–$c9ff</code> available to the shim.</p>
+<div class="codebox"><div class="codebar"><span class="mono">Hosted image and reserved shim range</span></div><pre tabindex="0"><code><span class="n">memory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ReadyOS owns this resident region and the application snapshot cache.</span>
+<span class="w">    </span><span class="n">region</span><span class="w"> </span><span class="n">readyos_shim</span><span class="o">:</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="mh">0xc600</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="mh">0x0400</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">image</span><span class="w"> </span><span class="n">prg</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">load_addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">;</span>
+<span class="w">        </span><span class="n">entry_addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">;</span>
+<span class="w">        </span><span class="n">basic_stub</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">        </span><span class="n">address_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xc600</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Pressing Ctrl-B reaches the shim's launcher vector at <code>$c80c</code>. F2 and F4 look for a loaded application and, when one is found, the selection helper stores its logical token at <code>$c820</code>. The handler then jumps through the switch vector at <code>$c80f</code>. The inline terminal jump lets the handler transfer directly without adding a separate helper call. The shim owns the switch and the host's REU cache.</p>
+<div class="codebox"><div class="codebar"><span class="mono">Hosted key dispatch · excerpt</span></div><pre tabindex="0"><code><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Terminal transfer is inline so no ZeroPage call return address is</span>
+<span class="w">        </span><span class="c1">// left on the hardware stack inherited by the next ReadyOS app.</span>
+<span class="w">        </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">jmp</span><span class="w"> </span><span class="err">$</span><span class="n">c80c</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">137</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">const</span><span class="w"> </span><span class="n">next_found</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">readyos</span><span class="p">.</span><span class="n">selectNextApp</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">next_found</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">jmp</span><span class="w"> </span><span class="err">$</span><span class="n">c80f</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">138</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">const</span><span class="w"> </span><span class="n">previous_found</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">readyos</span><span class="p">.</span><span class="n">selectPreviousApp</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">previous_found</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">jmp</span><span class="w"> </span><span class="err">$</span><span class="n">c80f</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+</code></pre></div>
+<p>To compare the builds, inspect each map's <code>prg.load</code>, <code>prg.entry</code>, and memory region list. The hosted binary needs ReadyOS for the navigation vectors. Test launcher return and application switching under that host. Re-entry at <code>$1000</code> currently starts a fresh game. The ReadyOS design notes describe the remaining work for resume-aware state and host-managed REU allocation.</p>
+<p id="commands-hosted-map" class="command-link"><a href="guide-application-commands.html#commands-hosted-map">Build both variants and inspect the hosted map</a></p>
 <p><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/sampleapps/tictactoe_readyos/tictactoe_readyos.zp64">Hosted game source</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/readyos-precog.md">ReadyOS integration and ownership</a></p></section><nav class="chapter-nav" aria-label="Chapter navigation"><a href="guide-data.html">← Record layout, pointers, and variants</a><a href="guide-testing.html">Test a program on the 6510 →</a></nav></article></main>
 <footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
 </body>
