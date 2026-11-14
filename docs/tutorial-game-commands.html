@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Trace a move through a complete game">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-parts">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="tutorial-game.html">← Trace a move through a complete game</a></p><h1>Commands</h1><p class="lead">Trace a move through a complete game</p><section id="commands-tutorial-game-disk"><h2>Boot the sample disk</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>x64sc<span class="w"> </span>-autostart<span class="w"> </span>sampleapps/tictactoe/tictactoe.d64:tictactoe
+</code></pre></div><p><a href="tutorial-game.html#commands-tutorial-game-disk">Return to the guide</a></p></section><section id="commands-tutorial-game-source"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>sampleapps/tictactoe/tictactoe_idiomatic.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-game.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-game.prg
+</code></pre></div><p><a href="tutorial-game.html#commands-tutorial-game-source">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

@@ -282,19 +282,19 @@ lesson["far-memory"] = """
 <li>Bring four sectors into a 32-byte near arena. Far sector 36 becomes local sector 0 in a range starting at 36.</li>
 <li>Edit the local records, flush back to far index 36, then reset the near arena. Check the result with a new far read.</li>
 </ol>
-<p><a href="tutorial-reu.html">Continue with the guided REU exercise</a> and try a request that crosses the end of the map. Use the <a href="guide-reu.html#capacity">capacity table</a> to choose an emulator or hardware layout before starting transfers.</p>"""
+<p><a href="tutorial-reu.html">Continue with the guided REU exercise</a> and try a request that crosses the end of the map. Then <a href="tutorial-reu-pages.html#enemy-roster">update 200 enemies in batches of 20</a>. Use the <a href="guide-reu.html#capacity">capacity table</a> to choose an emulator or hardware layout before starting transfers.</p>"""
 
 lesson["disk-modules"] = """
 <p>A DLL gives you a way to bring in code as well as data. The compiler fixes the export signature and the location of each export in the jump table. At runtime, KERNAL reads a disk payload into staging RAM, the loader keeps a copy in REU, and the CPU executes the relocated code in a C64 RAM window.</p>
-<p>Start with the <a href="guide-modules.html#disk">side-by-side disk example</a>. The named version supplies the module and export names at the call site. The typed version declares the signature once and uses ordinary call arguments. Both return an optional because the loader may be unable to make the export available. Read the failure branch before running the disk without its payload.</p>
-<p><a href="tutorial-dll.html">Follow a DLL from source to a running disk</a>, then continue with the <a href="guide-memory-plan.html">score updater</a> to see a disk DLL, a far arena, and a near working copy in a single program.</p>"""
+<p>Start with the <a href="tutorial-dll.html#call">side-by-side disk example</a>. The named version supplies the module and export names at the call site. The typed version declares the signature once and uses ordinary call arguments. Both return an optional because the loader may be unable to make the export available.</p>
+<p>Continue with the <a href="tutorial-dll-cache.html">shared execution window</a> to follow the REU cache, or the <a href="tutorial-score.html">score updater</a> to see a disk DLL, a far arena, and a near working copy in one program.</p>"""
 
 lesson["inspect"] = """
 <p>Start with what the program should do. Observe the screen or border for a device write, or look at the destination bytes in the VICE monitor for a copy. Read the compiler's assembly when you need to see the instructions and its map when you need to see which code or data owns an address.</p>
 <p>For the placement example above, check both the load and run address of the hidden table. For the disk example, check that the disk contains the payload under the declared name. The <a href="guide-verification.html">verification chapter</a> connects each question to a compiler artifact or an emulator observation.</p>"""
 
 lesson["next"] = """
-<p>Work through the tutorial chapters in order or return to the step you need. The full guide gives you more detail about specific language features, APIs, and machine contracts.</p>
+<p>Work through the tutorial chapters in order or start with the <a href="tutorial-game.html">complete game walkthrough</a> to see how the language fits a real application. The full guide covers specific language features, APIs, and machine contracts in more detail.</p>
 <p><a class="button primary" href="tutorial-first.html">Start the first chapter</a> <a class="button" href="guide.html#chapters">Browse the full guide</a></p>"""
 sections = "".join(f'<section id="{anchor}"><h2>{title}</h2>{lesson[anchor]}</section>' for anchor,title in lessons)
 
@@ -307,7 +307,8 @@ def tutorial_page(reading_order):
 <main id="main" class="wrap guide">
   <article>
     <h1>Learn ZeroPage</h1>
-    <p class="lead">Start with a small C64 program. Build an interactive sector survey, give its records a place to live, and load new rules from disk. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
+    <p class="lead">Start with a small C64 program. Build an interactive sector survey, give its records a place to live, and load new rules from disk.</p>
+    <p class="actions"><a class="button primary" href="tutorial-first.html">Start chapter 1</a><a class="button" href="setup.html">Install and build</a></p>
     <nav class="tutorial-route" aria-labelledby="tutorial-chapters"><h2 id="tutorial-chapters">Tutorial chapters</h2>{reading_order}</nav>
     {section_menu(lessons, "Jump to an overview topic")}
     {sections}
@@ -347,6 +348,7 @@ tutorial_parts = [
         ("tutorial-composition", "Split source and model input events"),
         ("tutorial-hardware", "Draw and talk to hardware"),
         ("tutorial-assembly", "Pass values through inline assembly"),
+        ("tutorial-firmware", "Pass addresses and flags to firmware"),
     ]),
     ("Give data a place to live", [
         ("tutorial-memory", "Plan RAM and reuse scratch storage"),
@@ -361,6 +363,7 @@ tutorial_parts = [
         ("tutorial-dll-cache", "Share a RAM window between DLLs"),
         ("tutorial-dll-state", "Preserve DLL state across activations"),
         ("tutorial-score", "Combine a disk rule with REU records"),
+        ("tutorial-game", "Trace a move through a complete game"),
         ("tutorial-debug", "Diagnose a program on the C64"),
     ]),
 ]
@@ -1975,6 +1978,39 @@ plp
 {example_run("docs/tutorial-examples/asm-word.zp64", "tutorial-asm-word", anchor="tutorial-asm-word")}'''),
 ])
 
+guide_page("tutorial-firmware", "Pass addresses and flags to firmware", "Read string bytes by address, make a KERNAL call, and carry its success or failure back into ZeroPage.", [
+    ("string", "Distinguish a byte, a length, and an address", f'''
+<p>The string binding exposes the address of its byte data and its length. In <code>lda @source.data,y</code>, the CPU reads a byte at the string address plus Y. In <code>ldx #&lt;@source.data</code>, X receives the low byte of the address itself. Choose the form from what the receiving instruction or routine expects.</p>
+{sample("examples/small/16_inline_asm_strings.zp64")}
+{example_run("examples/small/16_inline_asm_strings.zp64", "tutorial-asm-strings", anchor="tutorial-asm-strings")}
+<p>The loop copies the bytes into the writable buffer and sets its length before printing. The store at offset 12 replaces the K with an exclamation mark. Expect <code>ASM STRING O!</code>, then <code>ASM STRING DONE</code>. Keep the copy within the buffer's 32-byte capacity. <code>#@source.len</code> is an immediate for a constant. <code>@msg.len</code> names a runtime cell that the block can write.</p>'''),
+    ("indirect", "Use a reserved zero-page pair for an indirect read", f'''
+<p>When the instruction requires indirect addressing, split the address into low and high bytes and put them in a zero-page pair. The example reserves <code>$30–$31</code> from compiler allocation, saves what was there, reads through <code>($30),y</code>, and restores the pair. The compiler wrapper saves the registers and status that the block clobbers. The source explicitly handles the memory it borrows.</p>
+{sample("docs/tutorial-examples/asm-indirect.zp64")}
+{example_run("docs/tutorial-examples/asm-indirect.zp64", "tutorial-asm-indirect", anchor="tutorial-asm-indirect")}
+<p>Expect <code>GLYPH 41</code> from the string data. Compare this with the screen code for A in the <a href="tutorial-hardware.html#choose">hardware chapter</a>. Keep interrupts and firmware workspace in mind when choosing which zero-page bytes to borrow.</p>'''),
+    ("load", "Supply the filename and capture carry before it is restored", f'''
+<p>Read <code>loadTile</code> as three calls. SETNAM takes the filename length in A and its address in X/Y. SETLFS selects logical file 1, device 8, and secondary address 0. LOAD then takes the destination in X/Y, here <code>$9000</code>. The tutorial disk contains a one-byte PRG called <code>tile</code>.</p>
+{sample("docs/tutorial-examples/asm-kernal-load.zp64")}
+<p>Carry set means LOAD failed. <code>bcs done</code> skips the store to <code>@loaded</code>, leaving it false. On success the block writes 1. Both paths reach the compiler's restoration sequence. After the wrapper restores the original status and registers, the Boolean cell still carries the outcome. Compare with <a href="tutorial-assembly.html#wrapper">GETIN returning its result in A</a>.</p>
+<p>The supplied disk should print <code>TILE 55</code>. The disk with the same boot program and no tile should print <code>LOAD FAILED</code>. Keep the supplied payload for this exercise. The named RAM reservation keeps other compiler allocations out of staging, while KERNAL LOAD can still write beyond it if given a larger file.</p>
+{shell(r"""
+mkdir -p build
+out=$(mktemp -d build/tutorial-kernal-load.XXXXXX)
+./zig-out/bin/zp64c compile docs/tutorial-examples/asm-kernal-load.zp64 -o "$out/boot.prg"
+printf '\000\220\125' > "$out/tile.prg"
+c1541 -format 'kernal call,01' d64 "$out/load.d64" \
+  -write "$out/boot.prg" boot -write "$out/tile.prg" tile
+c1541 -format 'missing tile,02' d64 "$out/missing.d64" \
+  -write "$out/boot.prg" boot
+x64sc -autostart "$out/load.d64:boot"
+x64sc -autostart "$out/missing.d64:boot"
+""", "Build both disks and compare the outcomes", "tutorial-kernal-load")}'''),
+    ("control", "Choose how control leaves the block", '''
+<p>Use a local branch or jump to reach a label in the same block. For a conditional branch beyond its signed byte displacement, invert the condition to skip over a local absolute jump. An external <code>jsr</code> must return with a balanced hardware stack so the wrapper can restore the saved registers and flags.</p>
+<p>A single absolute <code>jmp $hhhh</code> is the terminal form. It transfers to a documented target and bypasses ordinary ZeroPage return. It is intended for a caller with a host contract, such as the <a href="guide-application.html#hosted">ReadyOS launcher vector</a>. Prepare required memory before the jump. A normal block that precedes it restores registers when it ends. The <a href="guide-assembly.html#control">assembly guide</a> gives the rejected forms and the complete branch-distance example.</p>'''),
+])
+
 guide_page("tutorial-memory", "Plan RAM and reuse scratch storage", "Give one sector record a byte layout and decide when its encoded bytes can be reused.", [
     ("budget", "Name the space before allocating from it", '''
 <p>A C64 address can belong to the loaded program, system workspace, I/O, or RAM reserved for your data. Here, reserve 16 visible bytes at <code>$9000</code> for staging. The region is a compile-time ownership declaration. The arena manages allocations within that region at runtime. Its optional result handles a request that does not fit.</p>
@@ -2050,6 +2086,36 @@ guide_page("tutorial-frames", "Choose static and software-stack frames", "Follow
 {example_run("docs/tutorial-examples/stack-result.zp64", "tutorial-stack-word", anchor="tutorial-stack-word")}
 <p>After the program runs, use <code>m c100 c101</code> in the VICE monitor. Expect <code>5a 80</code>, the returned word in little-endian order. The bridge restores the caller frame and delivers A/X to the caller, which passes the result to the static <code>store</code> helper. This example uses an options declaration to select the default frame and override one function.</p>
 <p>Reduce the stack to eleven bytes. Set a breakpoint at <code>.zeropage_stack_overflow_trap</code> using its address in the new labels file and rerun. The nested call traps before the word is stored. Restore twelve bytes to recover. See the <a href="guide-abi.html#frame-trace">annotated frame bytes</a> if you want to inspect each active frame.</p>'''),
+])
+
+guide_page("tutorial-game", "Trace a move through a complete game", "Play one round of Tic-Tac-Toe, then follow input, validation, mutation, and rendering in the source.", [
+    ("play", "Play one round and predict the transitions", f'''
+<p>Boot the standalone game. It starts in two-player mode with X at the top left. Space and Return place a mark. Arrow keys move the cursor without changing the board. F1 resets the two-player game, and F3 starts a game against the computer.</p>
+<ol>
+<li>Press Space. X takes the top-left cell and the status changes to <code>TURN O</code>.</li>
+<li>Press Space again. The occupied cell stays X, the turn stays O, and the status line shows <code>INVALID MOVE</code>.</li>
+<li>Move Down and press Space for O. Move Up, Right, and press Space for X. Move Down and press Space for O.</li>
+<li>Move Up, Right, and press Space for X. The top row is full of X marks and the screen shows <code>2P X WINS</code>.</li>
+</ol>
+<p>{download("sampleapps/tictactoe/tictactoe.d64", "Download the sample disk")} · {example_link(game_path, "Read the complete standalone source")}</p>
+{shell("""
+x64sc -autostart sampleapps/tictactoe/tictactoe.d64:tictactoe
+""", "Boot the sample disk", "tutorial-game-disk")}'''),
+    ("move", "Follow input into the one shared game record", f'''
+<p><code>main</code> hands a PETSCII byte and a pointer to the game to <code>handleKey</code>. A cursor key updates only the selection. A play key calls <code>applyMove</code> with the selected index. The move routine checks bounds, the current outcome, and whether the cell is empty before writing to the board.</p>
+{paired_examples("Choose an action", "Input dispatch", game_excerpt("fn handleKey(", "export fn main"),
+                 "Apply one move", "Rules and mutation", game_excerpt("fn applyMove(", "fn findWinningMove("))}
+<p>On the first move the shared board changes at index 0. The move count advances and the history records a snapshot. A word mask can hold nine cells, so the first X snapshot has bit 0 set. On the repeated move the same index is already occupied. The routine sets the message and skips the board, move count, and turn writes. The renderer reads those same fields after the call.</p>'''),
+    ("draw", "Turn game state into screen and color writes", f'''
+<p><code>drawBoard</code> passes screen RAM at <code>$0400</code> and color RAM at <code>$d800</code> to <code>drawCell</code>. Each game cell draws a three-by-three glyph. The same offset addresses the character and its color. The pointer type is volatile because each store reaches the target's memory-mapped display.</p>
+{block("Screen and color stores", game_excerpt("fn drawCell(", "fn renderMode("))}
+<p>The border helper gets its color from the outcome and writes <code>$d020</code> through an inline block. The input loop, rules, and drawing remain separate functions.</p>
+{block("VIC-II border write", game_excerpt("fn setBorderAsm(", "fn drawAsmBadge"))}
+<p>Here <code>@color</code> reads the byte parameter cell. The block changes A and status, which the wrapper restores. The VIC-II store persists. See the <a href="tutorial-assembly.html#operands">parameter binding exercise</a> for a block that also writes back into a source variable.</p>'''),
+    ("change", "Make a visible change and replay the same round", f'''
+<p>In <code>renderOutcome</code>, change the <code>2P X WINS</code> branch from <code>setBorderAsm(2)</code> to <code>setBorderAsm(5)</code>. Rebuild the standalone source and replay the round. The same moves should give the same winner. The border now turns green instead of red.</p>
+{example_run(game_path, "tutorial-game", anchor="tutorial-game-source")}
+<p>The board and history fit in resident C64 RAM. A larger game's roster can use <a href="tutorial-reu-pages.html#enemy-roster">REU batches</a>, and independently loaded rules can use the <a href="tutorial-dll-cache.html">DLL window</a>. Compare the <a href="guide-application.html#hosted">ReadyOS variant</a> when the host owns startup and application switching.</p>'''),
 ])
 
 guide_page("tutorial-debug", "Diagnose a program on the C64", "Start with the result you expected and pick the smallest observation that can explain the difference.", [

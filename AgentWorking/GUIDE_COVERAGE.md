@@ -5,14 +5,17 @@ Each chapter uses complete repository sources or labels code as excerpts.
 For runnable examples, compare the published blocks with their source and
 run the target program when its behavior is part of the lesson.
 
-The tutorial has seventeen chapters in three parts. The reader starts with a
+The tutorial has nineteen chapters in three parts. The reader starts with a
 PRG, byte and word arithmetic, and an interactive sector survey. Local imports
-and typed input events lead into screen access and inline assembly. The memory
+and typed input events lead into screen access, inline assembly, and a firmware
+call with string operands and a carry result. The memory
 part covers near arenas, banked placements, software-stack frames, fixed-block
 pools, and paged REU storage. The final part introduces typed and named DLL
 calls, builds two producers that share one execution window, saves and restores
-module state, and combines a scoring DLL with a separate REU arena. The VICE
-monitor lesson traces the cache behavior. Use chapter links for the learning
+module state, and combines a scoring DLL with a separate REU arena. The game
+chapter follows a complete Tic-Tac-Toe round from input through rules and
+rendering, then changes the winning border without changing the moves. The
+VICE monitor lesson traces the cache behavior. Use chapter links for the learning
 path and guide links for reference. Demonstrate results through screen output
 or target memory. Keep compiler test hooks in compiler testing material.
 
@@ -30,6 +33,12 @@ checks all four survey input events, the banked lookup, recursive and nested
 calls, the exact-fit frame budget and the one-byte-short trap, and both DLL
 state policies. The combined score disk runs with a 256 KiB REU. The compiler
 rejects a direct resident read of hidden data and an overlapping score arena.
+
+The firmware chapter checks the string copy and indirect read in VICE, then
+boots both the present and missing tile disks. The game chapter checks the
+first move, repeated occupied-cell move, and top-row win from the published
+disk and a fresh build. The modified build keeps the same result and sets a
+green winning border. The hosted game discussion remains in the guide.
 
 The enemy-roster lesson processes 200 twelve-byte records in groups of 20.
 VICE with a 128 KiB REU confirms the first and last records and the damage

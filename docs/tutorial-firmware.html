@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Read string bytes by address, make a KERNAL call, and carry its success or failure back into ZeroPage.">
+<title>Pass addresses and flags to firmware · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-parts">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide chapter"><div class="chapter-heading"><p class="guide-breadcrumb">Tutorial · Chapter 7 of 19</p><h1>Pass addresses and flags to firmware</h1><p class="lead">Read string bytes by address, make a KERNAL call, and carry its success or failure back into ZeroPage.</p></div><aside class="chapter-sidebar"><nav class="chapter-list" aria-label="Tutorial chapters"><a class="book-overview" href="tutorial.html#tutorial-chapters">Tutorial overview</a><p class="chapter-group">Write a resident program</p><ol start="1"><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-values.html">Choose types, widths, and conversions</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-composition.html">Split source and model input events</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-assembly.html">Pass values through inline assembly</a></li><li><a href="tutorial-firmware.html" aria-current="page">Pass addresses and flags to firmware</a></li></ol><p class="chapter-group">Give data a place to live</p><ol start="8"><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-placement.html">Place code and tables in banked RAM</a></li><li><a href="tutorial-frames.html">Choose static and software-stack frames</a></li><li><a href="tutorial-pools.html">Keep independent records in a pool</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-reu-pages.html">Reuse one buffer across a far table</a></li></ol><p class="chapter-group">Load code and verify it</p><ol start="14"><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-dll-cache.html">Share a RAM window between DLLs</a></li><li><a href="tutorial-dll-state.html">Preserve DLL state across activations</a></li><li><a href="tutorial-score.html">Combine a disk rule with REU records</a></li><li><a href="tutorial-game.html">Trace a move through a complete game</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav><details class="chapter-picker"><summary>Tutorial chapters</summary><nav aria-label="Tutorial chapters"><a class="book-overview" href="tutorial.html#tutorial-chapters">Tutorial overview</a><p class="chapter-group">Write a resident program</p><ol start="1"><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-values.html">Choose types, widths, and conversions</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-composition.html">Split source and model input events</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-assembly.html">Pass values through inline assembly</a></li><li><a href="tutorial-firmware.html" aria-current="page">Pass addresses and flags to firmware</a></li></ol><p class="chapter-group">Give data a place to live</p><ol start="8"><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-placement.html">Place code and tables in banked RAM</a></li><li><a href="tutorial-frames.html">Choose static and software-stack frames</a></li><li><a href="tutorial-pools.html">Keep independent records in a pool</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-reu-pages.html">Reuse one buffer across a far table</a></li></ol><p class="chapter-group">Load code and verify it</p><ol start="14"><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-dll-cache.html">Share a RAM window between DLLs</a></li><li><a href="tutorial-dll-state.html">Preserve DLL state across activations</a></li><li><a href="tutorial-score.html">Combine a disk rule with REU records</a></li><li><a href="tutorial-game.html">Trace a move through a complete game</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav></details></aside><article><details class="section-menu"><summary>Jump to a section</summary><nav aria-label="Jump to a section"><ul><li><a href="#string">Distinguish a byte, a length, and an address</a></li><li><a href="#indirect">Use a reserved zero-page pair for an indirect read</a></li><li><a href="#load">Supply the filename and capture carry before it is restored</a></li><li><a href="#control">Choose how control leaves the block</a></li></ul></nav></details><section id="string"><h2>Distinguish a byte, a length, and an address</h2>
+<p>The string binding exposes the address of its byte data and its length. In <code>lda @source.data,y</code>, the CPU reads a byte at the string address plus Y. In <code>ldx #&lt;@source.data</code>, X receives the low byte of the address itself. Choose the form from what the receiving instruction or routine expects.</p>
+<div class="codebox"><div class="codebar"><span class="mono">16_inline_asm_strings.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+
+<span class="kr">const</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;asm string ok</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;inline asm strings</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c64</span><span class="p">.</span><span class="n">string</span><span class="p">.</span><span class="n">buffer</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span>
+<span class="w">    </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ldy</span><span class="w"> </span><span class="err">#</span><span class="mi">0</span>
+<span class="n">copy</span><span class="o">:</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="nb">@source</span><span class="p">.</span><span class="n">data</span><span class="p">,</span><span class="n">y</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@msg</span><span class="p">.</span><span class="n">data</span><span class="p">,</span><span class="n">y</span>
+<span class="w">        </span><span class="n">iny</span>
+<span class="w">        </span><span class="n">cpy</span><span class="w"> </span><span class="err">#</span><span class="nb">@source</span><span class="p">.</span><span class="n">len</span>
+<span class="w">        </span><span class="n">bne</span><span class="w"> </span><span class="n">copy</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="nb">@source</span><span class="p">.</span><span class="n">len</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@msg</span><span class="p">.</span><span class="n">len</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="mi">33</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@msg</span><span class="p">.</span><span class="n">data</span><span class="o">+</span><span class="mi">12</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">puts</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;asm string done</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/examples/small/16_inline_asm_strings.zp64">Open the complete source</a></p><p id="commands-tutorial-asm-strings" class="command-link"><a href="tutorial-firmware-commands.html#commands-tutorial-asm-strings">Build and run this example</a></p>
+<p>The loop copies the bytes into the writable buffer and sets its length before printing. The store at offset 12 replaces the K with an exclamation mark. Expect <code>ASM STRING O!</code>, then <code>ASM STRING DONE</code>. Keep the copy within the buffer's 32-byte capacity. <code>#@source.len</code> is an immediate for a constant. <code>@msg.len</code> names a runtime cell that the block can write.</p></section><section id="indirect"><h2>Use a reserved zero-page pair for an indirect read</h2>
+<p>When the instruction requires indirect addressing, split the address into low and high bytes and put them in a zero-page pair. The example reserves <code>$30–$31</code> from compiler allocation, saves what was there, reads through <code>($30),y</code>, and restores the pair. The compiler wrapper saves the registers and status that the block clobbers. The source explicitly handles the memory it borrows.</p>
+<div class="codebox"><div class="codebar"><span class="mono">asm-indirect.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+<span class="kr">const</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;A&quot;</span><span class="p">;</span>
+
+<span class="n">memory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">zero_page</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">profile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">kernal</span><span class="p">;</span>
+<span class="w">        </span><span class="n">reserve</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="mh">0x30</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">        </span><span class="n">restore_basic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">        </span><span class="n">interrupts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">system</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">glyph</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">saved_lo</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">saved_hi</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">$</span><span class="mi">30</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@saved_lo</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">$</span><span class="mi">31</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@saved_hi</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="o">&lt;</span><span class="nb">@text</span><span class="p">.</span><span class="n">data</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="err">$</span><span class="mi">30</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="o">&gt;</span><span class="nb">@text</span><span class="p">.</span><span class="n">data</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="err">$</span><span class="mi">31</span>
+<span class="w">        </span><span class="n">ldy</span><span class="w"> </span><span class="err">#</span><span class="mi">0</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="mi">30</span><span class="p">),</span><span class="n">y</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@glyph</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="nb">@saved_lo</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="err">$</span><span class="mi">30</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="nb">@saved_hi</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="err">$</span><span class="mi">31</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;GLYPH {x}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{</span><span class="n">glyph</span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><a href="tutorial-examples/asm-indirect.zp64">Open the complete source</a></p><p id="commands-tutorial-asm-indirect" class="command-link"><a href="tutorial-firmware-commands.html#commands-tutorial-asm-indirect">Build and run this example</a></p>
+<p>Expect <code>GLYPH 41</code> from the string data. Compare this with the screen code for A in the <a href="tutorial-hardware.html#choose">hardware chapter</a>. Keep interrupts and firmware workspace in mind when choosing which zero-page bytes to borrow.</p></section><section id="load"><h2>Supply the filename and capture carry before it is restored</h2>
+<p>Read <code>loadTile</code> as three calls. SETNAM takes the filename length in A and its address in X/Y. SETLFS selects logical file 1, device 8, and secondary address 0. LOAD then takes the destination in X/Y, here <code>$9000</code>. The tutorial disk contains a one-byte PRG called <code>tile</code>.</p>
+<div class="codebox"><div class="codebar"><span class="mono">asm-kernal-load.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+<span class="kr">const</span><span class="w"> </span><span class="n">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;tile&quot;</span><span class="p">;</span>
+
+<span class="n">memory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">region</span><span class="w"> </span><span class="n">staging</span><span class="o">:</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="mh">0x9000</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="mh">0x0100</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">loadTile</span><span class="p">()</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">loaded</span><span class="o">:</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">    </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="nb">@filename</span><span class="p">.</span><span class="n">len</span>
+<span class="w">        </span><span class="n">ldx</span><span class="w"> </span><span class="err">#</span><span class="o">&lt;</span><span class="nb">@filename</span><span class="p">.</span><span class="n">data</span>
+<span class="w">        </span><span class="n">ldy</span><span class="w"> </span><span class="err">#</span><span class="o">&gt;</span><span class="nb">@filename</span><span class="p">.</span><span class="n">data</span>
+<span class="w">        </span><span class="n">jsr</span><span class="w"> </span><span class="err">$</span><span class="n">ffbd</span>
+
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="mi">1</span>
+<span class="w">        </span><span class="n">ldx</span><span class="w"> </span><span class="err">#</span><span class="mi">8</span>
+<span class="w">        </span><span class="n">ldy</span><span class="w"> </span><span class="err">#</span><span class="mi">0</span>
+<span class="w">        </span><span class="n">jsr</span><span class="w"> </span><span class="err">$</span><span class="n">ffba</span>
+
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="mi">0</span>
+<span class="w">        </span><span class="n">ldx</span><span class="w"> </span><span class="err">#$</span><span class="mi">00</span>
+<span class="w">        </span><span class="n">ldy</span><span class="w"> </span><span class="err">#$</span><span class="mi">90</span>
+<span class="w">        </span><span class="n">jsr</span><span class="w"> </span><span class="err">$</span><span class="n">ffd5</span>
+<span class="w">        </span><span class="n">bcs</span><span class="w"> </span><span class="n">done</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="err">#</span><span class="mi">1</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@loaded</span>
+<span class="w">    </span><span class="n">done</span><span class="o">:</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">loaded</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">loadTile</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">const</span><span class="w"> </span><span class="n">tile</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="kr">volatile</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@ptrFromInt</span><span class="p">(</span><span class="mh">0x9000</span><span class="p">);</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;TILE {x}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{</span><span class="n">tile</span><span class="p">.</span><span class="o">*</span><span class="p">});</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;LOAD FAILED</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Carry set means LOAD failed. <code>bcs done</code> skips the store to <code>@loaded</code>, leaving it false. On success the block writes 1. Both paths reach the compiler's restoration sequence. After the wrapper restores the original status and registers, the Boolean cell still carries the outcome. Compare with <a href="tutorial-assembly.html#wrapper">GETIN returning its result in A</a>.</p>
+<p>The supplied disk should print <code>TILE 55</code>. The disk with the same boot program and no tile should print <code>LOAD FAILED</code>. Keep the supplied payload for this exercise. The named RAM reservation keeps other compiler allocations out of staging, while KERNAL LOAD can still write beyond it if given a larger file.</p>
+<p id="commands-tutorial-kernal-load" class="command-link"><a href="tutorial-firmware-commands.html#commands-tutorial-kernal-load">Build both disks and compare the outcomes</a></p></section><section id="control"><h2>Choose how control leaves the block</h2>
+<p>Use a local branch or jump to reach a label in the same block. For a conditional branch beyond its signed byte displacement, invert the condition to skip over a local absolute jump. An external <code>jsr</code> must return with a balanced hardware stack so the wrapper can restore the saved registers and flags.</p>
+<p>A single absolute <code>jmp $hhhh</code> is the terminal form. It transfers to a documented target and bypasses ordinary ZeroPage return. It is intended for a caller with a host contract, such as the <a href="guide-application.html#hosted">ReadyOS launcher vector</a>. Prepare required memory before the jump. A normal block that precedes it restores registers when it ends. The <a href="guide-assembly.html#control">assembly guide</a> gives the rejected forms and the complete branch-distance example.</p></section><nav class="chapter-nav" aria-label="Tutorial chapter navigation"><a href="tutorial-assembly.html">← Pass values through inline assembly</a><a href="tutorial-memory.html">Plan RAM and reuse scratch storage →</a></nav></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>
