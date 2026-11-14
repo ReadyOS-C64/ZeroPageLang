@@ -5,14 +5,15 @@ Each chapter uses complete repository sources or labels code as excerpts.
 For runnable examples, compare the published blocks with their source and
 run the target program when its behavior is part of the lesson.
 
-The tutorial has nineteen chapters in three parts. The reader starts with a
+The tutorial has twenty chapters in three parts. The reader starts with a
 PRG, byte and word arithmetic, and an interactive sector survey. Local imports
 and typed input events lead into screen access, inline assembly, and a firmware
 call with string operands and a carry result. The memory
 part covers near arenas, banked placements, software-stack frames, fixed-block
 pools, and paged REU storage. The final part introduces typed and named DLL
-calls, builds two producers that share one execution window, saves and restores
-module state, and combines a scoring DLL with a separate REU arena. The game
+calls, builds two producers that share one execution window, compares load
+policies and graph ownership, saves and restores module state, and combines
+a scoring DLL with a separate REU arena. The game
 chapter follows a complete Tic-Tac-Toe round from input through rules and
 rendering, then changes the winning border without changing the moves. The
 VICE monitor lesson traces the cache behavior. Use chapter links for the learning
@@ -39,6 +40,13 @@ boots both the present and missing tile disks. The game chapter checks the
 first move, repeated occupied-cell move, and top-row win from the published
 disk and a fresh build. The modified build keeps the same result and sets a
 green winning border. The hosted game discussion remains in the guide.
+
+The DLL policy chapter uses the published commands to build three policy
+disks and two graph disks. VICE checks the initial registry state, the
+successful Boolean false result, the missing on-demand payload, and both
+graph outcomes. With Terrain absent, its acquire fails while the existing
+FixedMath owner still receives its bonus. The final release makes the
+manual binding unavailable.
 
 The enemy-roster lesson processes 200 twelve-byte records in groups of 20.
 VICE with a 128 KiB REU confirms the first and last records and the damage

@@ -361,6 +361,7 @@ tutorial_parts = [
     ("Load code and verify it", [
         ("tutorial-dll", "Build and call a disk-loaded DLL"),
         ("tutorial-dll-cache", "Share a RAM window between DLLs"),
+        ("tutorial-dll-policy", "Choose when DLLs load and who owns them"),
         ("tutorial-dll-state", "Preserve DLL state across activations"),
         ("tutorial-score", "Combine a disk rule with REU records"),
         ("tutorial-game", "Trace a move through a complete game"),
@@ -1790,6 +1791,87 @@ x64sc -reu -reusize 256 -autostart "$out/survey.d64:boot"
 """, "Build both DLLs and boot the survey disk", "tutorial-cache-disk")}
 <p>Expect <code>COST 05 BONUS 07 COST 06</code> and a green border. Build a second disk that contains <code>boot</code> and <code>terrain</code> only. It should print <code>RULES UNAVAILABLE</code> and set a red border. The caller releases Terrain if FixedMath acquisition fails, and it releases both after the call sequence finishes.</p>
 <p>The <a href="guide-module-lifecycle.html">DLL lifecycle guide</a> extends this example with graph acquire, automatic loading policies, state snapshots, and RAM under ROM. The <a href="guide-memory-plan.html">score updater</a> shows how to combine a cache with a separate REU data arena.</p>'''),
+])
+
+dll_graph_source = Path("docs/tutorial-examples/dll-graph.zp64").read_text()
+guide_page("tutorial-dll-policy", "Choose when DLLs load and who owns them", "Compare startup and first-call loading, then keep a shared rule available when another feature fails to load.", [
+    ("when", "Put the disk wait where the player can expect it", '''
+<p>A game can load rules before showing its first screen, wait until the player asks for a feature, or load during an explicit transition such as entering a level. The policy controls when the disk read happens. Once the bytes are in REU, dispatch can still move them into the execution window as needed.</p>
+<table><thead><tr><th scope="col">Policy</th><th scope="col">When it reads disk</th><th scope="col">Where to check availability</th></tr></thead><tbody>
+<tr><td><code>.preload</code></td><td>During generated startup, before <code>main</code>.</td><td>At entry, before presenting the feature as ready.</td></tr>
+<tr><td><code>.on_demand</code></td><td>On the first call that needs the unloaded export.</td><td>At the optional call result.</td></tr>
+<tr><td><code>.manual</code></td><td>When the program explicitly loads or acquires it.</td><td>At the load result, before calling.</td></tr>
+</tbody></table>
+<p>The first successful activation can still cost a copy and relocation even after startup loaded the payload. When using an embedded current module, <code>load()</code> can seed the cache from the PRG. The examples here use disk files.</p>'''),
+    ("compare", "Build the same rule with three loading policies", f'''
+<p>The <code>Rules</code> program prints whether its registry row is loaded when <code>main</code> starts. The same three calls then exercise a byte, a Boolean, and a word result. Change the policy while keeping the disk payload name and call arguments the same.</p>
+{paired_examples("Load before main", "Current row", """current {
+    load = .preload;
+    load_file = "rules";
+}
+""", "Load on the first call", "Current row", """current {
+    load = .on_demand;
+    load_file = "rules";
+}
+""")}
+<p>Preload starts with <code>ENTRY LOADED</code>. On-demand and manual start with <code>ENTRY EMPTY</code>. The manual build inserts <code>Rules.loadFromDisk("rules")</code> after the entry check and reports failure if that operation fails. All three successful runs show <code>BYTE 06 WORD 1335</code> and <code>FALSE IS A RESULT</code>. The Boolean value <code>false</code> belongs to a successful call. <code>null</code> means the call was unavailable.</p>
+<p>{example_link("docs/tutorial-examples/dll-policy.zp64", "Complete policy source")}</p>
+{shell(r"""
+mkdir -p build
+out=$(mktemp -d build/tutorial-policy.XXXXXX)
+source=docs/tutorial-examples/dll-policy.zp64
+cp "$source" "$out/on_demand.zp64"
+sed 's/load = .on_demand;/load = .preload;/' "$source" > "$out/preload.zp64"
+sed -e '/load_file = "rules";/d' -e 's/load = .on_demand;/load = .manual;/' \
+  -e '/    if (Rules.tick(5))/i\
+    if (Rules.loadFromDisk("rules") == false) {\
+        c64.console.print("MANUAL LOAD FAILED", .{});\
+    }\
+' "$source" > "$out/manual.zp64"
+for policy in preload on_demand manual; do
+  ./zig-out/bin/zp64c compile "$out/$policy.zp64" -o "$out/$policy.prg"
+  c1541 -format 'rules policy,01' d64 "$out/$policy.d64" \
+    -write "$out/$policy.prg" boot -write "$out/$policy.prg.zpmod.disk.prg" rules
+done
+x64sc -reu -reusize 256 -autostart "$out/preload.d64:boot"
+x64sc -reu -reusize 256 -autostart "$out/on_demand.d64:boot"
+x64sc -reu -reusize 256 -autostart "$out/manual.d64:boot"
+""", "Build and compare the three policy disks", "tutorial-policy-disks")}
+<p>For a failure exercise, make a second on-demand disk with only the boot PRG. It starts with <code>ENTRY EMPTY</code> and the first call reports <code>DLL UNAVAILABLE</code>.</p>'''),
+    ("ownership", "Give each feature its own reference", f'''
+<p>In the next exercise the score display acquires FixedMath. A separate terrain feature requires FixedMath too. Declare that dependency in the loader's <code>requires</code> list. A graph acquire visits prerequisites before the requested module and gives the terrain feature its own references. It makes the code available without calling any exports.</p>
+{paired_examples("Declare the prerequisite", "Loader rows", dedent("    dependency terrain_rules" + dll_graph_source.split("    dependency terrain_rules", 1)[1].split("\n}\n", 1)[0]) + "\n",
+                 "Use the feature", "Terrain caller", "fn showTerrain" + dll_graph_source.split("fn showTerrain", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}
+<table><thead><tr><th scope="col">Step</th><th scope="col">FixedMath owners</th><th scope="col">What the caller can do</th></tr></thead><tbody>
+<tr><td>Score display acquires FixedMath</td><td>Score display</td><td>Call the bonus rule.</td></tr>
+<tr><td>Terrain acquires its graph</td><td>Score display and terrain feature</td><td>Call the terrain rule. Both payloads can stay in REU.</td></tr>
+<tr><td>Terrain releases its graph</td><td>Score display</td><td>Keep using the bonus rule.</td></tr>
+<tr><td>Score display releases FixedMath</td><td>None</td><td>A manual binding call now returns <code>null</code>.</td></tr>
+</tbody></table>
+<p>These graph edges describe availability. A module export still runs only when called, and a caller needs a binding and build-time sidecars for the exports it uses. The compiler rejects missing nodes and cycles.</p>'''),
+    ("rollback", "Remove the terrain file and follow rollback", f'''
+<p>The complete disk prints <code>TERRAIN COST 05</code>, <code>BONUS 07</code>, and <code>RULES RELEASED</code>. On the second disk, keep FixedMath and omit Terrain. The terrain acquire fails after reaching its prerequisite. The loader rolls back the reference introduced by that acquire, so the original score display can still print <code>BONUS 07</code>. After the final release the binding is unavailable again.</p>
+<p>{example_link("docs/tutorial-examples/dll-graph.zp64", "Complete graph caller")} · {example_link("docs/tutorial-examples/cache-terrain.zp64", "Terrain producer")} · {example_link("docs/tutorial-examples/memory-plan-math.zp64", "FixedMath producer")}</p>
+{shell(r"""
+mkdir -p build
+out=$(mktemp -d build/tutorial-graph.XXXXXX)
+compiler=./zig-out/bin/zp64c
+"$compiler" compile docs/tutorial-examples/cache-terrain.zp64 -o "$out/terrain.prg"
+"$compiler" compile docs/tutorial-examples/memory-plan-math.zp64 -o "$out/math.prg"
+"$compiler" compile docs/tutorial-examples/dll-graph.zp64 -o "$out/survey.prg" \
+  --dependency-module "terrain_rules=$out/terrain.prg.zpmod.json" \
+  --dependency-relocsim "terrain_rules=$out/terrain.prg.zpmod.relocsim.json" \
+  --dependency-module "fixed_math=$out/math.prg.zpmod.json" \
+  --dependency-relocsim "fixed_math=$out/math.prg.zpmod.relocsim.json"
+c1541 -format 'survey graph,01' d64 "$out/complete.d64" \
+  -write "$out/survey.prg" boot -write "$out/math.prg.zpmod.disk.prg" fixedmath \
+  -write "$out/terrain.prg.zpmod.disk.prg" terrain
+c1541 -format 'missing terrain,02' d64 "$out/missing.d64" \
+  -write "$out/survey.prg" boot -write "$out/math.prg.zpmod.disk.prg" fixedmath
+x64sc -reu -reusize 256 -autostart "$out/complete.d64:boot"
+x64sc -reu -reusize 256 -autostart "$out/missing.d64:boot"
+""", "Build and boot both graph disks", "tutorial-graph-disks")}
+<p>Expect <code>TERRAIN UNAVAILABLE</code>, <code>BONUS 07</code>, and <code>RULES RELEASED</code> on the second disk. Release a graph only after its acquire succeeds. For startup and first-call graph policies, see <a href="guide-module-lifecycle.html#graphs">loading dependency graphs</a>.</p>'''),
 ])
 
 guide_page("tutorial-dll-state", "Preserve DLL state across activations", "Separate an export's temporary frame, its cached code, and the bytes that must survive when the module leaves RAM.", [
