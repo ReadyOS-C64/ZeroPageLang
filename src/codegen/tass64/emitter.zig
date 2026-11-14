@@ -681,8 +681,9 @@ const Emitter = struct {
     }
 
     fn programUsesModuleLoader(self: *Emitter) bool {
+        const module = self.program.zeropage_module orelse return false;
         for (self.program.functions) |function| {
-            if (stmtsContainModuleLoad(function.body)) return true;
+            if (stmtsContainModuleLoad(function.body, module.id)) return true;
         }
         return false;
     }
@@ -947,78 +948,79 @@ const Emitter = struct {
         };
     }
 
-    fn stmtsContainModuleLoad(statements: []const ast.Stmt) bool {
+    fn stmtsContainModuleLoad(statements: []const ast.Stmt, module_id: []const u8) bool {
         for (statements) |stmt| {
-            if (stmtContainsModuleLoad(stmt)) return true;
+            if (stmtContainsModuleLoad(stmt, module_id)) return true;
         }
         return false;
     }
 
-    fn stmtContainsModuleLoad(stmt: ast.Stmt) bool {
+    fn stmtContainsModuleLoad(stmt: ast.Stmt, module_id: []const u8) bool {
         return switch (stmt) {
-            .var_decl => |decl| exprContainsModuleLoad(decl.init),
-            .assign => |assign| exprContainsModuleLoad(assign.value),
-            inline .add_assign, .sub_assign, .mul_assign, .bit_and_assign, .bit_or_assign, .bit_xor_assign, .shl_assign, .shr_assign => |assign| exprContainsModuleLoad(assign.value),
-            .deref_assign => |assign| exprContainsModuleLoad(assign.target) or exprContainsModuleLoad(assign.value),
-            .array_assign, .array_add_assign, .array_sub_assign, .array_mul_assign, .array_bit_and_assign, .array_bit_or_assign, .array_bit_xor_assign, .array_shl_assign, .array_shr_assign => |assign| exprContainsModuleLoad(assign.index) or exprContainsModuleLoad(assign.value),
-            .array_field_assign => |assign| exprContainsModuleLoad(assign.index) or exprContainsModuleLoad(assign.value),
-            .while_stmt => |while_stmt| exprContainsModuleLoad(while_stmt.condition) or stmtsContainModuleLoad(while_stmt.body),
-            .for_stmt => |for_stmt| stmtsContainModuleLoad(for_stmt.body),
+            .var_decl => |decl| exprContainsModuleLoad(decl.init, module_id),
+            .assign => |assign| exprContainsModuleLoad(assign.value, module_id),
+            inline .add_assign, .sub_assign, .mul_assign, .bit_and_assign, .bit_or_assign, .bit_xor_assign, .shl_assign, .shr_assign => |assign| exprContainsModuleLoad(assign.value, module_id),
+            .deref_assign => |assign| exprContainsModuleLoad(assign.target, module_id) or exprContainsModuleLoad(assign.value, module_id),
+            .array_assign, .array_add_assign, .array_sub_assign, .array_mul_assign, .array_bit_and_assign, .array_bit_or_assign, .array_bit_xor_assign, .array_shl_assign, .array_shr_assign => |assign| exprContainsModuleLoad(assign.index, module_id) or exprContainsModuleLoad(assign.value, module_id),
+            .array_field_assign => |assign| exprContainsModuleLoad(assign.index, module_id) or exprContainsModuleLoad(assign.value, module_id),
+            .while_stmt => |while_stmt| exprContainsModuleLoad(while_stmt.condition, module_id) or stmtsContainModuleLoad(while_stmt.body, module_id),
+            .for_stmt => |for_stmt| stmtsContainModuleLoad(for_stmt.body, module_id),
             .switch_stmt => |switch_stmt| blk: {
-                if (exprContainsModuleLoad(switch_stmt.operand)) break :blk true;
-                for (switch_stmt.prongs) |prong| if (stmtsContainModuleLoad(prong.body)) break :blk true;
+                if (exprContainsModuleLoad(switch_stmt.operand, module_id)) break :blk true;
+                for (switch_stmt.prongs) |prong| if (stmtsContainModuleLoad(prong.body, module_id)) break :blk true;
                 break :blk false;
             },
-            .if_stmt => |if_stmt| exprContainsModuleLoad(if_stmt.condition) or stmtsContainModuleLoad(if_stmt.then_body) or stmtsContainModuleLoad(if_stmt.else_body),
-            .discard, .return_expr => |expr| exprContainsModuleLoad(expr),
-            .break_expr => |break_expr| exprContainsModuleLoad(break_expr.value),
-            .field_assign => |field| exprContainsModuleLoad(field.value),
-            .heap_free => |free| exprContainsModuleLoad(free.ptr.*),
+            .if_stmt => |if_stmt| exprContainsModuleLoad(if_stmt.condition, module_id) or stmtsContainModuleLoad(if_stmt.then_body, module_id) or stmtsContainModuleLoad(if_stmt.else_body, module_id),
+            .discard, .return_expr => |expr| exprContainsModuleLoad(expr, module_id),
+            .break_expr => |break_expr| exprContainsModuleLoad(break_expr.value, module_id),
+            .field_assign => |field| exprContainsModuleLoad(field.value, module_id),
+            .heap_free => |free| exprContainsModuleLoad(free.ptr.*, module_id),
             .struct_var => |struct_var| blk: {
-                for (struct_var.fields) |field| if (exprContainsModuleLoad(field.value)) break :blk true;
+                for (struct_var.fields) |field| if (exprContainsModuleLoad(field.value, module_id)) break :blk true;
                 break :blk false;
             },
-            .test6502 => |call| test6502ContainsModuleLoad(call),
+            .test6502 => |call| test6502ContainsModuleLoad(call, module_id),
             .call, .builtin, .reu, .inline_asm, .string_var, .string_assign, .reu_heap_reset, .heap_reset, .module_unload, .module_unload_dependency, .module_release_dependency, .module_release_dependency_graph, .break_stmt, .continue_stmt => false,
         };
     }
 
-    fn exprContainsModuleLoad(expr: ast.Expr) bool {
+    fn exprContainsModuleLoad(expr: ast.Expr, module_id: []const u8) bool {
         return switch (expr) {
             .module_load, .module_disk_load => true,
-            inline .add, .sub, .mul, .bit_and, .bit_or, .bit_xor, .shl, .shr, .eq, .ne, .lt, .lte, .gt, .gte, .bool_and, .bool_or => |binary| exprContainsModuleLoad(binary.lhs.*) or exprContainsModuleLoad(binary.rhs.*),
-            .not, .bit_not, .deref, .ptr_from_int, .int_from_ptr => |child| exprContainsModuleLoad(child.*),
-            .as_cast => |cast| exprContainsModuleLoad(cast.expr.*),
-            .if_expr => |if_expr| exprContainsModuleLoad(if_expr.condition.*) or exprContainsModuleLoad(if_expr.then_expr.*) or exprContainsModuleLoad(if_expr.else_expr.*),
+            .module_load_dependency, .module_acquire_dependency => |load| load.from_binding and std.mem.eql(u8, load.id, module_id),
+            inline .add, .sub, .mul, .bit_and, .bit_or, .bit_xor, .shl, .shr, .eq, .ne, .lt, .lte, .gt, .gte, .bool_and, .bool_or => |binary| exprContainsModuleLoad(binary.lhs.*, module_id) or exprContainsModuleLoad(binary.rhs.*, module_id),
+            .not, .bit_not, .deref, .ptr_from_int, .int_from_ptr => |child| exprContainsModuleLoad(child.*, module_id),
+            .as_cast => |cast| exprContainsModuleLoad(cast.expr.*, module_id),
+            .if_expr => |if_expr| exprContainsModuleLoad(if_expr.condition.*, module_id) or exprContainsModuleLoad(if_expr.then_expr.*, module_id) or exprContainsModuleLoad(if_expr.else_expr.*, module_id),
             .switch_expr => |switch_expr| blk: {
-                if (exprContainsModuleLoad(switch_expr.operand.*)) break :blk true;
-                for (switch_expr.prongs) |prong| if (exprContainsModuleLoad(prong.value)) break :blk true;
+                if (exprContainsModuleLoad(switch_expr.operand.*, module_id)) break :blk true;
+                for (switch_expr.prongs) |prong| if (exprContainsModuleLoad(prong.value, module_id)) break :blk true;
                 break :blk false;
             },
-            .block_expr => |block_expr| stmtsContainModuleLoad(block_expr.body),
+            .block_expr => |block_expr| stmtsContainModuleLoad(block_expr.body, module_id),
             .call => |call| blk: {
-                for (call.args) |arg| if (exprContainsModuleLoad(arg)) break :blk true;
+                for (call.args) |arg| if (exprContainsModuleLoad(arg, module_id)) break :blk true;
                 break :blk false;
             },
             .array_literal => |literal| blk: {
-                for (literal.values) |value| if (exprContainsModuleLoad(value)) break :blk true;
+                for (literal.values) |value| if (exprContainsModuleLoad(value, module_id)) break :blk true;
                 break :blk false;
             },
             .struct_literal => |literal| blk: {
-                for (literal.fields) |field| if (exprContainsModuleLoad(field.value)) break :blk true;
+                for (literal.fields) |field| if (exprContainsModuleLoad(field.value, module_id)) break :blk true;
                 break :blk false;
             },
-            .array_index => |index| exprContainsModuleLoad(index.index.*),
-            .array_field_index => |index| exprContainsModuleLoad(index.index.*),
-            .reu_compare => |transfer| exprContainsModuleLoad(transfer.c64_addr.*) or exprContainsModuleLoad(transfer.len.*),
-            .reu_heap_alloc => |alloc| exprContainsModuleLoad(alloc.len.*),
-            .reu_view => |view| exprContainsModuleLoad(view.far.*),
-            .far_view_materialize_range => |range| exprContainsModuleLoad(range.start.*),
+            .array_index => |index| exprContainsModuleLoad(index.index.*, module_id),
+            .array_field_index => |index| exprContainsModuleLoad(index.index.*, module_id),
+            .reu_compare => |transfer| exprContainsModuleLoad(transfer.c64_addr.*, module_id) or exprContainsModuleLoad(transfer.len.*, module_id),
+            .reu_heap_alloc => |alloc| exprContainsModuleLoad(alloc.len.*, module_id),
+            .reu_view => |view| exprContainsModuleLoad(view.far.*, module_id),
+            .far_view_materialize_range => |range| exprContainsModuleLoad(range.start.*, module_id),
             .module_call => |call| blk: {
-                for (call.args) |arg| if (exprContainsModuleLoad(arg)) break :blk true;
+                for (call.args) |arg| if (exprContainsModuleLoad(arg, module_id)) break :blk true;
                 break :blk false;
             },
-            .heap_alloc => |alloc| exprContainsModuleLoad(alloc.len.*),
+            .heap_alloc => |alloc| exprContainsModuleLoad(alloc.len.*, module_id),
             else => false,
         };
     }
@@ -1248,17 +1250,17 @@ const Emitter = struct {
         };
     }
 
-    fn test6502ContainsModuleLoad(call: ast.Test6502Call) bool {
+    fn test6502ContainsModuleLoad(call: ast.Test6502Call, module_id: []const u8) bool {
         return switch (call) {
-            .expect_null => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_some_u8 => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_some_u16 => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_some_bool => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_some_ptr => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_equal_u8 => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_equal_i8 => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_equal_bool => |expect| exprContainsModuleLoad(expect.actual),
-            .expect_equal_u16 => |expect| exprContainsModuleLoad(expect.actual),
+            .expect_null => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_some_u8 => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_some_u16 => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_some_bool => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_some_ptr => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_equal_u8 => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_equal_i8 => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_equal_bool => |expect| exprContainsModuleLoad(expect.actual, module_id),
+            .expect_equal_u16 => |expect| exprContainsModuleLoad(expect.actual, module_id),
             else => false,
         };
     }

@@ -121,6 +121,23 @@ Far handles and views are opaque compiler-known values. A typed view can be mate
 
 ### Modules
 
+Declare the export signature with `extern module` and call it through the binding:
+
+```zig
+extern module MathCore = math_core {
+    fn add(value: u8) u8;
+}
+
+if (MathCore.load()) {
+    if (MathCore.add(3)) |sum| {
+        // Use sum.
+    }
+    MathCore.release();
+}
+```
+
+The prototype describes the export payload. Here, `MathCore.add(3)` returns `?u8` because the module may be unavailable at runtime. The compiler checks the prototype against source exports for the current module and against build-time sidecars for dependencies. It resolves rows, windows, relocations, and ordinals at build time.
+
 Low-level module operations use compile-time ids and export names:
 
 ```zig
@@ -140,22 +157,7 @@ const result = ZeroPage.module.call("math_core", "add", .{3});
 
 Calls return optionals because an unloaded module is not callable. `load*` ensures residency; `acquire*` adds ownership. Release or unload clears callability only when the row's refcount reaches zero.
 
-Typed bindings provide the same operations without runtime reflection:
-
-```zig
-extern module MathCore = math_core {
-    fn add(value: u8) u8;
-}
-
-if (MathCore.load()) {
-    const result = MathCore.add(3);
-    MathCore.release();
-}
-```
-
-The compiler resolves ids, signatures, rows, windows, relocations, and ordinals at build time. The C64 runtime stores no method names and parses no sidecar metadata.
-
-See [ABI](abi.md) and [REU and modules](reu-overlays.md) for loader and dispatch details.
+See [ABI](abi.md) and [REU and DLLs](reu-overlays.md) for loader and dispatch details.
 
 ## Test-only API
 

@@ -1,5 +1,12 @@
 # ZeroPage Design Learnings
 
+Typed current-module `load()` and `acquire()` share AST variants with dependency
+operations. The early payload scan must recognize those variants when
+`from_binding` is set and the target id matches the current module. The
+disk-backed path can mask a missing embedded-payload scan because it requests
+the same payload labels. Keep an embedded-only typed example in assembler and
+host-emulator coverage.
+
 ## Optimization Measurements And Export Roots
 
 VICE launch diagnosis: use the established isolated harness bridge from the

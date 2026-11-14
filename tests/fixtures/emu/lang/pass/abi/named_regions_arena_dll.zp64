@@ -3,6 +3,10 @@
 const ZeroPage = @import("ZeroPage");
 const test6502 = @import("test6502");
 
+extern module RegionDll = region_dll {
+    fn tick(value: u8) u8;
+}
+
 memory {
     region near_arena: c64 at 0x9000 size 0x0010;
     region module_window: c64 at 0xc000 size 0x0800;
@@ -47,8 +51,9 @@ export fn main() void {
     test6502.expectMemU8(2, 0x9020, 0x45);
     test6502.expectMemU8(3, 0x9021, 0x67);
 
-    const loaded = ZeroPage.module.load("region_dll");
+    const loaded = RegionDll.acquire();
     test6502.expectEqualBool(4, true, loaded);
     test6502.expectMemU8(5, 0xc000, 0x4c);
+    test6502.expectSomeU8(6, 6, RegionDll.tick(5));
     test6502.pass();
 }

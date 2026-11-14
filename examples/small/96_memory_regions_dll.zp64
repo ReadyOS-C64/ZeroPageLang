@@ -1,5 +1,7 @@
 const c64 = @import("c64");
-const ZeroPage = @import("ZeroPage");
+extern module RegionDll = region_dll {
+    fn tick(value: u8) u8;
+}
 
 memory {
     region near_arena: c64 at 0x9000 size 0x0100;
@@ -33,8 +35,8 @@ export fn main() void {
     if (allocation) |bytes| {
         bytes[0] = 0x55;
         bytes[1] = 0xaa;
-        if (ZeroPage.module.load("region_dll")) {
-            if (ZeroPage.module.call("region_dll", "tick", .{5})) |value| {
+        if (RegionDll.load()) {
+            if (RegionDll.tick(5)) |value| {
                 ok = value == 6;
             }
         }
