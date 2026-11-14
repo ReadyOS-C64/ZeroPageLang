@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Read generated artifacts and verify execution on the host 6510 runner and VICE.">
+<title>Inspect, test, and compare · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css">
+<script src="site/copy.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html">Intro</a><a href="guide.html" aria-current="page">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide"><aside aria-label="Guide navigation"><h3>On this page</h3><ul class="toc"><li><a href="#artifacts">Read the generated program</a></li><li><a href="#tests">Prove target behavior</a></li><li><a href="#context">How ZeroPage fits among C64 toolchains</a></li></ul><h3 class="chapter-label"><a href="guide.html">All chapters</a></h3><ol class="toc"><li><a href="guide-language.html">1. Types, control flow, and imports</a></li><li><a href="guide-hardware.html">2. C64 I/O and strings</a></li><li><a href="guide-assembly.html">3. Inline 6510 assembly</a></li><li><a href="guide-memory.html">4. Images, placement, and zero page</a></li><li><a href="guide-arenas.html">5. Arenas, pools, and records</a></li><li><a href="guide-reu.html">6. Far data and materialized views</a></li><li><a href="guide-modules.html">7. DLLs, caches, and activation</a></li><li><a href="guide-abi.html">8. Frames, recursion, and interop</a></li><li><a href="guide-verification.html" aria-current="page">9. Inspect, test, and compare</a></li></ol></aside><article><h1>Inspect, test, and compare</h1><p class="lead">Read generated artifacts and verify execution on the host 6510 runner and VICE.</p><section id="artifacts"><h2>Read the generated program</h2>
+<p>Use the PRG header for load address, the assembly for actual instructions, the VICE label file for monitor breakpoints, and the map for ownership and addresses. Compare load and run addresses for copied placements. Check the zero-page policy section for actual claims. For DLLs, inspect the relocation simulation beside the binary and disk payload.</p>
+<div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>asm<span class="w"> </span>docs/tutorial-examples/asm-record.zp64<span class="w"> </span>-o<span class="w"> </span>build/record.asm
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/asm-record.zp64<span class="w"> </span>-o<span class="w"> </span>build/record.prg
+</code></pre></div>
+<p>The compiler emits runtime helpers on demand and retains exported entry points, module interfaces, and other required roots. Inspect a representative build before drawing size or cycle conclusions. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/optimizations.md">Optimizer contracts</a></p></section><section id="tests"><h2>Prove target behavior</h2>
+<p><code>zp64c compile</code> emits a PRG plus <code>.asm</code>, <code>.labels</code>, and <code>.zpmap.json</code> sidecars. Use the assembly to see the generated 6510 instructions, VICE labels to set breakpoints, and the map to inspect section ownership. <code>zp64c asm</code> emits assembly without running 64tass.</p>
+<div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>zig<span class="w"> </span>build<span class="w"> </span><span class="nb">test</span>
+zig<span class="w"> </span>build<span class="w"> </span>emu-test
+zig<span class="w"> </span>build<span class="w"> </span>e2e
+</code></pre></div>
+<p>The unit suite checks the compiler and runner. The Peddle host suite executes the generated machine code and includes <code>test6502</code> assertions. The end-to-end suite compiles the demos and uses Bash, Perl, and <code>c1541</code> to check build and disk artifacts. Full VICE automation uses an external harness. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/testing.md">Testing and VICE setup</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/cli.md">CLI and sidecars</a></p>
+<p>Pure language assertions belong in the host runner. Hardware smoke tests cover screen, KERNAL, banking, and REU. The section-marker gate checks that ownership markers are byte-neutral. For optimization changes, compare generated size and behavior using the same workload and machine assumptions. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/testing.md">Testing and measurement workflow</a></p></section><section id="context"><h2>How ZeroPage fits among C64 toolchains</h2>
+<p>Memory regions and overlays have precedents. Oscar64 documents source pragmas for sections and regions and a linker-generated overlay flow. cc65's ld65 documents memory and segment configuration with separate load and run addresses. <a href="https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md">Oscar64 manual</a> · <a href="https://cc65.github.io/doc/ld65.html">ld65 guide</a></p>
+<p>ZeroPage's combination is a Zig-shaped target subset with source-declared ownership shared by the PRG, heaps, zero page, placements, and DLL loader. Typed far views expose explicit copies to and from C64 RAM. The DLL loader combines named REU slots, typed exports, relocations, window activation, and explicit ownership in one model.</p></section><nav class="chapter-nav" aria-label="Chapter navigation"><a href="guide-abi.html">← Frames, recursion, and interop</a><a href="guide.html">Guide contents →</a></nav></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

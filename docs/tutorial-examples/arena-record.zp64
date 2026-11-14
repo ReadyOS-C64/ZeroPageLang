@@ -1,0 +1,36 @@
+const c64 = @import("c64");
+
+const Actor = struct {
+    x: u8,
+    hp: u8,
+    facing: u8,
+};
+
+memory {
+    region work_ram: c64 at 0x9000 size 0x0100;
+    arena frame in work_ram;
+}
+
+fn storeActor(bytes: [*]u8, actor: Actor) void {
+    bytes[@offsetOf(Actor, "x")] = actor.x;
+    bytes[@offsetOf(Actor, "hp")] = actor.hp;
+    bytes[@offsetOf(Actor, "facing")] = actor.facing;
+}
+
+fn loadActor(bytes: [*]u8) Actor {
+    return Actor{
+        .x = bytes[@offsetOf(Actor, "x")],
+        .hp = bytes[@offsetOf(Actor, "hp")],
+        .facing = bytes[@offsetOf(Actor, "facing")],
+    };
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (frame.allocBytes(@sizeOf(Actor))) |bytes| {
+        storeActor(bytes, Actor{ .x = 12, .hp = 5, .facing = 1 });
+        const actor = loadActor(bytes);
+        c64.console.print("X {x} HP {x} FACE {x}\n", .{ actor.x, actor.hp, actor.facing });
+    }
+    frame.reset();
+}

@@ -85,3 +85,20 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   .bar { align-items: flex-start; flex-direction: column; gap: .35rem; padding-block: .6rem; }
   .grid { grid-template-columns: 1fr; }
 }
+.example-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; margin-block: 1.6rem; }
+.example-grid article { min-width: 0; padding: 1.1rem; border: 1px solid var(--line); background: var(--panel); }
+.example-grid .codebox { margin-bottom: 0; }
+.guide aside { max-height: calc(100vh - 7rem); overflow-y: auto; }
+.guide aside a[aria-current] { color: var(--mint); font-weight: 700; }
+.guide .chapter-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; margin: 2rem 0; }
+.guide article > p, .guide section > p { max-width: 76ch; }
+.guide table { width: 100%; border-collapse: collapse; margin-block: 1rem 1.5rem; }
+.guide th, .guide td { border: 1px solid var(--line); padding: .55rem .65rem; text-align: left; vertical-align: top; }
+.guide th { background: var(--panel); }
+.guide table code { overflow-wrap: anywhere; }
+@media (max-width: 52rem) {
+  .example-grid { grid-template-columns: minmax(0, 1fr); }
+  .guide aside { max-height: none; }
+}
+
+.chapter-label { margin-top: 1.5rem; }

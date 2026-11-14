@@ -14,7 +14,7 @@ export fn main() void {
 
 The example prints a line to the C64 screen and changes the VIC-II border color. ZeroPage uses Zig's parser for ordinary source syntax and defines a small target language with 8- and 16-bit integers, 16-bit pointers, fixed arrays, structs, enums, and optionals. This repository is the in-progress 0.1.0 source preview. The language, ABI, and module formats may change. [Example source](examples/hello.zp64) · [Language reference](docs/language.md)
 
-[Documentation site](https://readyos-c64.github.io/ZeroPageLang/) · [Hands-on tutorial](https://readyos-c64.github.io/ZeroPageLang/tutorial.html)
+[Documentation site](https://readyos-c64.github.io/ZeroPageLang/) · [Language introduction](https://readyos-c64.github.io/ZeroPageLang/tutorial.html) · [Full programming guide](https://readyos-c64.github.io/ZeroPageLang/guide.html) · [Install and build](https://readyos-c64.github.io/ZeroPageLang/setup.html)
 
 ## What makes ZeroPage different on the C64
 

@@ -1,0 +1,36 @@
+const c64 = @import("c64");
+const text = "A";
+
+memory {
+    zero_page {
+        profile = .kernal;
+        reserve at 0x30 size 2;
+        restore_basic = true;
+        interrupts = .system;
+    }
+}
+
+export fn main() void {
+    c64.console.clear();
+    var glyph: u8 = 0;
+    var saved_lo: u8 = 0;
+    var saved_hi: u8 = 0;
+    asm {
+        lda $30
+        sta @saved_lo
+        lda $31
+        sta @saved_hi
+        lda #<@text.data
+        sta $30
+        lda #>@text.data
+        sta $31
+        ldy #0
+        lda ($30),y
+        sta @glyph
+        lda @saved_lo
+        sta $30
+        lda @saved_hi
+        sta $31
+    }
+    c64.console.print("GLYPH {x}\n", .{glyph});
+}

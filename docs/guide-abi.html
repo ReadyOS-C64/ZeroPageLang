@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Follow data across static and stack calls, and understand the ReadyOS boundary.">
+<title>Frames, recursion, and interop · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css">
+<script src="site/copy.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#examples">Examples</a><a href="index.html#c64">C64 features</a><a href="tutorial.html">Intro</a><a href="guide.html" aria-current="page">Full guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide"><aside aria-label="Guide navigation"><h3>On this page</h3><ul class="toc"><li><a href="#static">Static frames and return registers</a></li><li><a href="#stack">A separate stack for recursion</a></li><li><a href="#interop">Resident code, banking, and ReadyOS</a></li></ul><h3 class="chapter-label"><a href="guide.html">All chapters</a></h3><ol class="toc"><li><a href="guide-language.html">1. Types, control flow, and imports</a></li><li><a href="guide-hardware.html">2. C64 I/O and strings</a></li><li><a href="guide-assembly.html">3. Inline 6510 assembly</a></li><li><a href="guide-memory.html">4. Images, placement, and zero page</a></li><li><a href="guide-arenas.html">5. Arenas, pools, and records</a></li><li><a href="guide-reu.html">6. Far data and materialized views</a></li><li><a href="guide-modules.html">7. DLLs, caches, and activation</a></li><li><a href="guide-abi.html" aria-current="page">8. Frames, recursion, and interop</a></li><li><a href="guide-verification.html">9. Inspect, test, and compare</a></li></ol></aside><article><h1>Frames, recursion, and interop</h1><p class="lead">Follow data across static and stack calls, and understand the ReadyOS boundary.</p><section id="static"><h2>Static frames and return registers</h2>
+<p>Static calls copy arguments into fixed storage owned by the callee. The frame has program lifetime and is not reentrant. Record arguments copy flattened fields. Byte returns use A. Words and near pointers return low byte in A and high byte in X. Static aggregate results use return storage. Inspect the generated labels to follow the argument cells.</p>
+<div class="codebox"><div class="codebar"><span class="mono">26_static_abi_metadata.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+
+<span class="n">memory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">region</span><span class="w"> </span><span class="n">call_stack</span><span class="o">:</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="mh">0xc800</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="mh">0x0400</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">stack</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">call_stack</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">helper</span><span class="p">(</span><span class="n">a</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="n">callconv</span><span class="p">(.</span><span class="n">static</span><span class="p">)</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="n">callconv</span><span class="p">(.</span><span class="n">static</span><span class="p">)</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;ABI METADATA</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">total</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">helper</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">total</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">6</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;STATIC OK</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;STATIC BAD</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="w">        </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></section><section id="stack"><h2>A separate stack for recursion</h2>
+<p>Ordinary functions use fixed frame storage. For recursion, reserve RAM for the software stack and mark the recursive function with <code>callconv(.stack)</code>. This example counts down to zero and returns the green border value. An exhausted software stack traps.</p>
+<div class="codebox"><div class="codebar"><span class="mono">32_stack_recursive_border.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+
+<span class="n">memory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">region</span><span class="w"> </span><span class="n">call_stack</span><span class="o">:</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="mh">0xc800</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="mh">0x0400</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">stack</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">call_stack</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">borderFrom</span><span class="p">(</span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="n">callconv</span><span class="p">(.</span><span class="n">stack</span><span class="p">)</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">value</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">borderFrom</span><span class="p">(</span><span class="n">value</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="n">callconv</span><span class="p">(.</span><span class="n">stack</span><span class="p">)</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">border</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">borderFrom</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">border</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Compile the file and inspect the generated assembly for the entry and frame setup. The software stack holds the supported call-frame values. The 6510 hardware stack still holds CPU return addresses. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/abi.md">Frame layouts and ABI limits</a></p>
+<p>Configure a stack region in visible RAM. Its software stack and frame pointers use zero-page pairs. The 6510 hardware stack still holds the machine return address and compiler wrapper saves. The stack convention supports the documented scalar/pointer subset and checks frame bounds. Stack overflow traps. Avoid assuming every static-frame feature is available in a stack frame.</p><p><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/abi.md">Bridge directions, limits, and register contracts</a></p></section><section id="interop"><h2>Resident code, banking, and ReadyOS</h2>
+<p>The raw-image entry and named regions also support hosted applications. The ReadyOS Tic-Tac-Toe example enters at <code>$1000</code>, leaves the resident shim's range available, and uses the shim's documented terminal vectors. The sample starts a fresh game on entry. Host-managed REU resources and resume-aware state are future integration work.</p><p><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/readyos-precog.md">ReadyOS boundary and proposed host adapter</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/sampleapps/tictactoe_readyos/readyos_shim.zp64">Shim source</a></p></section><nav class="chapter-nav" aria-label="Chapter navigation"><a href="guide-modules.html">← DLLs, caches, and activation</a><a href="guide-verification.html">Inspect, test, and compare →</a></nav></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

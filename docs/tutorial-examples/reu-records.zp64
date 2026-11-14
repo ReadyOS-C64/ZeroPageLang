@@ -1,0 +1,59 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Team = enum(u8) { red = 1, blue = 2 };
+const Position = struct { x: u8, y: u8 };
+const Enemy = struct {
+    hp: u8,
+    score: u16,
+    team: Team,
+    pos: Position,
+    patrol: [2]u8,
+};
+
+memory {
+    region work_ram: c64 at 0x9000 size 0x0010;
+    region asset_ram: reu at 0x010000 size 0x0100;
+    arena scratch in work_ram;
+    arena assets in asset_ram;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (assets.allocBytes(@sizeOf(Enemy) * 3)) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 3);
+        enemies.set(1, Enemy{
+            .hp = 9,
+            .score = 0x1200,
+            .team = .blue,
+            .pos = Position{ .x = 12, .y = 3 },
+            .patrol = [_]u8{ 4, 8 },
+        });
+        enemies.set(2, Enemy{
+            .hp = 4,
+            .score = 0x2300,
+            .team = .red,
+            .pos = Position{ .x = 6, .y = 7 },
+            .patrol = [_]u8{ 2, 5 },
+        });
+
+        if (enemies.materializeRange(scratch, 1, 2)) |local| {
+            var enemy = local.get(0);
+            enemy.hp -= 2;
+            enemy.score += 1;
+            local.set(0, enemy);
+            enemies.flushRange(1, local);
+            scratch.reset();
+
+            const saved = enemies.get(1);
+            const untouched = enemies.get(2);
+            if (saved.hp == 7 and saved.score == 0x1201 and saved.team == .blue and
+                saved.pos.x == 12 and saved.patrol[1] == 8 and untouched.score == 0x2300)
+            {
+                c64.console.print("REU RECORDS OK\n", .{});
+                c64.vic.border = 5;
+            }
+        }
+    }
+    assets.reset();
+}
