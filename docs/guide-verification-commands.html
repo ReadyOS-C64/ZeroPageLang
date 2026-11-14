@@ -20,7 +20,10 @@ x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/placement.p
 </code></pre></div><p><a href="guide-verification.html#commands-2">Return to the guide</a></p></section><section id="commands-3"><h2>Build and run</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>zig<span class="w"> </span>build<span class="w"> </span><span class="nb">test</span>
 zig<span class="w"> </span>build<span class="w"> </span>emu-test
 zig<span class="w"> </span>build<span class="w"> </span>e2e
-</code></pre></div><p><a href="guide-verification.html#commands-3">Return to the guide</a></p></section></article></main>
+</code></pre></div><p><a href="guide-verification.html#commands-3">Return to the guide</a></p></section><section id="commands-4"><h2>Reproduce the two host measurements</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+<span class="nv">ZEROPAGE_EMU_FILTER</span><span class="o">=</span>oscar64_short_scalar_calls<span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span>emu-test<span class="w"> </span>&gt;<span class="w"> </span>build/short-calls.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+awk<span class="w"> </span><span class="s1">&#39;/^host-metrics/ &amp;&amp; $2 !~ /scalars_oscar64_short_scalar_calls/&#39;</span><span class="w"> </span>build/short-calls.log
+</code></pre></div><p><a href="guide-verification.html#commands-4">Return to the guide</a></p></section></article></main>
 <footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
 </body>
 </html>

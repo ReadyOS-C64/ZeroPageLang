@@ -1,0 +1,20 @@
+const c64 = @import("c64");
+
+fn nextByte(value: u8) u8 {
+    return value + 1;
+}
+
+fn nextWord(value: u8) u16 {
+    return @as(u16, value) + 1;
+}
+
+export fn main() void {
+    c64.console.clear();
+    const byte = nextByte(0xff);
+    const word = nextWord(0xff);
+    const high = word >> 8;
+    const low = word & 0x00ff;
+
+    c64.console.print("BYTE {x} WORD {x16}\n", .{ byte, word });
+    c64.console.print("HIGH {x16} LOW {x16}\n", .{ high, low });
+}

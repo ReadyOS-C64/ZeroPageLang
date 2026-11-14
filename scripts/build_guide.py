@@ -15,16 +15,22 @@ def block(label, source, lang="zig"):
     rendered = highlight(source, lexer, HtmlFormatter(nowrap=True))
     return f'<div class="codebox"><div class="codebar"><span class="mono">{escape(label)}</span></div><pre tabindex="0"><code>{rendered}</code></pre></div>'
 
-def shell(source, title="Build and run"):
+def shell(source, title="Build and run", anchor=None):
     code = block("Terminal", dedent(source).strip() + "\n", "shell")
-    return f'<details class="terminal"><summary>{escape(title)}</summary>{code}</details>'
+    attr = f' id="commands-{escape(anchor)}"' if anchor else ""
+    return f'<details class="terminal"{attr}><summary>{escape(title)}</summary>{code}</details>'
 
 def write_reading_page(path, html):
     commands = []
+    number = 0
+    pattern = r'<details class="terminal"(?: id="(commands-[a-z0-9-]+)")?><summary>(.*?)</summary>(.*?)</details>'
+
     def move_commands(match):
-        title, code = match.groups()
-        number = len(commands) + 1
-        anchor = f"commands-{number}"
+        nonlocal number
+        anchor, title, code = match.groups()
+        if anchor is None:
+            number += 1
+            anchor = f"commands-{number}"
         commands.append(
             f'<section id="{anchor}"><h2>{title}</h2>{code}'
             f'<p><a href="{path.name}#{anchor}">Return to the guide</a></p></section>'
@@ -32,9 +38,9 @@ def write_reading_page(path, html):
         return f'<p id="{anchor}" class="command-link"><a href="{path.stem}-commands.html#{anchor}">{title}</a></p>'
 
     if path.name == "setup.html":
-        path.write_text(re.sub(r'<details class="terminal"><summary>(.*?)</summary>(.*?)</details>', r'\2', html, flags=re.S))
+        path.write_text(re.sub(pattern, r'\3', html, flags=re.S))
         return
-    reading = re.sub(r'<details class="terminal"><summary>(.*?)</summary>(.*?)</details>', move_commands, html, flags=re.S)
+    reading = re.sub(pattern, move_commands, html, flags=re.S)
     path.write_text(reading)
     if commands:
         source_title = re.search(r'<h1>(.*?)</h1>', html).group(1)
@@ -285,9 +291,9 @@ def example_link(path, title="Open the complete source"):
     target = path.removeprefix("docs/") if path.startswith("docs/tutorial-examples/") else blob + path
     return f'<a href="{target}">{title}</a>'
 
-def example_run(path, name, reu=False):
+def example_run(path, name, reu=False, anchor=None):
     flags = " -reu -reusize 16384" if reu else ""
-    return f'<p>{example_link(path)}</p>' + shell(f"mkdir -p build\n./zig-out/bin/zp64c compile {path} -o build/{name}.prg\nx64sc{flags} -autostart build/{name}.prg", "Build and run this example")
+    return f'<p>{example_link(path)}</p>' + shell(f"mkdir -p build\n./zig-out/bin/zp64c compile {path} -o build/{name}.prg\nx64sc{flags} -autostart build/{name}.prg", "Build and run this example", anchor)
 
 guide_page("setup", "Install and build ZeroPage", "Set up the host compiler and build a C64 program from a fresh checkout.", [
     ("tools", "Install the tools", lesson["install"]),
@@ -299,6 +305,17 @@ toc_cards = "".join(f'<article><h3><a href="guide-{name}.html">{i}. {title}</a><
 guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPage programs, from typed values and C64 hardware to a complete game and relocatable DLLs.", [
     ("chapters", "Chapters", f'<div class="grid">{toc_cards}</div>'),
     ("approach", "How to follow the guide", '<p>Start with <a href="guide-language.html">types and control flow</a> if you are learning the language. Follow <a href="guide-hardware.html">screen and keyboard I/O</a> into the <a href="guide-application.html">Tic-Tac-Toe case study</a> to see those choices in an application. For memory-intensive projects, read <a href="guide-memory.html">memory placement</a> before <a href="guide-arenas.html">arenas</a> and <a href="guide-reu.html">REU views</a>. The <a href="guide-modules.html">DLL walkthrough</a> starts with one call and works up to a shared execution window.</p><p>Code labelled as an excerpt shows part of a program. Complete source links let you read the surrounding declarations and run the example. Build and run links open commands on a separate page. The <a href="setup.html">setup page</a> collects tool installation.</p>'),
+    ("workbench", "Find a worked example by task", '''
+<ul>
+<li><a href="guide-language.html#width">Carry a byte counter into a word</a> and predict its displayed bytes.</li>
+<li><a href="guide-data.html#ownership">Choose a snapshot or an in-place update</a> for game state.</li>
+<li><a href="guide-assembly.html#strings">Pass a string address and length to assembly</a> and trace what the wrapper preserves.</li>
+<li><a href="guide-memory.html#reservation">Reserve bytes for application code</a> and read the resulting zero-page map.</li>
+<li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
+<li><a href="guide-modules.html#disk">Call the same disk DLL two ways</a>, then <a href="guide-module-lifecycle.html#relocation">trace an address into the execution window</a>.</li>
+<li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
+<li><a href="guide-verification.html#policy-cost">Measure a zero-page policy</a> with the same source workload and assertions.</li>
+</ul>'''),
 ])
 
 def fixture_link(path, title):
@@ -322,6 +339,13 @@ guide_page("language", chapters[0][1], chapters[0][2], [
 <p>Fixed arrays are contiguous and limited to 255 bytes per array. Struct fields are flattened. Passing a record by value copies its fields. <code>@sizeOf</code>, <code>@alignOf</code>, and <code>@offsetOf</code> inspect supported layouts at compile time. Arrays serve as storage and have restricted by-value behavior.</p>
 {sample("examples/small/25_struct_array_table.zp64")}
 <p>{doc("language", "Type and expression rules")} · <a href="guide-data.html">Record layout and pointers in depth</a></p>'''),
+    ("width", "Follow the carry from a byte into a word", f'''
+<p>Predict the two results for input <code>0xff</code>. <code>nextByte</code> returns a byte, so adding one keeps the low eight bits, <code>00</code>. <code>nextWord</code> widens the input first, so the carry reaches bit 8 and the result is <code>0100</code>. Widening after a byte-valued call would preserve only the byte that call returned.</p>
+{sample("docs/tutorial-examples/counter-width.zp64")}
+{example_run("docs/tutorial-examples/counter-width.zp64", "counter-width", anchor="counter-width")}
+<p>The screen shows <code>BYTE 00 WORD 0100</code> and <code>HIGH 0001 LOW 0000</code>. The inferred bindings from the calls retain the declared return widths. Shifting the word right by eight brings the high byte down. Masking with <code>0x00ff</code> clears its high byte. Both expressions here still have word width.</p>
+<p>This is a ZeroPage arithmetic rule. Ordinary supported arithmetic keeps the result bits of its target width, and Zig's explicit wrapping operators such as <code>+%</code> are rejected. Use a word before arithmetic when you need to retain the carry. Use unsigned values for shifts. A literal count must be less than the operand width, so <code>word &gt;&gt; 8</code> works where shifting a byte by eight is rejected.</p>
+<p>{fixture_link("lang/pass/parity/scalars/u16_math", "Word carry and borrow assertions")} · {fixture_link("lang/pass/parity/scalars/bitwise_shifts", "Masks and runtime shift counts")} · {fixture_link("lang/pass/parity/scalars/inferred_locals", "Inferred scalar bindings")} · {fixture_link("lang/fail_compile/wrapping_add", "Wrapping operator diagnostic")}</p>'''),
     ("flow", "Branches, loops, and indexes", lesson["language"] + '''
 <p><code>and</code> and <code>or</code> short-circuit. <code>switch</code> accepts scalar selectors, supported ranges, and optional or tagged-union payloads. <code>for</code> walks fixed arrays or zero-based fixed ranges. Array payloads are read-only copies. Literal out-of-range indexes fail compilation. Guard runtime indexes in application code.</p>'''),
     ("effects", "Predict what happens when expressions have side effects", f'''
@@ -417,6 +441,15 @@ guide_page("assembly", chapters[2][1], chapters[2][2], [
 {block("ReadyOS terminal transfer · requires the resident shim", "asm {\n    jmp $c80c\n}\n")}
 <p>This single-instruction absolute block transfers to a documented resident vector and bypasses normal ZeroPage return. Supply the machine state required by the vector. Prepare required memory in ZeroPage. A preceding normal block restores registers and flags at fallthrough. Indirect jumps, external symbolic jumps, and additional instructions in the terminal block are rejected.</p>
 <p>{doc("inline-assembler", "Complete Markdown reference")} · {example_link("sampleapps/tictactoe_readyos/readyos_shim.zp64", "ReadyOS shim calls")}</p>'''),
+    ("branch-range", "Reach a distant label within an assembly block", f'''
+<p>A conditional branch encodes a signed byte displacement measured from the instruction after the branch. If <code>beq finish</code> has to skip more than 127 bytes, invert the condition to skip over a nearby absolute <code>jmp</code>. Both labels remain local to the block. A compiler save wrapper surrounds the block, so its pushes do not change the distance between these two local instructions.</p>
+{block("Local control flow · assembly excerpt", """    bne continue_work
+    jmp finish
+continue_work:
+    ; the long fallthrough path goes here
+finish:
+""", "asm")}
+<p>In the original, the equal case reaches <code>finish</code>. In the rewritten version, the equal case falls through to <code>jmp finish</code>, and the unequal case branches to <code>continue_work</code>. Inspect the assembled instructions if you are budgeting cycles. {example_link("tests/fixtures/fail/inline_asm_far_branch.zp64", "Out-of-range branch fixture")} · {doc("inline-assembler", "Label and jump rules")}</p>'''),
 ])
 
 guide_page("memory", chapters[3][1], chapters[3][2], [
@@ -433,6 +466,17 @@ guide_page("memory", chapters[3][1], chapters[3][2], [
 <p>Candidate ranges describe what the compiler may consider. Actual claims show where it allocated pointer pairs, scratch, and eligible parameters. Reserved bytes belong to the application. A spill stays in ordinary RAM. Under the KERNAL profile, restoration on normal return covers the system bytes the compiler borrowed. When assembly writes reserved bytes, your code owns their lifetime and any restoration.</p>
 <p>The stack can use explicitly admitted pointer pairs. In the lifecycle fixture, the stack pointer is at <code>$30/$31</code> and the frame pointer at <code>$32/$33</code>. The test seeds zero page before entry and checks cleanup after the real return. Running only <code>main</code> would skip that entry and exit contract. {example_link("tests/fixtures/optimization/zero_page_lifecycle_stack.zp64", "Stack-pointer configuration fixture")} · {example_link("scripts/verify_zero_page_lifecycle.py", "Entry and exit verification")}</p>
 <p>To see the difference in a real program, compare the <a href="{blob}tests/fixtures/optimization/zero_page_scalar_reserved.zp64">fixture that reserves two application bytes</a> and the compiler's reported allocations. Explicit reservations let assembly and generated code coexist, while optional scalar allocation depends on what the compiler can prove. {fixture_link("lang/fail_compile/zero_page_protected_kernal", "Rejected claim on KERNAL workspace")}</p>'''),
+    ("reservation", "Check a reservation against the actual allocation", f'''
+<p>In this host fixture, the application writes to <code>$02</code> through a literal pointer while the compiler is allowed to put private scalar parameters in zero page. The reservation covers <code>$02</code> and <code>$03</code>. Before opening the map, predict whether the byte parameter can occupy either address.</p>
+{sample("tests/fixtures/optimization/zero_page_scalar_reserved.zp64", "Complete host fixture · application-owned bytes")}
+<p>In the preview build, <code>reserved_ranges</code> records <code>$02–$03</code>, and <code>claims</code> puts <code>reservedStore_value</code> at <code>$04</code>. The parameter remains readable across the write to <code>$02</code>. The host fixture checks both the written byte and the returned word. Read your own map after changing the program, since a different set of eligible cells can change allocation.</p>
+<p>The same map lists <code>$04–$0a</code> under <code>restored_ranges</code>. These are compiler claims on borrowed BASIC workspace in this build. The application's store to <code>$02</code> remains the application's responsibility. If you borrow it from BASIC, save it before use and restore it yourself, as in the <a href="guide-assembly.html#strings">indirect string example</a>. The separate lifecycle test seeds bytes before entry and observes them after normal return. The fixture above stops at its test hook before that cleanup.</p>
+{shell("""
+mkdir -p build
+./zig-out/bin/zp64c compile tests/fixtures/optimization/zero_page_scalar_reserved.zp64 -o build/reserved.prg
+python3 -m json.tool build/reserved.prg.zpmap.json
+""", "Build the fixture and inspect its zero-page map")}
+<p>{fixture_link("lang/fail_compile/memory_placement_banked_constant_resident_reference", "Rejected resident reference to banked data")} · {doc("testing", "Native lifecycle verification")}</p>'''),
 ])
 
 guide_page("arenas", chapters[4][1], chapters[4][2], [
@@ -456,6 +500,10 @@ guide_page("arenas", chapters[4][1], chapters[4][2], [
 <p>A pool divides visible RAM into equal blocks. This one has four 16-byte blocks. An allocation consumes a whole block even when it requests fewer bytes. The demo frees the first block and checks that the next allocation gets it back. Pass only a live pointer from that pool to <code>free</code>. Keep using the pointer only while its block is owned by that allocation.</p>
 {sample("examples/small/35_fixed_heap_blocks.zp64")}
 {example_run("examples/small/35_fixed_heap_blocks.zp64", "pool")}'''),
+    ("plan", "Size a pool for reusable objects", f'''
+<p>Suppose you need at most four live messages and each encoded message fits in 16 bytes. Reserve 64 bytes and choose a block size of 16. A six-byte message uses one block, with ten bytes of spare capacity in that block. A seventeen-byte message fails even if the pool is otherwise empty. Choose an arena if the messages can all expire together. Choose a pool if you need to return one block while the other messages stay live.</p>
+<p>Give a fixed pool a region whose size divides exactly into blocks. Keep it in visible RAM and outside the assembled PRG, stack, and other claims. Allocate record bytes as in the <a href="#record">near arena example</a>, using <code>@sizeOf</code> and an explicit byte layout. Keep the block pointer alive until you have finished every read or write, then return it to its own pool.</p>
+<p>{fixture_link("lang/pass/parity/abi/fixed_heap_blocks", "Allocate, exhaust, free, and reuse blocks")} · {fixture_link("lang/fail_compile/heap_fixed_region_not_divisible", "Rejected uneven block layout")} · {fixture_link("lang/fail_compile/heap_free_on_arena", "Rejected per-allocation free on an arena")}</p>'''),
     ("failure", "Plan for exhaustion and reuse", f'''
 <p>Each allocator returns an optional. A failed request gives you a chance to retry after a reset, fall back to another buffer, or report that the requested work does not fit. Resetting an arena is a lifetime decision: finish using every pointer and view from that arena first. Freeing a pool block gives only that block back. A request larger than one pool block cannot span multiple blocks.</p>
 <p>{fixture_link("lang/pass/parity/abi/near_heap_arena", "Near arena allocation and reset fixture")} · {fixture_link("lang/pass/parity/abi/fixed_heap_blocks", "Pool exhaustion and reuse fixture")} · {fixture_link("lang/pass/parity/abi/far_reu_arena", "Far allocation, transfer, and reset fixture")}</p>'''),
@@ -525,6 +573,14 @@ const oom = enemies.materializeRange(near_heap, 0, 2);
 test6502.expectNull(12, oom);
 """)}
 <p>{fixture_link("lang/pass/parity/abi/far_reu_materialize_range", "Full fixture with runtime starts, flush, and failure cases")} · {fixture_link("lang/fail_compile/far_view_materialize_range_end_oob", "Compile-time range rejection")} · {fixture_link("lang/fail_compile/far_view_materialize_range_fixed_heap", "Why a fixed-block pool is not a materialization arena")}</p>'''),
+    ("flush-shape", "Match the source view to the destination", f'''
+<p>Whole-view flush requires the same record type and count on both sides. A local view of one <code>Enemy</code> cannot stand in for a far table of two <code>Enemy</code> records. To update just the first record, use <code>two.flushRange(0, local)</code> with that one-record local view. The local count determines the number of records written.</p>
+{block("Rejected whole-view flush · excerpt from the count fixture", """if (one.materialize("main")) |local| {
+    two.flush(local);
+}
+""")}
+<p>Both forms require the matching record type. Equal byte widths alone give no conversion between types. If you are migrating a record format, read the old fields, construct a new record explicitly, and write it through the new view. When troubleshooting, check type, count, and destination start before looking at DMA or banking.</p>
+<p>{fixture_link("lang/fail_compile/far_view_flush_wrong_count", "Whole-view count mismatch")} · {fixture_link("lang/fail_compile/far_view_flush_range_wrong_type", "Range flush record-type mismatch")} · {fixture_link("lang/pass/parity/abi/far_reu_materialize_range", "Successful partial write-back")}</p>'''),
 ])
 
 embedded_source = Path("examples/small/96_memory_regions_dll.zp64").read_text()
@@ -721,6 +777,11 @@ test6502.expectEqualBool(4, false, ZeroPage.module.isLoaded("fixed_math"));
 """)}
 <p>Loading a graph makes its modules available in REU. It does not invoke their exports. To call a transitive module such as <code>FixedMath</code>, declare its binding and provide its sidecars at build time. A typed transitive binding can call its exports after a direct dependency loads the graph. It cannot independently acquire that transitive graph through the same binding.</p>
 <p>{example_link("examples/small/74_module_dependency_graph_on_demand_policy.zp64", "On-demand graph demo")} · {example_link("examples/small/75_module_dependency_graph_preload_policy.zp64", "Preload graph demo")} · {module_fixture("module_dependency_graph_on_demand_policy_missing_disk", "Rollback when disk load fails")} · {module_fixture("module_typed_graph_node_binding", "Call a typed transitive dependency")}</p>'''),
+    ("registry", "Read the loader registry while diagnosing a failed call", f'''
+<p>Row 0 describes the current module. Direct dependencies follow their declared order. Transitive dependencies follow in first-seen order. In the missing-prerequisite fixture, that makes <code>math_core</code> row 1 and <code>fixed_math</code> row 3. A row can exist before any disk load succeeds. Its loaded byte answers whether the payload is available. Its refcount records ownership. The active-row byte belongs to the C64 execution window and can change without either module losing its REU residency.</p>
+{block("Missing prerequisite · host fixture directives", "\n".join(Path("tests/fixtures/emu/lang/pass/parity/abi/module_dependency_graph_load_missing.zp64").read_text().splitlines()[:5]) + "\n")}
+<p>Here the disk contains <code>mathcore</code> but omits <code>fixedmath</code>. The loader visits <code>fixed_math</code> first. The graph operation reports failure, and both rows remain unloaded with zero references. The assertions check the public result and loaded state. The directives also inspect the internal bytes via the emitted labels. If your program has already taken a reference, pair its successful acquisition with its own release. A failed operation rolls back the references it took, so an existing owner remains responsible for its reference.</p>
+<p>In the registry-initialization fixture, all three rows start unloaded. Their cache slots begin at <code>030000</code>, <code>030800</code>, and <code>031000</code>. Each gets one window-sized slot in that configuration. Increasing the number of rows consumes more REU capacity, even when the disk payloads are small. {module_fixture("module_registry_rows", "Registry rows and initial cache contents")} · {module_fixture("module_dependency_graph_load_missing", "Failed prerequisite load")} · {module_fixture("module_typed_dependency_graph_ownership", "Shared graph ownership")}</p>'''),
     ("banks", "Choose a visible window or RAM under ROM", f'''
 <p>A visible RAM window is the easiest place to start. If you need more visible RAM for the main program, put the window under BASIC or KERNAL ROM. The range must fit entirely within the selected bank. The loader restores the processor port after the banked operation.</p>
 {paired_examples("Under BASIC ROM", "Region inside memory", """region module_window: c64 at 0xa000 size 0x0800
@@ -746,6 +807,22 @@ test6502.expectEqualBool(4, false, ZeroPage.module.isLoaded("fixed_math"));
 <tr><td><code>.zpmod.diskmanifest.json</code></td><td>Disk packaging, when configured. Describes filenames and payload placement.</td></tr>
 </tbody></table>
 <p>Exports are ordered from zero. The payload begins with one three-byte <code>JMP</code> per export, so dispatch uses <code>window_base + ordinal * 3</code>. The compiler emits relocation records for known addresses, including full 16-bit operands and separate low and high bytes. The target uses compiled rows and ordinals. It reads the disk payload without parsing the build sidecars. {example_link("examples/small/43_module_rodata_relocs.zp64", "Read-only data relocation demo")} · {doc("abi", "Format and relocation details")}</p>'''),
+    ("relocation", "Trace an internal call and a table pointer into RAM", f'''
+<p>Read this module with its execution window at <code>$8000</code>. The first jump at <code>$8000</code> dispatches export 0, <code>tick</code>. The second at <code>$8003</code> dispatches export 1, <code>table_ptr</code>. Moving the payload also moves its private <code>bump</code> helper and <code>reloc_table</code>. Code that refers to them needs their new addresses.</p>
+{sample("examples/small/45_module_relocation_sim.zp64", "Complete relocation simulation demo")}
+<p>Open <code>applied_relocations</code> in the simulation sidecar. The following records show one build. Addresses and offsets can change after recompiling. Follow the target name and kind in your output.</p>
+<table><thead><tr><th scope="col">Target</th><th scope="col">Record</th><th scope="col">Bytes before</th><th scope="col">Bytes after</th></tr></thead><tbody>
+<tr><td><code>bump</code></td><td><code>abs16</code></td><td><code>96 08</code></td><td><code>06 80</code></td></tr>
+<tr><td><code>reloc_table[1]</code></td><td><code>hi8</code></td><td><code>0a</code></td><td><code>82</code></td></tr>
+<tr><td><code>reloc_table[1]</code></td><td><code>lo8</code></td><td><code>c8</code></td><td><code>38</code></td></tr>
+</tbody></table>
+<p>The first pair changes an absolute operand from <code>$0896</code> to <code>$8006</code>. The table records carry an addend of one for the element index. The adjusted address becomes <code>$8238</code>, with the two bytes patched at separate offsets. The simulation shows the patch plan. For a program that actually activates a DLL, use the runtime window demo. Treat a pointer into a shared window as valid only while that DLL remains active there.</p>
+{shell("""
+mkdir -p build
+./zig-out/bin/zp64c compile examples/small/45_module_relocation_sim.zp64 -o build/reloc.prg
+python3 -m json.tool build/reloc.prg.zpmod.relocsim.json
+""", "Build the module and inspect its relocation records")}
+<p>{example_link("examples/small/46_module_runtime_load_window.zp64", "Runtime load and activation example")} · {doc("abi", "Relocation record reference")}</p>'''),
     ("diagnostics", "Tell a build error from an unavailable call", f'''
 <table><thead><tr><th scope="col">What you see</th><th scope="col">What to check</th></tr></thead><tbody>
 <tr><td>Binding signature rejected</td><td>Match the export name, argument types, and return type. Rebuild stale sidecars. <a href="{blob}tests/fixtures/emu/lang/fail_compile/module_binding_current_signature_mismatch.zp64">Signature mismatch fixture</a></td></tr>
@@ -762,6 +839,15 @@ guide_page("abi", chapters[8][1], chapters[8][2], [
     ("stack", "A separate stack for recursion", lesson["stack"] + f'''
 <p>Configure a stack region in visible RAM. Its software stack and frame pointers use zero-page pairs. The 6510 hardware stack still holds the machine return address and compiler wrapper saves. The stack convention supports the documented scalar/pointer subset and checks frame bounds. Stack overflow traps. Avoid assuming every static-frame feature is available in a stack frame.</p><p>{doc("abi", "Bridge directions, limits, and register contracts")}</p>
 <p>Use the mixed-call examples to see when a bridge is needed. Static code can call a stack function and a stack function can call an eligible static helper. The recursive fixture checks the normal path, and an expected-failure fixture exercises a stack bound. {example_link("examples/small/28_static_calls_stack_helper.zp64", "Static caller to stack helper")} · {example_link("examples/small/30_stack_main_calls_static_helper.zp64", "Stack caller to static helper")} · {fixture_link("lang/pass/parity/abi/stack_recursion", "Recursion fixture")} · {fixture_link("lang/fail_runtime/stack_overflow_recursive", "Expected overflow trap")}</p>'''),
+    ("stack-limit", "Exercise a stack limit with two nested calls", f'''
+<p>Follow <code>main → relay → identity</code>. At the deepest call the two functions still need their live frames and the bridge needs its saved frame linkage. In these fixtures every function uses the software stack. Both programs compile, but one byte in the stack reservation changes whether the deepest call can finish.</p>
+{paired_examples("Ten bytes allow the call to finish", "Complete passing host fixture", Path("tests/fixtures/emu/lang/pass/parity/abi/stack_nested_compact_exact_fit.zp64").read_text(),
+          "Nine bytes reach the overflow trap", "Complete runtime-failure fixture", Path("tests/fixtures/emu/lang/fail_runtime/stack_nested_one_byte_over_limit.zp64").read_text())}
+<p>Starting at <code>$c8fc</code>, ten bytes have the exclusive end <code>$c906</code> and nine have <code>$c905</code>. The passing fixture checks that <code>$805a</code> reaches the caller intact through A and X. The smaller reservation enters <code>zeropage_stack_overflow_trap</code> before the overflowing call. The runner checks that path separately from the result assertion.</p>
+<p>Use the boundary as a way to test your sizing assumptions. The compiler can compact private frames in eligible builds, so the ten-byte result describes this call chain and configuration. Test the deepest supported path of your actual program. Hardware-stack depth from JSRs, wrapper saves, and interrupts is a separate budget.</p>
+{shell("""
+ZEROPAGE_EMU_FILTER='stack_nested_compact_exact_fit,stack_nested_one_byte_over_limit' zig build emu-test
+""", "Run both sides of the stack boundary")}'''),
     ("interop", "Resident code, banking, and ReadyOS", f'''
 <p>The raw-image entry and named regions also support hosted applications. The ReadyOS Tic-Tac-Toe example enters at <code>$1000</code>, leaves the resident shim's range available, and uses the shim's documented terminal vectors. The sample starts a fresh game on entry. Host-managed REU resources and resume-aware state are future integration work.</p><p>{doc("readyos-precog", "ReadyOS boundary and proposed host adapter")} · {example_link("sampleapps/tictactoe_readyos/readyos_shim.zp64", "Shim source")}</p>'''),
 ])
@@ -909,6 +995,8 @@ ZEROPAGE_EMU_FILTER='compound_index_once,far_reu_materialize_range' zig build em
 <p>The full end-to-end gate compiles the demos and checks the assembler and disk artifacts. The optional VICE harness exercises the programs with hardware-facing assertions. For a change that affects both lowering and runtime behavior, use the focused fixture during development and the broader gates before publishing. {doc("testing", "Commands, prerequisites, and VICE harness setup")}</p>'''),
 ])
 
+scratch_policy_fixture = Path("tests/fixtures/emu/lang/pass/optimization_reference/zero_page_oscar64_short_scalar_calls.zp64")
+
 guide_page("verification", chapters[12][1], chapters[12][2], [
     ("artifacts", "Read the generated program", f'''
 <p>Use the PRG header for load address, the assembly for actual instructions, the VICE label file for monitor breakpoints, and the map for ownership and addresses. Compare load and run addresses for copied placements. Check the zero-page policy section for actual claims. For DLLs, inspect the relocation simulation beside the binary and disk payload.</p>
@@ -935,6 +1023,20 @@ mkdir -p build
 <p>Start by checking that both programs produce the same behavior. Then record the generated PRG size and compare the assembly for the paths that run. A PRG byte count includes the two-byte load header. Resident RAM, configured stack, zero-page claims, and REU allocations are separate costs. A shorter file may still reserve more memory while running.</p>
 <p>Use the repeated-greeting sources to compare output strategies. The console example uses built-in output. The buffered variants keep screen state and do bulk writes. A fair comparison must keep the visible work and stopping condition comparable. In a hot loop, check whether a source change removes repeated DMA setup, copies, or bank switches. Record the behavior and the cost that changed.</p>
 <p>{example_link("examples/repeated_hello.zp64", "Console greeting")} · {example_link("examples/repeated_hello_buffered_balanced.zp64", "Buffered greeting")} · {doc("testing", "Baseline and measurement workflow")} · {doc("optimizations", "Optimization contracts")}</p>'''),
+    ("policy-cost", "Measure what a zero-page policy costs", f'''
+<p>Use the short-scalar-call workload to isolate one change. The second source adds the policy below. Both use the same nested calls, argument values, and assertions, including a pointer write that checks evaluation order. The host runner checks the same results before emitting metrics for each successful run.</p>
+{block("Policy added to the second source", "".join(scratch_policy_fixture.read_text().splitlines(keepends=True)[1:4]))}
+<table><thead><tr><th scope="col">Policy</th><th scope="col">PRG bytes</th><th scope="col">Host CPU cycles</th><th scope="col">Intercepted calls</th></tr></thead><tbody>
+<tr><td>Default</td><td>468</td><td>1,483</td><td>9</td></tr>
+<tr><td>KERNAL with scratch allocation</td><td>523</td><td>1,586</td><td>9</td></tr>
+</tbody></table>
+<p>In this preview build the scratch policy adds 55 file bytes and 103 measured cycles. The fixture measures through its pass hook, so it includes entry work and stops before normal-return cleanup. For a tiny workload, the cost of initializing and managing borrowed cells can outweigh cheaper accesses. Read the map and emitted instructions, then measure a workload with the call frequency you expect in your program. Use the lifecycle runner if the cost of cleanup is part of the question.</p>
+{shell("""
+mkdir -p build
+ZEROPAGE_EMU_FILTER=oscar64_short_scalar_calls zig build emu-test > build/short-calls.log 2>&1
+awk '/^host-metrics/ && $2 !~ /scalars_oscar64_short_scalar_calls/' build/short-calls.log
+""", "Reproduce the two host measurements")}
+<p>These counts cover stepped 6510 instructions in the host fixture. Intercepted hooks, VIC-II stalls, and physical drive or REU timing are outside the measurement. {fixture_link("lang/pass/optimization_reference/oscar64_short_scalar_calls", "Default-policy workload")} · {fixture_link("lang/pass/optimization_reference/zero_page_oscar64_short_scalar_calls", "Same workload with scratch allocation")} · {doc("testing", "Metric columns and lifecycle timing")}</p>'''),
     ("context", "How ZeroPage fits among C64 toolchains", '''
 <p>Memory regions and overlays have precedents. Oscar64 documents source pragmas for sections and regions and a linker-generated overlay flow. cc65's ld65 documents memory and segment configuration with separate load and run addresses. <a href="https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md">Oscar64 manual</a> · <a href="https://cc65.github.io/doc/ld65.html">ld65 guide</a></p>
 <p>ZeroPage's combination is a Zig-shaped target subset with source-declared ownership shared by the PRG, heaps, zero page, placements, and DLL loader. Typed far views expose explicit copies to and from C64 RAM. The DLL loader combines named REU slots, typed exports, relocations, window activation, and explicit ownership in one model.</p>'''),
