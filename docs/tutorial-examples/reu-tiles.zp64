@@ -1,0 +1,38 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const tiles = [_]u8{ 'R', 'O', 'A', 'D', 'L', 'A', 'K', 'E' };
+
+memory {
+    region work_ram: c64 at 0x9000 size 8;
+    region tiles_reu: reu at 0x020000 size 8;
+    arena scratch in work_ram;
+}
+
+fn drawSecondTile() bool {
+    if (ZeroPage.reu.present() == false) {
+        return false;
+    }
+    if (scratch.allocBytes(tiles.len)) |staging| {
+        for (tiles, 0..) |byte, i| {
+            staging[i] = byte;
+        }
+        ZeroPage.reu.copyC64ToReu(@intFromPtr(staging), 0x020000, tiles.len);
+        scratch.reset();
+
+        // The second four-byte tile starts four bytes into the fixed slot.
+        ZeroPage.reu.copyReuToC64(0x020004, 0x0400, 4);
+        return true;
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.screen.clear();
+    if (drawSecondTile()) {
+        c64.vic.border = 5;
+    } else {
+        c64.screen.putsAt(0, 0, "ASSET UNAVAILABLE");
+        c64.vic.border = 2;
+    }
+}

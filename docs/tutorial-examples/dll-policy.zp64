@@ -1,0 +1,68 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+extern module Rules = rules {
+    fn tick(value: u8) u8;
+    fn ready(value: u8) bool;
+    fn widen(value: u16) u16;
+}
+
+memory {
+    region execution: c64 at 0xc000 size 0x0800;
+    region frames: c64 at 0xc800 size 0x0400;
+    region staging: c64 at 0x9000 size 0x0800;
+    region cache: reu at 0x030000 size 0x0800;
+    stack in frames;
+}
+
+module_loader {
+    window main in execution;
+    reu_cache in cache;
+    disk_staging in staging;
+    current {
+        load = .on_demand;
+        load_file = "rules";
+    }
+}
+
+module rules abi 1 {
+    export tick;
+    export ready;
+    export widen;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+fn ready(value: u8) callconv(.stack) bool {
+    return value == 4;
+}
+
+fn widen(value: u16) callconv(.stack) u16 {
+    return value + 0x0101;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (ZeroPage.module.isLoaded("rules")) {
+        c64.console.print("ENTRY LOADED\n", .{});
+    } else {
+        c64.console.print("ENTRY EMPTY\n", .{});
+    }
+
+    if (Rules.tick(5)) |count| {
+        if (Rules.ready(3)) |flag| {
+            if (Rules.widen(0x1234)) |word| {
+                c64.console.print("BYTE {x} WORD {x16}\n", .{ count, word });
+                if (count == 6 and flag == false and word == 0x1335) {
+                    c64.console.print("FALSE IS A RESULT\n", .{});
+                    c64.vic.border = 5;
+                }
+            }
+        }
+    } else {
+        c64.console.print("DLL UNAVAILABLE\n", .{});
+        c64.vic.border = 2;
+    }
+}

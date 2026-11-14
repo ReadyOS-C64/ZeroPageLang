@@ -41,6 +41,11 @@ c64.console.print("HP {x} SCORE {x16}\n", .{ hp, score });
 
 `print` uses a Zig-shaped anonymous tuple. Supported fields are `{s}` for a string, `{x}` for a byte, and `{x16}` for a word. Strings are length-counted PETSCII data, not NUL-terminated C strings.
 
+To print a word stored in a record, copy the field into a named `u16` local
+and pass that local to `{x16}`. In the preview, a direct field argument
+prints its low byte with a zero high byte. See the
+[aggregate return example](tutorial-examples/aggregate-return.zp64).
+
 ### KERNAL and keyboard
 
 ```zig

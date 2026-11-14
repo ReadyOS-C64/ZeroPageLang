@@ -333,11 +333,14 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
 <li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
 <li><a href="guide-reu.html#sector-map">Calculate a map's REU and scratch capacity</a> and test both bounds.</li>
+<li><a href="guide-reu.html#immutable-assets">Stage tile data in REU</a> and fetch a fixed subrange directly to the screen.</li>
 <li><a href="guide-modules.html#disk">Call the same disk DLL two ways</a>, then <a href="guide-module-lifecycle.html#relocation">trace an address into the execution window</a>.</li>
 <li><a href="guide-module-lifecycle.html#state-cycle">Keep a byte across DLL unload and reload</a>.</li>
+<li><a href="guide-module-lifecycle.html#policy-lab">Compare preload, on-demand, and explicit loading</a> for the same exports.</li>
 <li><a href="guide-memory-plan.html">Build a disk-backed score updater</a> and diagnose a bad memory plan, signature, or disk.</li>
 <li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
 <li><a href="guide-abi.html#frame-trace">Trace a word argument through a nested call</a>.</li>
+<li><a href="guide-abi.html#aggregate-return">Trace a three-byte record through a static call</a>.</li>
 <li><a href="guide-verification.html#policy-cost">Measure a zero-page policy</a> with the same source workload and assertions.</li>
 </ul>'''),
 ])
@@ -666,6 +669,12 @@ test6502.expectNull(12, oom);
 {example_run("docs/tutorial-examples/reu-working-set.zp64", "reu-working-set", True, anchor="reu-working-set")}
 <p>Predict the final scores <code>1003</code>, <code>2006</code>, <code>3003</code>, and <code>4006</code>. Every sector has three visits. The repeated edits use only near view operations. A fresh set of far reads checks the flushes. Expect <code>WORKING SET OK</code> and a green border with the REU enabled. Boot with it disabled to see <code>WORKING SET FAILED</code> and a red border.</p>
 <p>The range count is fixed at two, and the runtime start advances by two. For a table with an odd record count, handle the last record with a single <code>get</code> and <code>set</code> or a separate range with literal count one. The sample allocates through a far arena and verifies copies through the target REU. It allocates no additional C64 working range for the second pair.</p>'''),
+    ("immutable-assets", "Stage read-only tile bytes in a fixed REU range", f'''
+<p>The PRG starts with two four-byte tiles. The program copies their screen codes into a near arena, transfers all eight bytes to a fixed REU region, and resets the near arena. Later it fetches the second tile directly into screen RAM. This needs one staging buffer for initialization. No typed record view is needed because the renderer consumes four consecutive bytes.</p>
+{sample("docs/tutorial-examples/reu-tiles.zp64")}
+{example_run("docs/tutorial-examples/reu-tiles.zp64", "reu-tiles", True, anchor="reu-tiles")}
+<p>Expect <code>LAKE</code> at the start of the screen. The second tile starts at <code>$020004</code>, four bytes after the declared base. These bytes were encoded as screen codes in the source. The REU copy preserves bytes exactly. Keep this fixed slot separate from your mutable REU tables. Choose a far arena when the program needs to allocate storage for multiple assets at runtime.</p>
+<p>In this exercise the source asset is embedded in the PRG. The copy demonstrates staging and reuse of the C64 work buffer. The original table still occupies its compiled read-only storage. {doc("reu-overlays", "Raw DMA and allocation contracts")}</p>'''),
     ("measure", "Compare repeated far updates with a working copy", f'''
 <p>The same four sectors can be updated directly in REU. This variant keeps the same initial data, the same three passes over each pair, and the same final checks. Each pass reads and writes both far records. In the materialized version, each pair crosses the bus once in each direction and the passes access C64 RAM.</p>
 {block("Direct far updates · excerpt", dedent(Path("docs/tutorial-examples/reu-direct-passes.zp64").read_text().split("        var start: u8 = 0;", 1)[1].split("        const first", 1)[0].join(("        var start: u8 = 0;", ""))))}
@@ -855,6 +864,29 @@ guide_page("module-lifecycle", chapters[7][1], chapters[7][2], [
 """)}
 <p>Both are settings inside <code>module_loader</code>. Supply disk staging and a filename. For dependencies, put the policy on the <code>dependency</code> row and supply its <code>file</code>. With <code>.manual</code>, use an explicit load or acquire. With <code>.preload</code>, check availability at entry before relying on the export. With <code>.on_demand</code>, handle <code>null</code> at the call site. A later call to an already loaded module can reuse the cache.</p>
 <p>{example_link("examples/small/52_module_preload_policy.zp64", "Current preload demo")} · {example_link("examples/small/53_module_on_demand_policy.zp64", "Current on-demand demo")} · {module_fixture("module_preload_policy_missing_disk", "Preload with a missing disk entry")} · {module_fixture("module_dependency_on_demand_policy_missing_disk", "Dependency call with a missing disk entry")}</p>'''),
+    ("policy-lab", "Observe when the same disk DLL becomes callable", f'''
+<p>This program checks the registry at entry, then calls three typed exports. Build it as written to see on-demand loading. Change only <code>.on_demand</code> to <code>.preload</code> and rebuild to see startup loading. For manual loading, use <code>.manual</code>, remove <code>load_file</code>, and put <code>_ = Rules.loadFromDisk("rules");</code> immediately before the first call. That keeps the entry check at the same point in all three versions.</p>
+{sample("docs/tutorial-examples/dll-policy.zp64")}
+<table><thead><tr><th scope="col">Policy</th><th scope="col">What main prints first</th><th scope="col">What starts the disk load</th></tr></thead><tbody>
+<tr><td>Preload</td><td><code>ENTRY LOADED</code> when startup found the file</td><td>Generated startup</td></tr>
+<tr><td>On demand</td><td><code>ENTRY EMPTY</code></td><td>The first call to <code>Rules.tick</code></td></tr>
+<tr><td>Manual</td><td><code>ENTRY EMPTY</code></td><td>The explicit <code>loadFromDisk</code> call</td></tr>
+</tbody></table>
+<p>In every successful run, the byte is <code>06</code>, the word is <code>1335</code>, and the Boolean export returns <code>false</code>. The capture branch runs for a present Boolean even when its value is false. With the on-demand disk entry absent, the first call returns <code>null</code> and the program prints <code>DLL UNAVAILABLE</code>. An embedded <code>load()</code> instead seeds the current row from the resident PRG, as in the <a href="guide-modules.html#embedded">embedded walkthrough</a>.</p>
+<p>{example_link("docs/tutorial-examples/dll-policy.zp64", "Complete on-demand source")}</p>
+{shell("""
+mkdir -p build
+rules_build=$(mktemp -d build/rules-tutorial.XXXXXX)
+./zig-out/bin/zp64c compile docs/tutorial-examples/dll-policy.zp64 -o "$rules_build/boot.prg"
+c1541 -format 'rules policy,01' d64 "$rules_build/rules.d64" \\
+  -write "$rules_build/boot.prg" boot \\
+  -write "$rules_build/boot.prg.zpmod.disk.prg" rules
+x64sc -reu -reusize 16384 -autostart "$rules_build/rules.d64:boot"
+""", "Build and boot the policy exercise", "rules-policy")}'''),
+    ("export-types", "Choose an export signature the loader can call", f'''
+<p>ABI 1 calls use stack-frame exports with supported scalar parameters and return types. Booleans, bytes, and byte enums occupy one byte. Words and <code>usize</code> occupy two. The return byte comes back in A, and a word uses A for its low byte and X for its high byte. In the policy exercise the typed binding exposes each return as an optional because the row might be unavailable. The optional belongs to the caller-side operation.</p>
+<p>Keep structured state in application memory and pass the fields the DLL needs. A source function in a static frame can accept and return a record. DLL dispatch rejects aggregate and optional exports, as well as pointer-shaped interfaces. Use a supported scalar result for status and test availability before interpreting it. The export signature also determines how many bytes the caller passes, so rebuild both ends together when changing widths.</p>
+<p>{module_fixture("module_disk_reload_matrix", "Host assertions for byte, Boolean, and word results")} · {fixture_link("lang/fail_compile/zeropage_module_aggregate_export", "Rejected aggregate export")} · {fixture_link("lang/fail_compile/zeropage_module_optional_export", "Rejected optional export")}</p>'''),
     ("ownership", "Keep a module callable while callers still need it", f'''
 <p>Loading establishes residency and its initial reference. Repeating an ensure-load leaves the reference count alone. For a dependency, a successful <code>acquire()</code> or <code>acquireGraph()</code> takes a reference, including when the payload is already loaded. Pair those calls with <code>release()</code> or <code>releaseGraph()</code>. Releasing the final reference clears callability. This is separate from a window swap, which can displace a DLL while its references and cached payload remain valid.</p>
 {paired_examples("Two owners take references", "Typed graph ownership fixture · excerpt", """test6502.expectEqualBool(1, true, MathCore.acquireGraph());
@@ -1001,6 +1033,17 @@ guide_page("abi", chapters[8][1], chapters[8][2], [
     ("static", "Static frames and return registers", f'''
 <p>Static calls copy arguments into fixed storage owned by the callee. The frame has program lifetime and is not reentrant. Record arguments copy flattened fields. Byte returns use A. Words and near pointers return low byte in A and high byte in X. Static aggregate results use return storage. Inspect the generated labels to follow the argument cells.</p>
 {sample("examples/small/26_static_abi_metadata.zp64")}'''),
+    ("aggregate-return", "Follow a record through static return storage", f'''
+<p>A <code>Reading</code> occupies three bytes. The caller copies its channel and both total bytes into <code>adjust</code>'s parameter cells. The callee adds the delta to its own copy, writes all three result bytes to its return storage, and returns. The caller copies those bytes into <code>first</code> before calling the function again. The second call reuses the callee cells. The first result remains available in the caller.</p>
+{sample("docs/tutorial-examples/aggregate-return.zp64")}
+{example_run("docs/tutorial-examples/aggregate-return.zp64", "aggregate-return", anchor="aggregate-return")}
+<p>Expect the original total <code>12FF</code> and the two new totals <code>1300</code> and <code>1301</code>. Copy the word fields into named <code>u16</code> locals before formatting. In this preview, a direct field argument to <code>{'{x16}'}</code> prints its low byte with a zero high byte. The named word locals pass both bytes.</p>
+<p>In the generated assembly, follow <code>adjust_input_channel</code> and <code>adjust_input_total</code> into the function, then <code>adjust_return_channel</code> and <code>adjust_return_total</code> into the caller's result cells. The high byte lives at <code>adjust_return_total+1</code>. A byte or word return would use registers instead of a record return area.</p>
+{shell("""
+mkdir -p build
+./zig-out/bin/zp64c asm docs/tutorial-examples/aggregate-return.zp64 -o build/aggregate-return.asm
+""", "Generate assembly for the aggregate call", "aggregate-asm")}
+<p>These static cells belong to the function for the life of the program. They are reused on every call, so a recursive or interrupt-driven re-entry can overwrite a live invocation. Use <a href="guide-data.html#ownership">a pointer when the caller wants in-place mutation</a>. For calls through the software stack or DLL ABI, choose supported scalar interfaces. {fixture_link("lang/pass/parity/pointers/pointer_field_widths", "Record copies with two-byte pointer fields")} · {fixture_link("lang/fail_compile/stack_struct_return", "Rejected software-stack record return")}</p>'''),
     ("stack", "A separate stack for recursion", lesson["stack"] + f'''
 <p>Configure a stack region in visible RAM. Its software stack and frame pointers use zero-page pairs. The 6510 hardware stack still holds the machine return address and compiler wrapper saves. The stack convention supports the documented scalar/pointer subset and checks frame bounds. Stack overflow traps. Avoid assuming every static-frame feature is available in a stack frame.</p><p>{doc("abi", "Bridge directions, limits, and register contracts")}</p>
 <p>Use the mixed-call examples to see when a bridge is needed. Static code can call a stack function and a stack function can call an eligible static helper. The recursive fixture checks the normal path, and an expected-failure fixture exercises a stack bound. {example_link("examples/small/28_static_calls_stack_helper.zp64", "Static caller to stack helper")} · {example_link("examples/small/30_stack_main_calls_static_helper.zp64", "Stack caller to static helper")} · {fixture_link("lang/pass/parity/abi/stack_recursion", "Recursion fixture")} · {fixture_link("lang/fail_runtime/stack_overflow_recursive", "Expected overflow trap")}</p>'''),

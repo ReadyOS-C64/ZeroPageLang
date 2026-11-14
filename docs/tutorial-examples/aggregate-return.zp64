@@ -1,0 +1,23 @@
+const c64 = @import("c64");
+
+const Reading = struct { channel: u8, total: u16 };
+
+fn adjust(input: Reading, delta: u16) callconv(.static) Reading {
+    input.total += delta;
+    return input;
+}
+
+export fn main() void {
+    c64.console.clear();
+    const original = Reading{ .channel = 3, .total = 0x12ff };
+    const first = adjust(original, 1);
+    const second = adjust(original, 2);
+    const old_word: u16 = original.total;
+    const first_word: u16 = first.total;
+    const second_word: u16 = second.total;
+    c64.console.print("ORIGINAL {x16}\n", .{old_word});
+    c64.console.print("FIRST {x16} SECOND {x16}\n", .{ first_word, second_word });
+    if (first.channel == 3 and first.total == 0x1300 and second.total == 0x1301) {
+        c64.vic.border = 5;
+    }
+}
