@@ -74,8 +74,8 @@ def page(title, desc, active, content):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{escape(desc)}">
 <title>{escape(title)}</title>
-<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
-<script src="site/copy.js?v=chapter-navigation" defer></script>
+<link rel="stylesheet" href="site/style.css?v=chapter-sidebar">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -178,8 +178,6 @@ lessons = [
     ("inspect", "Check the result on the target"),
     ("next", "Continue into the full guide"),
 ]
-toc = "".join(f'<li><a href="#{anchor}">{title}</a></li>' for anchor, title in lessons)
-
 lesson = {}
 lesson["model"] = """
 <p>ZeroPage is a language for writing native Commodore 64 programs. Write functions, records, and control flow in a Zig-shaped source file. The compiler emits 6510 assembly, and 64tass turns it into a PRG. The program runs on the C64 and contains the runtime helpers it uses.</p>
@@ -299,17 +297,19 @@ lesson["next"] = """
 <p>Work through the tutorial chapters in order or return to the step you need. The full guide gives you more detail about specific language features, APIs, and machine contracts.</p>
 <p><a class="button primary" href="tutorial-first.html">Start the first chapter</a> <a class="button" href="guide.html#chapters">Browse the full guide</a></p>"""
 sections = "".join(f'<section id="{anchor}"><h2>{title}</h2>{lesson[anchor]}</section>' for anchor,title in lessons)
-def section_menu(links):
-    return f'<aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc">{links}</ul></details></aside>'
+
+def section_menu(items, label="Jump to a section"):
+    links = "".join(f'<li><a href="#{anchor}">{heading}</a></li>' for anchor, heading in items)
+    return f'<details class="section-menu"><summary>{label}</summary><nav aria-label="{label}"><ul>{links}</ul></nav></details>'
 
 def tutorial_page(reading_order):
     return f'''
 <main id="main" class="wrap guide">
-  {section_menu(toc)}
   <article>
     <h1>Learn ZeroPage</h1>
     <p class="lead">Start with a small C64 program, then work through typed state, hardware, memory, and code loaded from disk. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
-    <nav class="tutorial-route" aria-label="Tutorial chapters"><ol>{reading_order}</ol></nav>
+    <nav class="tutorial-route" aria-labelledby="tutorial-chapters"><h2 id="tutorial-chapters">Tutorial chapters</h2><ol>{reading_order}</ol></nav>
+    {section_menu(lessons, "Jump to an overview topic")}
     {sections}
   </article>
 </main>'''
@@ -354,25 +354,56 @@ write_reading_page(Path("docs/tutorial.html"), page("ZeroPage tutorial", "Learn 
 def chapter_sections(items):
     return "".join(f'<section id="{anchor}"><h2>{heading}</h2>{body}</section>' for anchor, heading, body in items)
 
-def guide_page(slug, title, lead, items, chapters_nav=True):
-    local = "".join(f'<li><a href="#{anchor}">{heading}</a></li>' for anchor, heading, _ in items)
+def chapter_menu(slug, book, overview, groups):
+    def chapter_link(chapter, title):
+        current = ' aria-current="page"' if chapter == slug else ""
+        return f'<li><a href="{chapter}.html"{current}>{title}</a></li>'
+
+    lists = "".join(
+        (f'<p class="chapter-group">{title}</p>' if title else "")
+        + f'<ol start="{start}">{"".join(chapter_link(*entry) for entry in entries)}</ol>'
+        for title, start, entries in groups
+    )
+    label = f"{book} chapters"
+    links = f'<a class="book-overview" href="{overview}">{book} overview</a>{lists}'
+    return (
+        f'<aside class="chapter-sidebar"><nav class="chapter-list" aria-label="{label}">{links}</nav>'
+        f'<details class="chapter-picker"><summary>{label}</summary>'
+        f'<nav aria-label="{label}">{links}</nav></details></aside>'
+    )
+
+def guide_page(slug, title, lead, items):
     breadcrumb = ""
     footer = ""
-    if chapters_nav and slug != "guide":
-        breadcrumb = '<p class="guide-breadcrumb"><a href="guide.html#chapters">Guide contents</a></p>'
+    sidebar = ""
+    if slug in chapter_numbers:
         i = chapter_numbers[slug] - 1
+        breadcrumb = f'<p class="guide-breadcrumb">Guide · Chapter {i+1} of {len(chapter_order)}</p>'
         prev = "guide.html" if i == 0 else f"guide-{chapter_order[i-1][0]}.html"
         next_link = "guide.html" if i+1 == len(chapter_order) else f"guide-{chapter_order[i+1][0]}.html"
         prev_label = "Guide contents" if i == 0 else chapter_order[i-1][1]
         next_label = "Guide contents" if i+1 == len(chapter_order) else chapter_order[i+1][1]
         footer = f'<nav class="chapter-nav" aria-label="Chapter navigation"><a href="{prev}">← {prev_label}</a><a href="{next_link}">{next_label} →</a></nav>'
+        groups = [
+            (name, chapter_numbers[slugs[0]], [(f"guide-{key}", chapters_by_slug[key][1]) for key in slugs])
+            for name, slugs in guide_parts
+        ]
+        sidebar = chapter_menu(f"guide-{slug}", "Guide", "guide.html#chapters", groups)
     elif slug.startswith("tutorial-"):
         i = [name for name, _ in tutorial_order].index(slug)
         previous = ("tutorial", "Tutorial overview") if i == 0 else tutorial_order[i-1]
         following = ("guide", "Full guide") if i+1 == len(tutorial_order) else tutorial_order[i+1]
-        breadcrumb = f'<p class="guide-breadcrumb"><a href="tutorial.html">Tutorial</a> / Chapter {i+1} of {len(tutorial_order)}</p>'
+        breadcrumb = f'<p class="guide-breadcrumb">Tutorial · Chapter {i+1} of {len(tutorial_order)}</p>'
         footer = f'<nav class="chapter-nav" aria-label="Tutorial chapter navigation"><a href="{previous[0]}.html">← {previous[1]}</a><a href="{following[0]}.html">{following[1]} →</a></nav>'
-    main = f'<main id="main" class="wrap guide">{section_menu(local)}<article>{breadcrumb}<h1>{title}</h1><p class="lead">{lead}</p>{chapter_sections(items)}{footer}</article></main>'
+        sidebar = chapter_menu(slug, "Tutorial", "tutorial.html#tutorial-chapters", [(None, 1, tutorial_order)])
+
+    heading = f'{breadcrumb}<h1>{title}</h1><p class="lead">{lead}</p>'
+    local = section_menu([(anchor, text) for anchor, text, _ in items]) if slug != "guide" else ""
+    body = f'{local}{chapter_sections(items)}{footer}'
+    if sidebar:
+        main = f'<main id="main" class="wrap guide chapter"><div class="chapter-heading">{heading}</div>{sidebar}<article>{body}</article></main>'
+    else:
+        main = f'<main id="main" class="wrap guide"><article>{heading}{body}</article></main>'
     if slug.startswith("tutorial-"):
         file, active = f"{slug}.html", "Tutorial"
     elif slug in ("setup", "guide"):
@@ -393,7 +424,7 @@ guide_page("setup", "Install and build ZeroPage", "Set up the host compiler and 
     ("tools", "Install the tools", lesson["install"]),
     ("compile", "Compile and run", lesson["hello"]),
     ("gates", "Set up the test tools", lesson["verify"]),
-], False)
+])
 
 def chapter_card(slug):
     _, title, lead = chapters_by_slug[slug]
@@ -1582,7 +1613,7 @@ guide_page("tutorial-reu", "Edit one page of a map in REU", "Use a small C64 buf
 <ol><li>Change the requested start from 36 to 37. The four-sector page would cross the end of the view.</li>
 <li>Restore start 36 and change the C64 scratch reservation from 32 bytes to 31. The page fits the far view but cannot fit in scratch.</li></ol>
 <p>Both changes produce <code>MAP SECTORS FAILED</code>. Restore both values and rerun before continuing. The <a href="guide-reu.html#range-failure">REU guide</a> shows how an application can report the two causes separately. Continue to <a href="tutorial-dll.html">load executable code from disk</a>.</p>'''),
-], False)
+])
 
 guide_page("tutorial-dll", "Build and call a disk-loaded DLL", "Follow one export from source declaration to a disk payload and a running C64 call.", [
     ("export", "Start with a function whose result you can predict", '''
@@ -1609,7 +1640,7 @@ x64sc -reu -reusize 16384 -autostart "$out/with-dll.d64:boot"
 x64sc -reu -reusize 16384 -autostart "$out/without-dll.d64:boot"
 """, "Build and boot both disk images", "run-dll")}
 <p>Expect <code>REAL LOAD OK</code> with the payload present and <code>REAL LOAD FAIL</code> when it is missing. Next, try the <a href="guide-memory-plan.html">score updater</a>, which combines a separately built DLL with an application-owned REU table.</p>'''),
-], False)
+])
 
 guide_page("tutorial-first", "Build and read a first PRG", "Start with one observable result, then follow the source to the program that runs on the C64.", [
     ("read", "Read the program before installing tools", f'''
@@ -1627,7 +1658,7 @@ guide_page("tutorial-first", "Build and read a first PRG", "Start with one obser
 <tr><td>The emulator runs an older greeting</td><td>Check the path supplied to VICE and the build output path. Rebuild the same file you boot.</td></tr>
 </tbody></table>
 <p>Once you can change a visible result, add state and use input to change it during the run.</p>'''),
-], False)
+])
 
 guide_page("tutorial-state", "Keep state and handle input", "Write a small sector survey that remembers the current selection and counts visits.", [
     ("shape", "Choose what the program remembers", '''
@@ -1641,7 +1672,7 @@ guide_page("tutorial-state", "Keep state and handle input", "Write a small secto
     ("practice", "Predict the screen before pressing keys", '''
 <ol><li>On startup expect <code>SECTOR 00 VISITS 0000</code>.</li><li>Press Space, then Return. Expect <code>SECTOR 01 VISITS 0001</code>.</li><li>Press Space three more times. The sector wraps to 00 while the visit count stays 0001.</li><li>Press Q. The border turns green and the program returns.</li></ol>
 <p>This version counts visits for the whole session. The REU exercise later stores visits in each sector record, which lets you change and inspect only the page you need.</p>'''),
-], False)
+])
 
 guide_page("tutorial-hardware", "Draw and talk to hardware", "Use C64 helpers for display, a volatile pointer for a register, and assembly when you need its operands.", [
     ("choose", "Choose an interface by the effect you need", '''
@@ -1662,7 +1693,7 @@ guide_page("tutorial-hardware", "Draw and talk to hardware", "Use C64 helpers fo
 <p>The loop changes X, A, and status. ZeroPage preserves those across the block. It leaves the source byte and border write in place. To return a firmware value to source code, store it inside the block before the wrapper restores registers. The <a href="guide-assembly.html#kernal-result">GETIN example</a> does this for one byte. The <a href="guide-assembly.html#kernal-load">checked LOAD example</a> passes a string address and captures a status flag.</p>'''),
     ("practice", "Apply it to the survey", '''
 <p>Use the survey's green border as a completion indicator. Add a second color for the active survey and set it before entering the input loop. After Q, check that the border changes to green. Use the built-in border assignment first, then try the volatile store from this chapter to see the same effect through a literal hardware address.</p>'''),
-], False)
+])
 
 guide_page("tutorial-memory", "Plan RAM and reuse scratch storage", "Give one sector record a byte layout and decide when its encoded bytes can be reused.", [
     ("budget", "Name the space before allocating from it", '''
@@ -1675,7 +1706,7 @@ guide_page("tutorial-memory", "Plan RAM and reuse scratch storage", "Give one se
     ("lifetime", "Choose a lifetime that matches the work", '''
 <p>An arena suits scratch data that expires together. If independently managed objects must remain live while others are freed, use a fixed-block pool. A far arena applies the reset model to REU addresses, where explicit copies replace C64 pointer access. The <a href="guide-arenas.html#choose">arena guide</a> compares the three allocation results and their release rules.</p>
 <p>Try shrinking the staging reservation to two bytes. The record still needs three. Both calls should print <code>SCRATCH FULL</code>. Restore the reservation before moving on to the larger REU table.</p>'''),
-], False)
+])
 
 guide_page("tutorial-debug", "Diagnose a program on the C64", "Start with the result you expected and pick the smallest observation that can explain the difference.", [
     ("behavior", "Check behavior before reading assembly", '''
@@ -1691,4 +1722,4 @@ guide_page("tutorial-debug", "Diagnose a program on the C64", "Start with the re
 <p>When a program works, keep a short reproduction sequence and the expected result. Change one value, memory claim, or load policy at a time. See <a href="guide-verification.html">Inspect, test, and compare</a> for monitor and build workflows.</p>'''),
     ("continue", "Continue from the feature you need next", '''
 <p>Use the <a href="guide-application.html">Tic-Tac-Toe case study</a> for a complete input and drawing loop. Use the <a href="guide-memory-plan.html">score updater</a> when you need REU data and disk-loaded code in the same application. The <a href="guide.html#chapters">guide contents</a> lists the remaining chapters by topic.</p>'''),
-], False)
+])

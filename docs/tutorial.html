@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Learn ZeroPage by writing native Commodore 64 programs.">
 <title>ZeroPage tutorial</title>
-<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
-<script src="site/copy.js?v=chapter-navigation" defer></script>
+<link rel="stylesheet" href="site/style.css?v=chapter-sidebar">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
 
 <main id="main" class="wrap guide">
-  <aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#model">Start with the C64 programming model</a></li><li><a href="#hello">Read your first program</a></li><li><a href="#language">Write typed 6510 code</a></li><li><a href="#records">Model a small piece of game state</a></li><li><a href="#hardware">Talk to the hardware</a></li><li><a href="#assembly">Use assembly for one machine operation</a></li><li><a href="#memory">Plan the memory layout</a></li><li><a href="#storage">Give temporary data a lifetime</a></li><li><a href="#far-memory">Edit records stored in REU</a></li><li><a href="#disk-modules">Call code loaded from disk</a></li><li><a href="#inspect">Check the result on the target</a></li><li><a href="#next">Continue into the full guide</a></li></ul></details></aside>
   <article>
     <h1>Learn ZeroPage</h1>
     <p class="lead">Start with a small C64 program, then work through typed state, hardware, memory, and code loaded from disk. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
-    <nav class="tutorial-route" aria-label="Tutorial chapters"><ol><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav>
+    <nav class="tutorial-route" aria-labelledby="tutorial-chapters"><h2 id="tutorial-chapters">Tutorial chapters</h2><ol><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav>
+    <details class="section-menu"><summary>Jump to an overview topic</summary><nav aria-label="Jump to an overview topic"><ul><li><a href="#model">Start with the C64 programming model</a></li><li><a href="#hello">Read your first program</a></li><li><a href="#language">Write typed 6510 code</a></li><li><a href="#records">Model a small piece of game state</a></li><li><a href="#hardware">Talk to the hardware</a></li><li><a href="#assembly">Use assembly for one machine operation</a></li><li><a href="#memory">Plan the memory layout</a></li><li><a href="#storage">Give temporary data a lifetime</a></li><li><a href="#far-memory">Edit records stored in REU</a></li><li><a href="#disk-modules">Call code loaded from disk</a></li><li><a href="#inspect">Check the result on the target</a></li><li><a href="#next">Continue into the full guide</a></li></ul></nav></details>
     <section id="model"><h2>Start with the C64 programming model</h2>
 <p>ZeroPage is a language for writing native Commodore 64 programs. Write functions, records, and control flow in a Zig-shaped source file. The compiler emits 6510 assembly, and 64tass turns it into a PRG. The program runs on the C64 and contains the runtime helpers it uses.</p>
 <table><thead><tr><th scope="col">When you need to</th><th scope="col">Use</th><th scope="col">What you decide</th></tr></thead><tbody>

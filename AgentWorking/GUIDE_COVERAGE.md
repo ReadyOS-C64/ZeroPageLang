@@ -11,6 +11,11 @@ and diagnosis. Use chapter links for the learning path and guide links for
 reference. In the programming chapters, demonstrate the result through screen
 output or target memory. Keep compiler test hooks in compiler testing material.
 
+Chapter pages use the tutorial or guide order for their navigation. The
+desktop sidebar marks the current chapter, and the mobile chapter picker
+uses the same links. Keep section anchors in the separate control below
+the title so they remain available without competing with chapter links.
+
 | Area | Current guide evidence | Sources for the next review |
 | --- | --- | --- |
 | Types, expressions, imports | Language and record chapters cover layout, effects, control, imported data, casts, optionals, and tagged unions. Worked examples cover carry and inference, early returns, fixed array literals, exact/list/range dispatch, and copied records with shared and subsequently rebound pointers. A layout example distinguishes compile-time queries from runtime functions. | Scalar, composite, pointer, control-flow, and layout parity fixtures |

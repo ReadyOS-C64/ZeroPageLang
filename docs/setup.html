@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Set up the host compiler and build a C64 program from a fresh checkout.">
 <title>Install and build ZeroPage · ZeroPage</title>
-<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
-<script src="site/copy.js?v=chapter-navigation" defer></script>
+<link rel="stylesheet" href="site/style.css?v=chapter-sidebar">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html" aria-current="page">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
-<main id="main" class="wrap guide"><aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#tools">Install the tools</a></li><li><a href="#compile">Compile and run</a></li><li><a href="#gates">Set up the test tools</a></li></ul></details></aside><article><h1>Install and build ZeroPage</h1><p class="lead">Set up the host compiler and build a C64 program from a fresh checkout.</p><section id="tools"><h2>Install the tools</h2>
+<main id="main" class="wrap guide"><article><h1>Install and build ZeroPage</h1><p class="lead">Set up the host compiler and build a C64 program from a fresh checkout.</p><details class="section-menu"><summary>Jump to a section</summary><nav aria-label="Jump to a section"><ul><li><a href="#tools">Install the tools</a></li><li><a href="#compile">Compile and run</a></li><li><a href="#gates">Set up the test tools</a></li></ul></nav></details><section id="tools"><h2>Install the tools</h2>
 <p>Download and unpack Zig <strong>0.16.0</strong> and install 64tass <strong>1.60.3243</strong>. Put the directories containing the two executables on your shell's <code>PATH</code>. Zig builds the host compiler and provides its parser. 64tass assembles the emitted 6510 code. Install VICE for <code>x64sc</code> and the optional <code>c1541</code> disk utility. <a href="https://ziglang.org/download/">Zig downloads</a> · <a href="https://sourceforge.net/projects/tass64/files/">64tass downloads</a> · <a href="https://vice-emu.sourceforge.io/">VICE downloads</a></p>
 <div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>zig<span class="w"> </span>version
 64tass<span class="w"> </span>--version

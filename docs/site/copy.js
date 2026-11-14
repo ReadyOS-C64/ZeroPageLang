@@ -1,7 +1,3 @@
-if (matchMedia("(max-width: 52rem)").matches) {
-  document.querySelector(".section-menu")?.removeAttribute("open");
-}
-
 for (const box of document.querySelectorAll(".codebox")) {
   if (!navigator.clipboard) break;
   const button = document.createElement("button");
