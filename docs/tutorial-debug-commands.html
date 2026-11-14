@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Diagnose a program on the C64">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-parts">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="tutorial-debug.html">← Diagnose a program on the C64</a></p><h1>Commands</h1><p class="lead">Diagnose a program on the C64</p><section id="commands-trace-cache"><h2>Trace disk loads and cache activations in VICE</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code><span class="c1"># In the same shell that built the shared-window disk:</span>
+<span class="nv">labels</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/survey.prg.labels&quot;</span>
+addr<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span>awk<span class="w"> </span>-v<span class="w"> </span><span class="nv">target</span><span class="o">=</span><span class="s2">&quot;.</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span><span class="s1">&#39;$3 == target {print $2}&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$labels</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+<span class="o">{</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span>name<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>zeropage_module_load_dependency_row1_present<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>zeropage_module_load_dependency_row2_present<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>zeropage_module_activate_dependency_row1_loaded<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>zeropage_module_activate_dependency_row2_loaded
+<span class="w">  </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;trace %s\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>addr<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="k">done</span>
+<span class="w">  </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;break %s\ng\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>addr<span class="w"> </span>zeropage_test_exit<span class="k">)</span><span class="s2">&quot;</span>
+<span class="o">}</span><span class="w"> </span>&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/cache.mon&quot;</span>
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">256</span><span class="w"> </span>-initbreak<span class="w"> </span><span class="s2">&quot;0x</span><span class="k">$(</span>addr<span class="w"> </span>main<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-moncommands<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/cache.mon&quot;</span><span class="w"> </span>-autostart<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$out</span><span class="s2">/survey.d64:boot&quot;</span>
+</code></pre></div><p><a href="tutorial-debug.html#commands-trace-cache">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

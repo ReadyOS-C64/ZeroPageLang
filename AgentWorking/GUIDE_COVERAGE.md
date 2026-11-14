@@ -5,16 +5,26 @@ Each chapter uses complete repository sources or labels code as excerpts.
 For runnable examples, compare the published blocks with their source and
 run the target program when its behavior is part of the lesson.
 
-The tutorial now has its own reading sequence from the first PRG through a
-sector survey, screen and device access, scratch storage, REU pages, disk DLLs,
-and diagnosis. Use chapter links for the learning path and guide links for
-reference. In the programming chapters, demonstrate the result through screen
-output or target memory. Keep compiler test hooks in compiler testing material.
+The tutorial has twelve chapters in three parts. The reader starts with a PRG,
+byte and word arithmetic, and an interactive sector survey. Screen and device
+access lead into inline assembly, then RAM regions, near arenas, fixed-block
+pools, and paged REU storage. The final part introduces typed and named DLL
+calls, builds two producers that share one execution window, and follows their
+runtime activity in the VICE monitor. Use chapter links for the learning path
+and guide links for reference. Demonstrate results through screen output or
+target memory. Keep compiler test hooks in compiler testing material.
 
 Chapter pages use the tutorial or guide order for their navigation. The
 desktop sidebar marks the current chapter, and the mobile chapter picker
 uses the same links. Keep section anchors in the separate control below
 the title so they remain available without competing with chapter links.
+
+The shared-window exercise was checked with a 256 KiB REU in VICE. Its trace
+hits two disk loader paths followed by three activations in Terrain, FixedMath,
+Terrain order. A disk missing FixedMath takes the red-border failure path.
+The REU exercise runs with and without the scratch reset. The pool exercise
+checks the original two-block layout and the three-block variation. The
+tutorial still uses the guide for the full call-frame and placed-image paths.
 
 | Area | Current guide evidence | Sources for the next review |
 | --- | --- | --- |

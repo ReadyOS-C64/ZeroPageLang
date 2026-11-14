@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Pass values through inline assembly">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-parts">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="tutorial-assembly.html">← Pass values through inline assembly</a></p><h1>Commands</h1><p class="lead">Pass values through inline assembly</p><section id="commands-tutorial-asm-record"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/asm-record.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-asm-record.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-asm-record.prg
+</code></pre></div><p><a href="tutorial-assembly.html#commands-tutorial-asm-record">Return to the guide</a></p></section><section id="commands-tutorial-asm-key"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/asm-getin.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-asm-key.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-asm-key.prg
+</code></pre></div><p><a href="tutorial-assembly.html#commands-tutorial-asm-key">Return to the guide</a></p></section><section id="commands-tutorial-asm-word"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/asm-word.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-asm-word.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-asm-word.prg
+</code></pre></div><p><a href="tutorial-assembly.html#commands-tutorial-asm-word">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

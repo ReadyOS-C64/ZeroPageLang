@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Send data to a 6510 instruction, capture a result, and follow the compiler&#x27;s register wrapper.">
+<title>Pass values through inline assembly · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-parts">
+<script src="site/copy.js?v=chapter-sidebar" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide chapter"><div class="chapter-heading"><p class="guide-breadcrumb">Tutorial · Chapter 5 of 12</p><h1>Pass values through inline assembly</h1><p class="lead">Send data to a 6510 instruction, capture a result, and follow the compiler's register wrapper.</p></div><aside class="chapter-sidebar"><nav class="chapter-list" aria-label="Tutorial chapters"><a class="book-overview" href="tutorial.html#tutorial-chapters">Tutorial overview</a><p class="chapter-group">Write a resident program</p><ol start="1"><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-values.html">Choose types, widths, and conversions</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-assembly.html" aria-current="page">Pass values through inline assembly</a></li></ol><p class="chapter-group">Give data a place to live</p><ol start="6"><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-pools.html">Keep independent records in a pool</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-reu-pages.html">Reuse one buffer across a far table</a></li></ol><p class="chapter-group">Load code and verify it</p><ol start="10"><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-dll-cache.html">Share a RAM window between DLLs</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav><details class="chapter-picker"><summary>Tutorial chapters</summary><nav aria-label="Tutorial chapters"><a class="book-overview" href="tutorial.html#tutorial-chapters">Tutorial overview</a><p class="chapter-group">Write a resident program</p><ol start="1"><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-values.html">Choose types, widths, and conversions</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-assembly.html" aria-current="page">Pass values through inline assembly</a></li></ol><p class="chapter-group">Give data a place to live</p><ol start="6"><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-pools.html">Keep independent records in a pool</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-reu-pages.html">Reuse one buffer across a far table</a></li></ol><p class="chapter-group">Load code and verify it</p><ol start="10"><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-dll-cache.html">Share a RAM window between DLLs</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav></details></aside><article><details class="section-menu"><summary>Jump to a section</summary><nav aria-label="Jump to a section"><ul><li><a href="#operands">Read parameters and write source variables</a></li><li><a href="#wrapper">Follow register restoration through a firmware call</a></li><li><a href="#addresses">Choose an operand form from what the instruction needs</a></li></ul></nav></details><section id="operands"><h2>Read parameters and write source variables</h2>
+<p>Start with the two data paths in <code>adjustedX</code>. A by-value record parameter supplies <code>actor.pos.x</code> through <code>@actor_pos_x</code>. The byte parameter <code>delta</code> has its own cell. Write the sum into <code>@result</code> before leaving the block so the ZeroPage return statement can read it.</p>
+<div class="codebox"><div class="codebar"><span class="mono">Byte parameters, a nested field, and a mutable result</span></div><pre tabindex="0"><code><span class="k">fn</span><span class="w"> </span><span class="n">adjustedX</span><span class="p">(</span><span class="n">actor</span><span class="o">:</span><span class="w"> </span><span class="n">Actor</span><span class="p">,</span><span class="w"> </span><span class="n">delta</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">result</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">lda</span><span class="w"> </span><span class="nb">@actor_pos_x</span>
+<span class="w">        </span><span class="n">clc</span>
+<span class="w">        </span><span class="n">adc</span><span class="w"> </span><span class="nb">@delta</span>
+<span class="w">        </span><span class="n">sta</span><span class="w"> </span><span class="nb">@result</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The main program also uses the flattened operand for a mutable local record. It increments the local X from 3 to 4 and replaces its mode tag. The function adds 1 to its copy of X and returns 5. Expect <code>X 05 MODE 02</code>.</p>
+<p><a href="tutorial-examples/asm-record.zp64">Open the complete source</a></p><p id="commands-tutorial-asm-record" class="command-link"><a href="tutorial-assembly-commands.html#commands-tutorial-asm-record">Build and run this example</a></p></section><section id="wrapper"><h2>Follow register restoration through a firmware call</h2>
+<p>KERNAL GETIN returns the keyboard byte in A. An external <code>jsr</code> makes the compiler save P, A, X, and Y before the block. The <code>sta @key</code> captures the value while A still holds it. The wrapper then pulls Y, X, A, and P, leaving the byte in <code>key</code> for the function to return.</p>
+<div class="example-grid dll-pair"><div><h3>Source block</h3><div class="codebox"><div class="codebar"><span class="mono">Inside readKey</span></div><pre tabindex="0"><code><span class="k">asm</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">jsr</span><span class="w"> </span><span class="err">$</span><span class="n">ffe4</span>
+<span class="w">    </span><span class="n">sta</span><span class="w"> </span><span class="nb">@key</span>
+<span class="p">}</span>
+</code></pre></div></div><div><h3>Generated instruction order</h3><div class="codebox"><div class="codebar"><span class="mono">Storage label shortened</span></div><pre tabindex="0"><code><span class="nf">php</span>
+<span class="no">pha</span>
+<span class="kd">txa</span>
+<span class="no">pha</span>
+<span class="kd">tya</span>
+<span class="nf">pha</span>
+<span class="nf">jsr</span><span class="w"> </span><span class="kc">$</span><span class="nv">ffe4</span>
+<span class="nf">sta</span><span class="w"> </span><span class="nv">readKey_key</span>
+<span class="no">pla</span>
+<span class="kd">tay</span>
+<span class="no">pla</span>
+<span class="kd">tax</span>
+<span class="nf">pla</span>
+<span class="nf">plp</span>
+</code></pre></div></div></div>
+<p>Flags are restored last because the preceding pulls and transfers can change them. An instruction that only writes memory can have fewer clobbers. See the <a href="guide-assembly.html#preserve">preservation table</a> for the per-instruction rules. For a firmware condition reported in carry, branch on carry inside the block and write a Boolean cell on success.</p>
+<p><a href="tutorial-examples/asm-getin.zp64">Open the complete source</a></p><p id="commands-tutorial-asm-key" class="command-link"><a href="tutorial-assembly-commands.html#commands-tutorial-asm-key">Build and run this example</a></p>
+<p>Press A at the prompt. Expect <code>KEY 41</code> under the default C64 keyboard mapping. The value comes from a source variable after the register wrapper has finished.</p></section><section id="addresses"><h2>Choose an operand form from what the instruction needs</h2>
+<table><thead><tr><th scope="col">Need</th><th scope="col">Form</th><th scope="col">What it supplies</th></tr></thead><tbody>
+<tr><td>Read a source byte</td><td><code>lda @delta</code></td><td>The byte in the parameter cell.</td></tr>
+<tr><td>Store into a nested record</td><td><code>sta @actor_pos_x</code></td><td>The byte field of a mutable record.</td></tr>
+<tr><td>Address a string</td><td><code>ldx #&lt;@text.data</code><br><code>ldy #&gt;@text.data</code></td><td>Low and high immediate address bytes.</td></tr>
+<tr><td>Read a string length</td><td><code>lda #@text.len</code> for a constant<br><code>lda @msg.len</code> for a buffer</td><td>An immediate length or a mutable runtime length cell.</td></tr>
+</tbody></table>
+<p>Keep an ordinary word or pointer out of a bare <code>@name</code> operand. Pass a word as named low and high bytes. For an indirect load, initialize a reserved zero-page pair with an address and restore borrowed bytes when done. The <a href="guide-assembly.html#strings">string and indirect walkthrough</a> shows indexed data and a complete example using <code>($30),y</code>.</p>
+<p>Try adding one to <code>$12ff</code> in the word example. The low-byte addition carries into the high byte. Expect <code>COUNTER 1300</code>. The block's two stores carry the answer back into ZeroPage, where the function joins the bytes into a word.</p>
+<p><a href="tutorial-examples/asm-word.zp64">Open the complete source</a></p><p id="commands-tutorial-asm-word" class="command-link"><a href="tutorial-assembly-commands.html#commands-tutorial-asm-word">Build and run this example</a></p></section><nav class="chapter-nav" aria-label="Tutorial chapter navigation"><a href="tutorial-hardware.html">← Draw and talk to hardware</a><a href="tutorial-memory.html">Plan RAM and reuse scratch storage →</a></nav></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

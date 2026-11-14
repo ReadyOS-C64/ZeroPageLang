@@ -1,0 +1,80 @@
+const c64 = @import("c64");
+
+extern module Terrain = terrain_rules {
+    fn cost(terrain: u8) u8;
+}
+
+extern module FixedMath = fixed_math {
+    fn bias(value: u8) u8;
+}
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region execution_ram: c64 at 0x6000 size 0x1000;
+    region cache_reu: reu at 0x030000 size 0x3000;
+    region disk_ram: c64 at 0x9000 size 0x0800;
+    stack in call_stack;
+}
+
+module_loader {
+    window main in execution_ram;
+    reu_cache in cache_reu;
+    disk_staging in disk_ram;
+    capacity = 3;
+    current {
+        file = "surveyrules";
+    }
+    dependency terrain_rules {
+        file = "terrain";
+        requires = .{};
+    }
+    dependency fixed_math {
+        file = "fixedmath";
+        requires = .{};
+    }
+}
+
+module cache_survey abi 1 {
+    export limit;
+    dependency terrain_rules;
+    dependency fixed_math;
+}
+
+fn limit() callconv(.stack) u8 {
+    return 8;
+}
+
+fn showCosts() bool {
+    if (Terrain.cost(3)) |before| {
+        if (FixedMath.bias(4)) |bonus| {
+            if (Terrain.cost(4)) |after| {
+                c64.console.print("COST {x} BONUS {x} COST {x}\n", .{ before, bonus, after });
+                return after < limit();
+            }
+        }
+    }
+    return false;
+}
+
+fn run() bool {
+    if (Terrain.acquire()) {
+        if (FixedMath.acquire()) {
+            const ok = showCosts();
+            FixedMath.release();
+            Terrain.release();
+            return ok;
+        }
+        Terrain.release();
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (run()) {
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("RULES UNAVAILABLE\n", .{});
+        c64.vic.border = 2;
+    }
+}

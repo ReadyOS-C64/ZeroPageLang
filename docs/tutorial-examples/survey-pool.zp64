@@ -1,0 +1,53 @@
+const c64 = @import("c64");
+
+const Note = struct { sector: u8, flags: u8 };
+
+memory {
+    region notes_ram: c64 at 0x9200 size 8;
+    pool notes in notes_ram block 4;
+}
+
+fn writeNote(bytes: [*]u8, note: Note) void {
+    bytes[@offsetOf(Note, "sector")] = note.sector;
+    bytes[@offsetOf(Note, "flags")] = note.flags;
+}
+
+fn showNote(bytes: [*]u8) void {
+    const sector = bytes[@offsetOf(Note, "sector")];
+    const flags = bytes[@offsetOf(Note, "flags")];
+    c64.console.print("SECTOR {x} FLAGS {x}\n", .{ sector, flags });
+}
+
+fn run() bool {
+    if (notes.allocBytes(@sizeOf(Note))) |first| {
+        if (notes.allocBytes(@sizeOf(Note))) |second| {
+            writeNote(first, Note{ .sector = 1, .flags = 4 });
+            writeNote(second, Note{ .sector = 2, .flags = 8 });
+            const extra = notes.allocBytes(@sizeOf(Note));
+            if (extra) |spare| {
+                notes.free(spare);
+            } else {
+                c64.console.print("NOTES FULL\n", .{});
+            }
+            showNote(first);
+            notes.free(first);
+            if (notes.allocBytes(@sizeOf(Note))) |next| {
+                writeNote(next, Note{ .sector = 3, .flags = 2 });
+                showNote(second);
+                showNote(next);
+                notes.free(next);
+            }
+            notes.free(second);
+            return true;
+        }
+        notes.free(first);
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (run() == false) {
+        c64.console.print("NEED TWO NOTE BLOCKS\n", .{});
+    }
+}
