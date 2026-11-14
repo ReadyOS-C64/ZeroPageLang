@@ -1,0 +1,69 @@
+const c64 = @import("c64");
+
+extern module Counter = counter {
+    fn tick(value: u8) u8;
+}
+
+memory {
+    region frames: c64 at 0xc800 size 0x0400;
+    region execution: c64 at 0xc000 size 0x0800;
+    region cache: reu at 0x030000 size 0x1000;
+    stack in frames;
+}
+
+module_loader {
+    window main in execution;
+    reu_cache in cache;
+    current {
+        persist_in_reu at 0x0780 size 1;
+    }
+}
+
+module counter abi 1 {
+    export tick;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+fn checkCycle() bool {
+    const state: *volatile u8 = @ptrFromInt(0xc780);
+
+    // The direct call works before the DLL is loaded.
+    if (tick(5) != 6 or Counter.tick(5) != null) {
+        return false;
+    }
+    if (Counter.load() == false) {
+        return false;
+    }
+    if (Counter.tick(5)) |value| {
+        state.* = value;
+    } else {
+        return false;
+    }
+
+    Counter.unload();
+    state.* = 0;
+    if (tick(5) != 6 or Counter.tick(5) != null) {
+        return false;
+    }
+    if (Counter.load() == false) {
+        return false;
+    }
+
+    const restored = state.*;
+    c64.console.print("STATE {x}\n", .{restored});
+    return restored == 6;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (checkCycle()) {
+        c64.console.print("STATE CYCLE OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("STATE CYCLE FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

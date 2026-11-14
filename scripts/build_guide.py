@@ -267,6 +267,15 @@ chapters = [
     ("verification", "Inspect, test, and compare", "Read generated artifacts and verify execution on the host 6510 runner and VICE."),
     ("memory-plan", "Plan a program that uses disk, REU, and RAM", "Build a score updater that combines a disk DLL, an application REU arena, and a near working copy."),
 ]
+chapters_by_slug = {chapter[0]: chapter for chapter in chapters}
+guide_parts = [
+    ("Write ZeroPage programs", ("language", "data", "hardware", "assembly")),
+    ("Plan memory and move data", ("memory", "abi", "arenas", "reu")),
+    ("Load code and build applications", ("modules", "module-lifecycle", "memory-plan", "application")),
+    ("Verify what runs", ("testing", "verification")),
+]
+chapter_order = [chapters_by_slug[slug] for _, slugs in guide_parts for slug in slugs]
+chapter_numbers = {slug: i for i, (slug, _, _) in enumerate(chapter_order, 1)}
 
 def chapter_sections(items):
     return "".join(f'<section id="{anchor}"><h2>{heading}</h2>{body}</section>' for anchor, heading, body in items)
@@ -276,14 +285,14 @@ def guide_page(slug, title, lead, items, chapters_nav=True):
     contents = f'<h3>On this page</h3><ul class="toc">{local}</ul>'
     footer = ""
     if chapters_nav:
-        chapter_links = "".join(f'<li><a href="guide-{name}.html"' + (' aria-current="page"' if name == slug else '') + f'>{i}. {heading}</a></li>' for i, (name, heading, _) in enumerate(chapters, 1))
+        chapter_links = "".join(f'<li><a href="guide-{name}.html"' + (' aria-current="page"' if name == slug else '') + f'>{i}. {heading}</a></li>' for i, (name, heading, _) in enumerate(chapter_order, 1))
         contents += f'<h3 class="chapter-label"><a href="guide.html">All chapters</a></h3><ol class="toc">{chapter_links}</ol>'
         if slug != "guide":
-            i = [name for name, _, _ in chapters].index(slug)
-            prev = "guide.html" if i == 0 else f"guide-{chapters[i-1][0]}.html"
-            next_link = "guide.html" if i+1 == len(chapters) else f"guide-{chapters[i+1][0]}.html"
-            prev_label = "Guide contents" if i == 0 else chapters[i-1][1]
-            next_label = "Guide contents" if i+1 == len(chapters) else chapters[i+1][1]
+            i = chapter_numbers[slug] - 1
+            prev = "guide.html" if i == 0 else f"guide-{chapter_order[i-1][0]}.html"
+            next_link = "guide.html" if i+1 == len(chapter_order) else f"guide-{chapter_order[i+1][0]}.html"
+            prev_label = "Guide contents" if i == 0 else chapter_order[i-1][1]
+            next_label = "Guide contents" if i+1 == len(chapter_order) else chapter_order[i+1][1]
             footer = f'<nav class="chapter-nav" aria-label="Chapter navigation"><a href="{prev}">← {prev_label}</a><a href="{next_link}">{next_label} →</a></nav>'
     main = f'<main id="main" class="wrap guide"><aside aria-label="Guide navigation">{contents}</aside><article><h1>{title}</h1><p class="lead">{lead}</p>{chapter_sections(items)}{footer}</article></main>'
     file = "setup.html" if slug == "setup" else "guide.html" if slug == "guide" else f"guide-{slug}.html"
@@ -303,10 +312,17 @@ guide_page("setup", "Install and build ZeroPage", "Set up the host compiler and 
     ("gates", "Set up the test tools", lesson["verify"]),
 ], False)
 
-toc_cards = "".join(f'<article><h3><a href="guide-{name}.html">{i}. {title}</a></h3><p>{lead}</p></article>' for i,(name,title,lead) in enumerate(chapters,1))
+def chapter_card(slug):
+    _, title, lead = chapters_by_slug[slug]
+    return f'<article><h4><a href="guide-{slug}.html">{chapter_numbers[slug]}. {title}</a></h4><p>{lead}</p></article>'
+
+toc_cards = "".join(
+    f'<h3>{part}</h3><div class="grid">{"".join(chapter_card(slug) for slug in slugs)}</div>'
+    for part, slugs in guide_parts
+)
 guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPage programs, from typed values and C64 hardware to a complete game and relocatable DLLs.", [
-    ("chapters", "Chapters", f'<div class="grid">{toc_cards}</div>'),
     ("approach", "How to follow the guide", '<p>Start with <a href="guide-language.html">types and control flow</a> if you are learning the language. Follow <a href="guide-hardware.html">screen and keyboard I/O</a> into the <a href="guide-application.html">Tic-Tac-Toe case study</a> to see those choices in an application. For memory-intensive projects, read <a href="guide-memory.html">memory placement</a> before <a href="guide-arenas.html">arenas</a> and <a href="guide-reu.html">REU views</a>. The <a href="guide-modules.html">DLL walkthrough</a> starts with one call and works up to a shared execution window.</p><p>Code labelled as an excerpt shows part of a program. Complete source links let you read the surrounding declarations and run the example. Build and run links open commands on a separate page. The <a href="setup.html">setup page</a> collects tool installation.</p>'),
+    ("chapters", "Chapters", toc_cards),
     ("workbench", "Find a worked example by task", '''
 <ul>
 <li><a href="guide-language.html#width">Carry a byte counter into a word</a> and predict its displayed bytes.</li>
@@ -316,9 +332,12 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-memory.html#reservation">Reserve bytes for application code</a> and read the resulting zero-page map.</li>
 <li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
 <li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
+<li><a href="guide-reu.html#sector-map">Calculate a map's REU and scratch capacity</a> and test both bounds.</li>
 <li><a href="guide-modules.html#disk">Call the same disk DLL two ways</a>, then <a href="guide-module-lifecycle.html#relocation">trace an address into the execution window</a>.</li>
+<li><a href="guide-module-lifecycle.html#state-cycle">Keep a byte across DLL unload and reload</a>.</li>
 <li><a href="guide-memory-plan.html">Build a disk-backed score updater</a> and diagnose a bad memory plan, signature, or disk.</li>
 <li><a href="guide-abi.html#stack-limit">Exercise a stack limit</a> with a passing program and a one-byte-smaller variant.</li>
+<li><a href="guide-abi.html#frame-trace">Trace a word argument through a nested call</a>.</li>
 <li><a href="guide-verification.html#policy-cost">Measure a zero-page policy</a> with the same source workload and assertions.</li>
 </ul>'''),
 ])
@@ -664,6 +683,12 @@ mkdir -p build
 awk '$3 == ".main" || $3 == ".zeropage_test_exit"' build/reu-direct.prg.labels build/reu-working-set.prg.labels
 """, "Build both versions and look up their measurement addresses", "measure-reu")}
 <p>In VICE with REU enabled, break at the <code>.main</code> address, note <code>STOPWATCH</code> from the register display, and continue to a breakpoint at <code>.zeropage_test_exit</code>. Subtract the first reading from the second. Use a fresh emulator run with the same configuration for each PRG. The labels use the address chosen by that build.</p>'''),
+    ("sector-map", "Size a map and its working pages", f'''
+<p>A map with 40 sectors needs 320 REU bytes. Each sector has one byte for terrain, one for flags, two for visits, and four for tiles. The record has no padding. Four sectors at a time fit in 32 bytes of C64 scratch. A request starting at sector 36 covers indexes 36 through 39. The edit marks each sector as visited and preserves its terrain and tile data.</p>
+{sample("docs/tutorial-examples/reu-map-sectors.zp64")}
+{example_run("docs/tutorial-examples/reu-map-sectors.zp64", "reu-map-sectors", True, anchor="sector-map")}
+<p>Expect <code>MAP SECTORS OK</code>. Try start 37 and keep scratch at 32 bytes. The range exceeds the far view and materialization returns <code>null</code>. Restore start 36 and reduce scratch to 31 bytes. The range is valid, but the near allocation fails. Both variations reach <code>MAP SECTORS FAILED</code> before editing. If your real program must report separate errors, validate the input range before making the allocation request.</p>
+<p>Store tile IDs and flags as bytes. Keep the visit counter as a word so it can grow past 255. Initialize every far record before reading it. If the table grows beyond a view's supported record count, split the data into separately managed views and choose the view before making the local index. {doc("reu-overlays", "Far record and view constraints")}</p>'''),
 ])
 
 embedded_source = Path("examples/small/96_memory_regions_dll.zp64").read_text()
@@ -900,6 +925,13 @@ ZEROPAGE_EMU_FILTER=module_graph_rollback_shared_owner zig build emu-test
 }
 """)}
 <p>Persistent ranges are saved separately from the payload before replacement or final unload and restored after copy and relocation. They consume REU capacity. The compiler checks bounds, overlap, and available cache space. {example_link("examples/small/66_module_state_runtime.zp64", "Write two bytes, unload, clear the window, and reload")} · {doc("reu-overlays", "State and cache reservations")}</p>'''),
+    ("state-cycle", "Trace one byte through unload and reload", f'''
+<p>Before loading, <code>tick(5)</code> calls the resident function and returns 6. <code>Counter.tick(5)</code> goes through the export table and returns <code>null</code> while the module is unavailable. After <code>Counter.load()</code>, the binding returns 6. The program writes that value at <code>$c780</code>, an offset of <code>$0780</code> into the active window at <code>$c000</code>.</p>
+{sample("docs/tutorial-examples/dll-state-cycle.zp64")}
+{example_run("docs/tutorial-examples/dll-state-cycle.zp64", "dll-state-cycle", True, anchor="state-cycle")}
+<p>Unload saves the declared byte, then clears the row's callability. The program writes zero to the old location to prove that the next read depends on restoration. The direct function still returns 6. The binding returns <code>null</code> until the next load. Reload activates a fresh copy and restores the saved byte. Expect <code>STATE 06</code> and <code>STATE CYCLE OK</code>.</p>
+<p>In the module sidecar, <code>state.current.snapshot_reu_addr</code> gives the snapshot base <code>$030800</code>. Add the declared offset <code>$0780</code> to find the saved byte at <code>$030f80</code>. The payload slot and the snapshot slot have separate jobs. Check the relocation sidecar's payload length before choosing a state offset. In this build, the payload ends before the byte at offset <code>$0780</code>. Declare only the state the DLL must keep.</p>
+<p>Replace <code>persist_in_reu at 0x0780 size 1;</code> with <code>discard_on_unload;</code> and rebuild. In this run the byte reads <code>00</code>, and the check reports <code>STATE CYCLE FAILED</code>. The test deliberately clears the window between loads. The discard policy leaves no snapshot for the loader to restore.</p>'''),
     ("window-plan", "Read a two-window memory plan", f'''
 <p>The <a href="guide-modules.html#swap">disk and REU cache exercise</a> reserves two independent execution windows. Only the auxiliary one is exercised by the MathCore and FixedMath calls. The current module's <code>tick</code> calls in this example are direct resident calls. A separate window gives the loader room to keep a different row active there if the program uses it.</p>
 <table><thead><tr><th scope="col">Resource</th><th scope="col">Address range</th><th scope="col">Role in the example</th></tr></thead><tbody>
@@ -981,6 +1013,52 @@ guide_page("abi", chapters[8][1], chapters[8][2], [
 {shell("""
 ZEROPAGE_EMU_FILTER='stack_nested_compact_exact_fit,stack_nested_one_byte_over_limit' zig build emu-test
 """, "Run both sides of the stack boundary")}'''),
+    ("frame-trace", "Follow a word argument through a nested call", f'''
+<p>Use the ten-byte fixture from the previous section. The software stack grows upward. The frame pointer names the active frame's base, while the stack pointer names the first free byte. Each of these private frames stores one word. Before a nested call the bridge also stores the old frame pointer so it can restore the caller.</p>
+<table><thead><tr><th scope="col">Addresses at the deepest call</th><th scope="col">Purpose</th><th scope="col">Bytes in increasing address order</th></tr></thead><tbody>
+<tr><td><code>$c8fc–$c8fd</code></td><td>Pending word in <code>main</code></td><td><code>5a 80</code></td></tr>
+<tr><td><code>$c8fe–$c8ff</code></td><td>Saved frame pointer for <code>main</code></td><td><code>fc c8</code></td></tr>
+<tr><td><code>$c900–$c901</code></td><td><code>relay</code> argument</td><td><code>5a 80</code></td></tr>
+<tr><td><code>$c902–$c903</code></td><td>Saved frame pointer for <code>relay</code></td><td><code>00 c9</code></td></tr>
+<tr><td><code>$c904–$c905</code></td><td><code>identity</code> argument</td><td><code>5a 80</code></td></tr>
+</tbody></table>
+<ol>
+<li>Before <code>relay</code> calls <code>identity</code>, SP is <code>$c902</code>. The bridge adds four and compares the candidate <code>$c906</code> against the configured exclusive end. Equality passes. With a nine-byte reservation the limit is <code>$c905</code>, so the guard traps before storing the frame link.</li>
+<li>The bridge stores the old FP at SP, advances SP two bytes, copies the word into the new frame, sets FP to <code>$c904</code>, then advances SP to <code>$c906</code>. <code>JSR identity</code> puts its return address on the hardware stack.</li>
+<li><code>identity</code> loads offset 1 into X, then offset 0 into A. On return to <code>relay</code>, the bridge saves A with <code>PHA</code>, sets SP back to the saved-link address, restores FP from the link, and restores A with <code>PLA</code>. X still holds the high byte. The caller finally receives <code>$805a</code>.</li>
+</ol>
+{block("Word return and frame-link cleanup · generated instruction excerpts", """    ldy #$01
+    lda (zeropage_stack_fp),y
+    tax
+    ldy #$00
+    lda (zeropage_stack_fp),y
+    rts
+
+; After JSR identity returns:
+    pha
+    sec
+    lda zeropage_stack_fp
+    sbc #$02
+    sta zeropage_stack_sp
+    lda zeropage_stack_fp+1
+    sbc #0
+    sta zeropage_stack_sp+1
+    ldy #$00
+    lda (zeropage_stack_sp),y
+    sta zeropage_stack_fp
+    iny
+    lda (zeropage_stack_sp),y
+    sta zeropage_stack_fp+1
+    pla
+""", "asm")}
+<p>This trace describes the generated code for the compact fixture. Frame layout and private scratch can change when a function grows, uses an ABI-pinned entry, or exposes storage to assembly. Read the assembly for the exact build whose stack you are sizing.</p>
+{shell("""
+mkdir -p build
+./zig-out/bin/zp64c asm tests/fixtures/emu/lang/pass/parity/abi/stack_nested_compact_exact_fit.zp64 -o build/stack-frame-trace.asm
+./zig-out/bin/zp64c compile tests/fixtures/emu/lang/pass/parity/abi/stack_nested_compact_exact_fit.zp64 -o build/stack-frame-trace.prg
+awk '$3 == ".identity" { print $2 }' build/stack-frame-trace.prg.labels
+""", "Generate the assembly and find the deepest call address", "frame-trace")}
+<p>Set a VICE execution breakpoint at the printed <code>.identity</code> address before booting the fixture. At that breakpoint, inspect <code>$00f7–$00fa</code> for SP and FP and <code>$c8fc–$c905</code> for the ten bytes above. Run the host fixture to check the return value. Its <code>test6502</code> assertion is a hook understood by Peddle.</p>'''),
     ("stack-budget", "Measure both stacks on a nested workload", f'''
 <p>Both fixtures run the same 48 updates and assert the same final word. Each update calls a second helper while its own frame is live. The static version gives the two helpers fixed storage. The stack version places their arguments and locals in a configured software stack while keeping the entry and loop driver static.</p>
 <table><thead><tr><th scope="col">Frame policy</th><th scope="col">PRG bytes</th><th scope="col">Host CPU cycles</th><th scope="col">Peak hardware stack bytes</th><th scope="col">Software stack write extent</th><th scope="col">Software stack reserved</th></tr></thead><tbody>

@@ -92,6 +92,8 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 .guide aside a[aria-current] { color: var(--mint); font-weight: 700; }
 .guide .chapter-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; margin: 2rem 0; }
 .guide article > p, .guide section > p { max-width: 76ch; }
+.guide .grid + h3 { margin-top: 1.6rem; }
+.guide .grid h4 { margin: 0 0 .45rem; font-size: 1.2rem; line-height: 1.2; }
 .guide table { width: 100%; border-collapse: collapse; margin-block: 1rem 1.5rem; }
 .guide th, .guide td { border: 1px solid var(--line); padding: .55rem .65rem; text-align: left; vertical-align: top; }
 .guide th { background: var(--panel); }

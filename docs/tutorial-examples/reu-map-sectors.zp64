@@ -1,0 +1,70 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Terrain = enum(u8) { grass = 1, water = 2 };
+const Sector = struct {
+    terrain: Terrain,
+    flags: u8,
+    visits: u16,
+    tiles: [4]u8,
+};
+
+memory {
+    region work_ram: c64 at 0x9000 size 32;
+    region map_reu: reu at 0x020000 size 320;
+    arena scratch in work_ram;
+    arena map in map_reu;
+}
+
+fn visitPage(start: u8, mark: u8) bool {
+    if (ZeroPage.reu.present() == false) {
+        return false;
+    }
+    if (map.allocBytes(@sizeOf(Sector) * 40)) |bytes| {
+        var sectors = ZeroPage.reu.view(Sector, bytes, 40);
+        const initial = Sector{
+            .terrain = .grass,
+            .flags = 0,
+            .visits = 0,
+            .tiles = [_]u8{ 1, 2, 3, 4 },
+        };
+        var index: u8 = 0;
+        while (index < 40) {
+            sectors.set(index, initial);
+            index += 1;
+        }
+
+        var ok = false;
+        if (sectors.materializeRange(scratch, start, 4)) |page| {
+            for (0..4) |i| {
+                var sector = page.get(i);
+                sector.visits += 1;
+                sector.flags |= mark;
+                page.set(i, sector);
+            }
+            sectors.flushRange(start, page);
+            scratch.reset();
+
+            const changed = sectors.get(start);
+            const last_changed = sectors.get(start + 3);
+            const unchanged = sectors.get(0);
+            ok = changed.visits == 1 and changed.flags == mark and
+                changed.terrain == .grass and changed.tiles[3] == 4 and
+                last_changed.visits == 1 and unchanged.visits == 0;
+        }
+        map.reset();
+        return ok;
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (visitPage(36, 0x04)) {
+        c64.console.print("MAP SECTORS OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("MAP SECTORS FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}
