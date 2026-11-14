@@ -15,10 +15,16 @@
 </code></pre></div><p><a href="guide-module-lifecycle.html#commands-shared-owner">Return to the guide</a></p></section><section id="commands-banked-console"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
 ./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/93_module_kernal_console_trampoline.zp64<span class="w"> </span>-o<span class="w"> </span>build/banked-console.prg
 x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/banked-console.prg
-</code></pre></div><p><a href="guide-module-lifecycle.html#commands-banked-console">Return to the guide</a></p></section><section id="commands-1"><h2>Build the module and inspect its relocation records</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+</code></pre></div><p><a href="guide-module-lifecycle.html#commands-banked-console">Return to the guide</a></p></section><section id="commands-independent-windows"><h2>Run the independent-window fixture</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code><span class="nv">ZEROPAGE_EMU_FILTER</span><span class="o">=</span>module_independent_windows<span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span>emu-test
+</code></pre></div><p><a href="guide-module-lifecycle.html#commands-independent-windows">Return to the guide</a></p></section><section id="commands-1"><h2>Build the module and inspect its relocation records</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
 ./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/45_module_relocation_sim.zp64<span class="w"> </span>-o<span class="w"> </span>build/reloc.prg
 python3<span class="w"> </span>-m<span class="w"> </span>json.tool<span class="w"> </span>build/reloc.prg.zpmod.relocsim.json
-</code></pre></div><p><a href="guide-module-lifecycle.html#commands-1">Return to the guide</a></p></section></article></main>
+</code></pre></div><p><a href="guide-module-lifecycle.html#commands-1">Return to the guide</a></p></section><section id="commands-disk-audit"><h2>Extract and compare the disk payload</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>c1541<span class="w"> </span>-attach<span class="w"> </span>build/dll-tutorial/typed.d64<span class="w"> </span>-list<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-read<span class="w"> </span>enemyrt<span class="w"> </span>build/dll-tutorial/enemyrt-from-disk.prg
+cmp<span class="w"> </span>build/dll-tutorial/enemyrt-from-disk.prg<span class="w"> </span>build/dll-tutorial/typed.prg.zpmod.disk.prg
+od<span class="w"> </span>-An<span class="w"> </span>-tx1<span class="w"> </span>-N5<span class="w"> </span>build/dll-tutorial/enemyrt-from-disk.prg
+wc<span class="w"> </span>-c<span class="w"> </span>build/dll-tutorial/enemyrt-from-disk.prg
+</code></pre></div><p><a href="guide-module-lifecycle.html#commands-disk-audit">Return to the guide</a></p></section></article></main>
 <footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
 </body>
 </html>

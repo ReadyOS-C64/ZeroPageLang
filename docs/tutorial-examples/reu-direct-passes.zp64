@@ -1,0 +1,66 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Sector = struct { visits: u8, score: u16 };
+
+memory {
+    region asset_ram: reu at 0x010000 size 0x0100;
+    arena assets in asset_ram;
+}
+
+fn update(sector: Sector, bonus: u8) Sector {
+    return Sector{
+        .visits = sector.visits + 1,
+        .score = sector.score + @as(u16, bonus),
+    };
+}
+
+fn run() bool {
+    if (ZeroPage.reu.present() == false) {
+        return false;
+    }
+    if (assets.allocBytes(@sizeOf(Sector) * 4)) |storage| {
+        var sectors = ZeroPage.reu.view(Sector, storage, 4);
+        sectors.set(0, Sector{ .visits = 0, .score = 0x1000 });
+        sectors.set(1, Sector{ .visits = 0, .score = 0x2000 });
+        sectors.set(2, Sector{ .visits = 0, .score = 0x3000 });
+        sectors.set(3, Sector{ .visits = 0, .score = 0x4000 });
+
+        var start: u8 = 0;
+        while (start < 4) {
+            var pass: u8 = 0;
+            while (pass < 3) {
+                const a = sectors.get(start);
+                const b = sectors.get(start + 1);
+                const updated_a = update(a, 1);
+                const updated_b = update(b, 2);
+                sectors.set(start, updated_a);
+                sectors.set(start + 1, updated_b);
+                pass += 1;
+            }
+            start += 2;
+        }
+
+        const first = sectors.get(0);
+        const second = sectors.get(1);
+        const third = sectors.get(2);
+        const last = sectors.get(3);
+        assets.reset();
+        return first.visits == 3 and first.score == 0x1003 and
+            second.visits == 3 and second.score == 0x2006 and
+            third.visits == 3 and third.score == 0x3003 and
+            last.visits == 3 and last.score == 0x4006;
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (run()) {
+        c64.console.print("WORKING SET OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("WORKING SET FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

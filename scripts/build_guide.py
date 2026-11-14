@@ -504,6 +504,20 @@ guide_page("memory", chapters[3][1], chapters[3][2], [
 {sample("tests/fixtures/emu/lang/pass/abi/custom_raw_image.zp64", "Raw image · host fixture")}
 <p>The caller supplies the C64 mapping and a usable hardware stack. If the entry will return with <code>RTS</code>, enter through a call or supply the equivalent return frame. If your program uses ROM services, keep the expected ROM and system workspace available. Under the bare zero-page profile, the caller must already own IRQ and NMI before entry. Use a BASIC-stub image when BASIC should load and start your program.</p>
 <p>{fixture_link("lang/pass/abi/custom_raw_image", "Raw image fixture")} · <a href="guide-application.html#hosted">ReadyOS application entry</a> · {doc("abi", "Executable entry and lifecycle")}</p>'''),
+    ("placement-repair", "Repair a read from RAM hidden under ROM", f'''
+<p>After startup copies a table to RAM at <code>$e000</code>, ordinary resident code still sees KERNAL ROM at that address. A direct table read is therefore rejected. Move the lookup function into the table's placement. The resident caller now calls through a gateway, which exposes the RAM, runs the lookup, and restores the prior mapping while preserving its byte result.</p>
+{paired_examples("Rejected resident read", "Host fixture · excerpt", """const table: [2]u8 linksection("cold") = .{ 5, 7 };
+export fn main() void {
+    const index: u8 = 1;
+    const border: *volatile u8 = @ptrFromInt(0xd020);
+    border.* = table[index];
+}
+""", "Lookup in the same placement", "From the placement demo", """fn hiddenLookup(index: u8) linksection("hidden") u8 {
+    return hidden_values[index];
+}
+""")}
+<p>In the complete placement demo, the caller uses <code>hiddenLookup(1)</code> and gets <code>$42</code>. Keep both the code and its table in the same named region, check that their assembled run ranges fit, and leave firmware-dependent work in resident code. A declaration with start <code>$f800</code> and size <code>$1000</code> has exclusive end <code>$10800</code>, outside the 16-bit address space. Reduce its size to at most <code>$0800</code> or move its start down while staying wholly within the KERNAL bank.</p>
+<p>{fixture_link("lang/fail_compile/machine_placement_hidden_data_from_visible", "Rejected banked table access")} · {fixture_link("lang/fail_compile/module_kernal_bank_window_crosses_kernal", "Rejected window crossing the address-space end")} · {example_link("examples/small/95_memory_regions_placement.zp64", "Complete banked lookup and placement demo")} · <a href="guide-verification.html#map">Inspect the demo's memory map</a></p>'''),
     ("zero-page", "Own zero-page bytes explicitly", f'''
 {block("Application zero-page policy · excerpt", Path("docs/language.md").read_text().split("## Application zero-page settings")[1].split("```zig\n")[1].split("```")[0])}
 <p>The compatibility profile retains the default pointer and frame conventions. The BASIC profile preserves system workspace. The KERNAL profile can borrow BASIC workspace while retaining documented KERNAL services. Bare mode requires a raw image and a caller that already owns interrupts and ROM policy.</p>
@@ -633,6 +647,23 @@ test6502.expectNull(12, oom);
 {example_run("docs/tutorial-examples/reu-working-set.zp64", "reu-working-set", True, anchor="reu-working-set")}
 <p>Predict the final scores <code>1003</code>, <code>2006</code>, <code>3003</code>, and <code>4006</code>. Every sector has three visits. The repeated edits use only near view operations. A fresh set of far reads checks the flushes. Expect <code>WORKING SET OK</code> and a green border with the REU enabled. Boot with it disabled to see <code>WORKING SET FAILED</code> and a red border.</p>
 <p>The range count is fixed at two, and the runtime start advances by two. For a table with an odd record count, handle the last record with a single <code>get</code> and <code>set</code> or a separate range with literal count one. The sample allocates through a far arena and verifies copies through the target REU. It allocates no additional C64 working range for the second pair.</p>'''),
+    ("measure", "Compare repeated far updates with a working copy", f'''
+<p>The same four sectors can be updated directly in REU. This variant keeps the same initial data, the same three passes over each pair, and the same final checks. Each pass reads and writes both far records. In the materialized version, each pair crosses the bus once in each direction and the passes access C64 RAM.</p>
+{block("Direct far updates · excerpt", dedent(Path("docs/tutorial-examples/reu-direct-passes.zp64").read_text().split("        var start: u8 = 0;", 1)[1].split("        const first", 1)[0].join(("        var start: u8 = 0;", ""))))}
+<table><thead><tr><th scope="col">Update method</th><th scope="col">DMA transfers during editing</th><th scope="col">Bytes moved during editing</th><th scope="col">Additional near arena</th><th scope="col">PRG bytes</th><th scope="col">VICE stopwatch cycles</th></tr></thead><tbody>
+<tr><td>Far <code>get</code> and <code>set</code></td><td>24</td><td>72</td><td>0</td><td>2,675</td><td>20,689</td></tr>
+<tr><td>Materialize and flush each pair</td><td>4</td><td>24</td><td>6 bytes</td><td>2,846</td><td>16,507</td></tr>
+</tbody></table>
+<p>The transfer columns count the edit loop only. Both programs also do four initial writes and four verification reads. The VICE measurement covers <code>main</code> through the generated test-exit label, including setup, verification, and screen output. Both produced <code>WORKING SET OK</code>. This preview build trades 171 more file bytes and six reserved C64 bytes for 4,182 fewer cycles in this run. VIC timing and build layout can change the measured values.</p>
+<p>When each record needs one update, copying it into a separate arena adds another representation to manage and may offer little benefit. With repeated accesses, the savings grow with the passes you can keep local. Count the transfers and working RAM first, then time the actual path.</p>
+<p>{example_link("docs/tutorial-examples/reu-direct-passes.zp64", "Complete direct-update source")} · {example_link("docs/tutorial-examples/reu-working-set.zp64", "Complete materialized version")}</p>
+{shell("""
+mkdir -p build
+./zig-out/bin/zp64c compile docs/tutorial-examples/reu-direct-passes.zp64 -o build/reu-direct.prg
+./zig-out/bin/zp64c compile docs/tutorial-examples/reu-working-set.zp64 -o build/reu-working-set.prg
+awk '$3 == ".main" || $3 == ".zeropage_test_exit"' build/reu-direct.prg.labels build/reu-working-set.prg.labels
+""", "Build both versions and look up their measurement addresses", "measure-reu")}
+<p>In VICE with REU enabled, break at the <code>.main</code> address, note <code>STOPWATCH</code> from the register display, and continue to a breakpoint at <code>.zeropage_test_exit</code>. Subtract the first reading from the second. Use a fresh emulator run with the same configuration for each PRG. The labels use the address chosen by that build.</p>'''),
 ])
 
 embedded_source = Path("examples/small/96_memory_regions_dll.zp64").read_text()
@@ -880,6 +911,15 @@ ZEROPAGE_EMU_FILTER=module_graph_rollback_shared_owner zig build emu-test
 </tbody></table>
 <p>Inspect the caller's <code>.zpmod.json</code>. <code>loader.load_windows</code> lists the two address ranges. <code>loader.window_assignments</code> maps MathCore row 1 and FixedMath row 3 to <code>aux</code>. <code>dependency_graph.rows</code> includes the transitive row. <code>state.deps</code> shows the MathCore snapshot address <code>$032800</code> for this configuration. Its two source bytes are at <code>$6400–$6401</code> while MathCore owns the auxiliary window.</p>
 <p>Change one declaration at a time while planning your own layout. Moving the window changes where the caller dispatches, where the relocation applies, and where window-relative state lives. Keep the RAM reservations disjoint and rebuild the caller against matching producer artifacts. {example_link("examples/small/85_module_typed_multi_window_binding.zp64", "Complete caller and memory plan")} · {doc("memory-model", "Region overlap and bank rules")}</p>'''),
+    ("independent-windows", "Keep two DLLs active at the same time", f'''
+<p>Assign Pathing to the default window at <code>$c000</code> and FixedMath to <code>aux</code> at <code>$6000</code>. Acquire and call Pathing first. Then acquire and call FixedMath. The loader tracks the current row of each window independently. The first call returns 8 and the second returns 7.</p>
+{block("Calls and window checks · host fixture excerpt", Path("tests/fixtures/emu/lang/pass/parity/abi/module_independent_windows.zp64").read_text().split("export fn main", 1)[1].join(("export fn main", "")))}
+<p>The fixture writes <code>$5a</code> at an unused offset in the main window after activating Pathing. It checks that the byte survives activation of the auxiliary window. The runner also checks that the main active row is still 2, the auxiliary active row is 1, and both windows contain their export jump opcode. The marker address is specific to this fixture. In application code, use declared state ranges for bytes the DLL owns.</p>
+<p>Separate windows keep more code in C64 RAM and let each window keep its active row. Put modules in one shared window when conserving RAM matters more than avoiding activation work between calls. A current-module export can also be called directly from resident code, as in the <a href="#window-plan">previous example</a>.</p>
+{shell("""
+ZEROPAGE_EMU_FILTER=module_independent_windows zig build emu-test
+""", "Run the independent-window fixture", "independent-windows")}
+<p>{module_fixture("module_independent_windows", "Complete fixture, window declarations, and memory assertions")}</p>'''),
     ("artifacts", "Know which file goes where", f'''
 <table><thead><tr><th scope="col">File</th><th scope="col">Who uses it</th></tr></thead><tbody>
 <tr><td><code>.zpmod.json</code></td><td>Caller build and inspection. Describes ids, ABI, export signatures and ordinals.</td></tr>
@@ -912,6 +952,17 @@ python3 -m json.tool build/reloc.prg.zpmod.relocsim.json
 <tr><td><code>load</code> fails or the call returns <code>null</code></td><td>Check REU setup, the disk entry, and whether the row is still loaded. In manual mode, ensure the load succeeded before calling. {module_fixture("module_dependency_call_missing_load", "Call before loading fixture")}</td></tr>
 </tbody></table>
 <p>Declare your binding in the caller and call it from a supported static-frame context. DLL export implementations use the software-stack convention. The compiler rejects unsupported loader calls within software-stack functions. The standalone fixed-address cache described here also differs from the proposed ReadyOS host-managed cache. {doc("readyos-precog", "ReadyOS integration boundary")}</p>'''),
+    ("disk-audit", "Check what actually made it onto the disk", f'''
+<p>A successful build proves the binding and the sidecars agree. The disk can still contain an older file under the right name. Starting with the <a href="guide-modules.html#disk">typed disk exercise</a>, list the D64 directory and extract <code>enemyrt</code>. Compare its bytes with the <code>.zpmod.disk.prg</code> generated by the same build. An empty <code>cmp</code> result with exit status zero means the files match. Rebuild the disk from the matching caller and producer outputs if they differ.</p>
+{shell("""
+c1541 -attach build/dll-tutorial/typed.d64 -list \\
+  -read enemyrt build/dll-tutorial/enemyrt-from-disk.prg
+cmp build/dll-tutorial/enemyrt-from-disk.prg build/dll-tutorial/typed.prg.zpmod.disk.prg
+od -An -tx1 -N5 build/dll-tutorial/enemyrt-from-disk.prg
+wc -c build/dll-tutorial/enemyrt-from-disk.prg
+""", "Extract and compare the disk payload", "disk-audit")}
+<p>The first two bytes of the disk payload in this example are <code>00 90</code>, the little-endian staging address <code>$9000</code>. The next byte, <code>4c</code>, starts the export jump table. One preview build has a 900-byte disk file, which is an 898-byte payload plus the header. Use your build's file size. Fit the payload inside disk staging as well as its execution window and REU slot. The boot PRG and the payload PRG have separate jobs and their bytes differ.</p>
+<p>Use the compiler-generated payload and compare it before booting a suspect disk. The runtime uses the caller's compiled length and relocation plan when activating the module. It does not verify that disk bytes match the producer's sidecars. The dependency load path checks the KERNAL result and the returned byte count against its loader limit after KERNAL has written staging RAM. Keep every packaged payload within the reserved staging range. {doc("abi", "Disk, cache, and activation contracts")}</p>'''),
 ])
 
 guide_page("abi", chapters[8][1], chapters[8][2], [
@@ -930,6 +981,20 @@ guide_page("abi", chapters[8][1], chapters[8][2], [
 {shell("""
 ZEROPAGE_EMU_FILTER='stack_nested_compact_exact_fit,stack_nested_one_byte_over_limit' zig build emu-test
 """, "Run both sides of the stack boundary")}'''),
+    ("stack-budget", "Measure both stacks on a nested workload", f'''
+<p>Both fixtures run the same 48 updates and assert the same final word. Each update calls a second helper while its own frame is live. The static version gives the two helpers fixed storage. The stack version places their arguments and locals in a configured software stack while keeping the entry and loop driver static.</p>
+<table><thead><tr><th scope="col">Frame policy</th><th scope="col">PRG bytes</th><th scope="col">Host CPU cycles</th><th scope="col">Peak hardware stack bytes</th><th scope="col">Software stack write extent</th><th scope="col">Software stack reserved</th></tr></thead><tbody>
+<tr><td>Static helpers</td><td>290</td><td>16,046</td><td>5</td><td>0</td><td>0</td></tr>
+<tr><td>Stack helpers</td><td>540</td><td>38,190</td><td>6</td><td>21 bytes</td><td>256 bytes</td></tr>
+</tbody></table>
+<p>The write extent is the distance from the software-stack base to the highest byte written, inclusive. Frames can reserve bytes they never write. To check capacity, exercise the deepest call path and include its frame linkage and any compiler-reserved slots. The measured hardware stack is relative to the host runner's starting point. IRQs and firmware activity can add to it on a C64.</p>
+<p>Use static frames when calls run to completion without re-entry. A second invocation of the same static function would share argument and local cells. Software-stack frames allow supported recursion and give each call its own cells. They do not make interrupt re-entry into shared runtime helpers safe. Keep interrupt handlers within a separately defined machine contract.</p>
+{shell("""
+mkdir -p build
+ZEROPAGE_EMU_FILTER=optimization_reference/abi_calls/ zig build emu-test > build/abi-calls.log 2>&1
+awk '/^host-(stack-)?metrics/ && $2 ~ /nested_(static|stack)/' build/abi-calls.log
+""", "Reproduce the nested call measurements", "stack-budget")}
+<p>{fixture_link("lang/pass/optimization_reference/abi_calls/nested_static", "Static fixture")} · {fixture_link("lang/pass/optimization_reference/abi_calls/nested_stack", "Stack fixture")} · {fixture_link("lang/pass/optimization_reference/abi_calls/_nested", "Shared workload")} · {doc("testing", "Metric definitions")}</p>'''),
     ("interop", "Resident code, banking, and ReadyOS", f'''
 <p>The raw-image entry and named regions also support hosted applications. The ReadyOS Tic-Tac-Toe example enters at <code>$1000</code>, leaves the resident shim's range available, and uses the shim's documented terminal vectors. The sample starts a fresh game on entry. Host-managed REU resources and resume-aware state are future integration work.</p><p>{doc("readyos-precog", "ReadyOS boundary and proposed host adapter")} · {example_link("sampleapps/tictactoe_readyos/readyos_shim.zp64", "Shim source")}</p>'''),
 ])
