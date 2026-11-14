@@ -74,7 +74,7 @@ def page(title, desc, active, content):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{escape(desc)}">
 <title>{escape(title)}</title>
-<link rel="stylesheet" href="site/style.css?v=command-pages">
+<link rel="stylesheet" href="site/style.css?v=disk-comparison">
 <script src="site/copy.js" defer></script>
 </head>
 <body>
@@ -611,6 +611,12 @@ guide_page("reu", chapters[5][1], chapters[5][2], [
 {example_run("docs/tutorial-examples/reu-transfer.zp64", "reu-transfer", True)}
 <p>The example first copies <code>11 22</code> through the REU and checks the result. It then fills the REU range with <code>55 55</code> and swaps it with the result buffer. The C64 result now holds <code>55 55</code>, and the REU again holds <code>11 22</code>. Expect <strong>REU TRANSFER OK</strong>.</p>
 <p>The <code>scratch_reu</code> declaration records the range in the program's memory map. A raw DMA call still uses the address supplied at its call site. Keep raw transfers within the ranges you own, away from far arenas, DLL caches, and saved state. {fixture_link("lang/pass/parity/abi/raw_reu_runtime", "Transfer and compare assertions")} · {fixture_link("lang/fail_compile/reu_zero_length", "Literal zero-count diagnostic")}</p>'''),
+    ("bounded-copy", "Check the transfer length before starting DMA", f'''
+<p>When a count comes from input or a calculation, check both ends before touching the REU. The example gives the source and destination eight bytes each. It rejects 0 and 9, then copies exactly three bytes. The fourth byte stays zero. For a transfer starting partway through either range, check the count against the remaining capacity of both ranges.</p>
+{sample("docs/tutorial-examples/reu-bounded-copy.zp64")}
+{example_run("docs/tutorial-examples/reu-bounded-copy.zp64", "reu-bounded-copy", True, anchor="bounded-copy")}
+<p>Expect <code>BOUNDED COPY OK</code>. The four bytes starting at <code>$9000</code> are <code>55 55 55 00</code>. This uses ordinary visible RAM and the standard I/O mapping for the REU registers at <code>$df00–$df0a</code>. The raw helpers program those registers directly. They do not select a ROM bank for a buffer or validate its extent against the map. Keep staging in visible RAM unless the calling code explicitly provides and verifies a different mapping.</p>
+<p>The older <code>33_reu_copy_smoke</code> demo exercises a far address above one MiB's last byte. The bounded copy here uses <code>$010000</code>. Match the highest address touched to the actual expansion size. {example_link("examples/small/33_reu_copy_smoke.zp64", "Original high-address copy demo")} · {fixture_link("lang/fail_compile/reu_address_runtime", "Rejected runtime far address")} · {doc("reu-overlays", "Raw transfer reference")}</p>'''),
     ("handles", "Allocate far bytes without choosing an address at each call", f'''
 <p>A far arena carves allocations out of a named REU region. A successful allocation gives you a <code>FarBytes</code> handle. The handle identifies the allocation and carries its length. Use <code>copyFromC64</code> and <code>copyToC64</code> to move bytes using the handle's base address. Keep the transfer length within the allocation and the C64 buffer. The copy still takes an explicit byte count.</p>
 {block("From the far arena demo", """const maybe_far = assets.allocBytes(2);
@@ -741,10 +747,12 @@ C64 software stack  $c800
 <p>Look for <strong>REGION DLL CACHE OK</strong> and a green border. This program needs the PRG and an enabled REU. You can run it without a D64. <a href="setup.html">Install and build</a></p>'''),
     ("disk", "3. Load the same export from disk in two ways", f'''
 <p>Both programs below load the disk entry <code>enemyrt</code> and call the <code>border</code> export of <code>enemy_runtime</code>. The export adds two to its argument, so passing <code>3</code> sets the VIC-II border to color <code>5</code>. Each program reports a load failure separately from an unavailable call.</p>
+<div class="disk-call-comparison">
 {paired_examples("Named invocation", "Complete main from the disk demo",
     "export fn main" + disk_named.split("export fn main", 1)[1],
     "Typed invocation", "Complete main from the typed demo",
     "export fn main" + disk_typed.split("export fn main", 1)[1])}
+</div>
 <p>The named version supplies three pieces to <code>module.call</code>: the module id, the export name, and the argument tuple <code>.{{3}}</code>. The typed version takes its module id and signature from <code>extern module</code>, then uses normal call arguments. Both resolve the export during compilation. The runtime part is loading the bytes and deciding whether the module can be called. Both calls return <code>?u8</code>.</p>
 {paired_examples("Named caller import", "Top of the named source", 'const ZeroPage = @import("ZeroPage");\n',
     "Typed caller binding", "Top of the typed source",
@@ -917,6 +925,19 @@ test6502.expectEqualBool(4, false, ZeroPage.module.isLoaded("fixed_math"));
 """)}
 <p>Loading a graph makes its modules available in REU. It does not invoke their exports. To call a transitive module such as <code>FixedMath</code>, declare its binding and provide its sidecars at build time. A typed transitive binding can call its exports after a direct dependency loads the graph. It cannot independently acquire that transitive graph through the same binding.</p>
 <p>{example_link("examples/small/74_module_dependency_graph_on_demand_policy.zp64", "On-demand graph demo")} · {example_link("examples/small/75_module_dependency_graph_preload_policy.zp64", "Preload graph demo")} · {module_fixture("module_dependency_graph_on_demand_policy_missing_disk", "Rollback when disk load fails")} · {module_fixture("module_typed_graph_node_binding", "Call a typed transitive dependency")}</p>'''),
+    ("preloaded-ownership", "Keep startup residency separate from a client's reference", f'''
+<p>A dependency row with <code>load = .preload;</code> and <code>graph = true;</code> makes its prerequisite graph resident before <code>main</code>. In the MathCore example, startup loads FixedMath and then MathCore. Each starts with one reference. Pathing is an unrelated dependency and stays unloaded.</p>
+{block("Ownership assertions after startup · fixture excerpt", Path("tests/fixtures/emu/lang/pass/parity/abi/module_preloaded_graph_ownership.zp64").read_text().split("export fn main", 1)[1].join(("export fn main", "")))}
+<ol>
+<li><code>MathCore.acquireGraph()</code> takes one additional reference to MathCore and one to FixedMath. Both were already resident.</li>
+<li>The first <code>releaseGraph()</code> returns the client's references. The initial references remain, so <code>MathCore.add(3)</code> still returns 5.</li>
+<li>The second release is deliberate in this test. It relinquishes the initial references, so FixedMath is unloaded and MathCore's call returns <code>null</code>. Use this only when your program owns startup residency and no other caller relies on it.</li>
+</ol>
+<p>The fixture runs from the generated entry so it exercises preload. Its final registry checks confirm both reference counts reached zero. For an application that wants the feature available throughout a session, retain the startup references and release only the extra references taken by individual clients.</p>
+{shell("""
+ZEROPAGE_EMU_FILTER=module_preloaded_graph_ownership zig build emu-test
+""", "Run the startup and ownership fixture", "preloaded-ownership")}
+<p>{module_fixture("module_preloaded_graph_ownership", "Complete preload and ownership fixture")} · {module_fixture("module_dependency_graph_preload_policy_missing_disk", "Startup with a missing prerequisite")}</p>'''),
     ("registry", "Read the loader registry while diagnosing a failed call", f'''
 <p>Row 0 describes the current module. Direct dependencies follow their declared order. Transitive dependencies follow in first-seen order. In the missing-prerequisite fixture, that makes <code>math_core</code> row 1 and <code>fixed_math</code> row 3. A row can exist before any disk load succeeds. Its loaded byte answers whether the payload is available. Its refcount records ownership. The active-row byte belongs to the C64 execution window and can change without either module losing its REU residency.</p>
 {block("Missing prerequisite · host fixture directives", "\n".join(Path("tests/fixtures/emu/lang/pass/parity/abi/module_dependency_graph_load_missing.zp64").read_text().splitlines()[:5]) + "\n")}

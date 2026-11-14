@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Build and run commands for Far data and materialized views">
 <title>Commands · ZeroPage</title>
-<link rel="stylesheet" href="site/style.css?v=command-pages">
+<link rel="stylesheet" href="site/style.css?v=disk-comparison">
 <script src="site/copy.js" defer></script>
 </head>
 <body>
@@ -14,7 +14,10 @@
 <main id="main" class="wrap guide commands"><article><p><a href="guide-reu.html">← Far data and materialized views</a></p><h1>Commands</h1><p class="lead">Far data and materialized views</p><section id="commands-1"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
 ./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/reu-transfer.zp64<span class="w"> </span>-o<span class="w"> </span>build/reu-transfer.prg
 x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/reu-transfer.prg
-</code></pre></div><p><a href="guide-reu.html#commands-1">Return to the guide</a></p></section><section id="commands-2"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+</code></pre></div><p><a href="guide-reu.html#commands-1">Return to the guide</a></p></section><section id="commands-bounded-copy"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/reu-bounded-copy.zp64<span class="w"> </span>-o<span class="w"> </span>build/reu-bounded-copy.prg
+x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/reu-bounded-copy.prg
+</code></pre></div><p><a href="guide-reu.html#commands-bounded-copy">Return to the guide</a></p></section><section id="commands-2"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
 ./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/reu-records.zp64<span class="w"> </span>-o<span class="w"> </span>build/reu-records.prg
 x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/reu-records.prg
 </code></pre></div><p><a href="guide-reu.html#commands-2">Return to the guide</a></p></section><section id="commands-reu-working-set"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build

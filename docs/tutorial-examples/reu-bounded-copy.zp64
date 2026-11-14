@@ -1,0 +1,42 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region pattern: reu at 0x010000 size 8;
+    region output_row: c64 at 0x9000 size 8;
+}
+
+fn fetch(count: u16) bool {
+    if (count == 0 or count > 8) {
+        return false;
+    }
+    ZeroPage.reu.copyReuToC64(0x010000, 0x9000, count);
+    return true;
+}
+
+fn check() bool {
+    const output: [*]volatile u8 = @ptrFromInt(0x9000);
+    output[0] = 0;
+    output[3] = 0;
+    ZeroPage.reu.fill(0x010000, 0x55, 8);
+
+    const empty = fetch(0);
+    const too_large = fetch(9);
+    const stayed_empty = output[0] == 0;
+    const copied = fetch(3);
+    return empty == false and too_large == false and stayed_empty and
+        copied and output[0] == 0x55 and output[2] == 0x55 and output[3] == 0;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (ZeroPage.reu.present() == false) {
+        c64.console.print("ENABLE AN REU\n", .{});
+    } else if (check()) {
+        c64.console.print("BOUNDED COPY OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("BOUNDED COPY FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

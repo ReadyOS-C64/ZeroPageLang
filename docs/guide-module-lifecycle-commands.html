@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Build and run commands for DLL loading, ownership, and banking">
 <title>Commands · ZeroPage</title>
-<link rel="stylesheet" href="site/style.css?v=command-pages">
+<link rel="stylesheet" href="site/style.css?v=disk-comparison">
 <script src="site/copy.js" defer></script>
 </head>
 <body>
@@ -18,7 +18,8 @@ c1541<span class="w"> </span>-format<span class="w"> </span><span class="s1">&#3
 <span class="w">  </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$rules_build</span><span class="s2">/boot.prg&quot;</span><span class="w"> </span>boot<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-write<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$rules_build</span><span class="s2">/boot.prg.zpmod.disk.prg&quot;</span><span class="w"> </span>rules
 x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$rules_build</span><span class="s2">/rules.d64:boot&quot;</span>
-</code></pre></div><p><a href="guide-module-lifecycle.html#commands-rules-policy">Return to the guide</a></p></section><section id="commands-shared-owner"><h2>Run the shared-owner rollback fixture</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code><span class="nv">ZEROPAGE_EMU_FILTER</span><span class="o">=</span>module_graph_rollback_shared_owner<span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span>emu-test
+</code></pre></div><p><a href="guide-module-lifecycle.html#commands-rules-policy">Return to the guide</a></p></section><section id="commands-preloaded-ownership"><h2>Run the startup and ownership fixture</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code><span class="nv">ZEROPAGE_EMU_FILTER</span><span class="o">=</span>module_preloaded_graph_ownership<span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span>emu-test
+</code></pre></div><p><a href="guide-module-lifecycle.html#commands-preloaded-ownership">Return to the guide</a></p></section><section id="commands-shared-owner"><h2>Run the shared-owner rollback fixture</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code><span class="nv">ZEROPAGE_EMU_FILTER</span><span class="o">=</span>module_graph_rollback_shared_owner<span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span>emu-test
 </code></pre></div><p><a href="guide-module-lifecycle.html#commands-shared-owner">Return to the guide</a></p></section><section id="commands-banked-console"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
 ./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>examples/small/93_module_kernal_console_trampoline.zp64<span class="w"> </span>-o<span class="w"> </span>build/banked-console.prg
 x64sc<span class="w"> </span>-reu<span class="w"> </span>-reusize<span class="w"> </span><span class="m">16384</span><span class="w"> </span>-autostart<span class="w"> </span>build/banked-console.prg
