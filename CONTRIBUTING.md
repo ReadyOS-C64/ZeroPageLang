@@ -37,3 +37,19 @@ Write for someone using or maintaining the compiler. Lead with the contract, sho
 ## Architecture
 
 The [implementation specification](zeropage_microcompiler_agent_spec.md) is the architectural north star. Durable decisions belong in `docs/`; implementation findings belong in `AgentWorking/LEARNINGS.md`.
+
+## Build the programming guide
+
+GitHub Pages serves the checked-in HTML from `docs/`. Edit the chapter text
+in `scripts/build_guide.py` and use repository examples for runnable code.
+The renderer reads source files to keep the highlighted examples in sync.
+From the repository root, rebuild the pages with Python 3.12 or newer:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install 'Pygments==2.20.0'
+.venv/bin/python scripts/build_guide.py
+```
+
+Review the generated diff. Check that the example source, chapter links, and
+command pages agree before committing the changes.

@@ -1,0 +1,8 @@
+export fn main() void {
+    const border: *volatile u8 = @ptrFromInt(0xd020);
+    border.* = 5;
+    asm {
+        lda #$06
+        sta $d021
+    }
+}
