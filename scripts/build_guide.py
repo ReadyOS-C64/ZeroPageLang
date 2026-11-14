@@ -74,7 +74,7 @@ def page(title, desc, active, content):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{escape(desc)}">
 <title>{escape(title)}</title>
-<link rel="stylesheet" href="site/style.css?v=tutorial-parts">
+<link rel="stylesheet" href="site/style.css?v=reading-path">
 <script src="site/copy.js?v=chapter-sidebar" defer></script>
 </head>
 <body>
@@ -355,15 +355,19 @@ tutorial_parts = [
         ("tutorial-placement", "Place code and tables in banked RAM"),
         ("tutorial-frames", "Choose static and software-stack frames"),
         ("tutorial-pools", "Keep independent records in a pool"),
+        ("tutorial-dma", "Move raw bytes through an REU"),
         ("tutorial-reu", "Edit one page of a map in REU"),
         ("tutorial-reu-pages", "Reuse one buffer across a far table"),
     ]),
-    ("Load code and verify it", [
+    ("Load code from disk and REU", [
         ("tutorial-dll", "Build and call a disk-loaded DLL"),
         ("tutorial-dll-cache", "Share a RAM window between DLLs"),
         ("tutorial-dll-policy", "Choose when DLLs load and who owns them"),
         ("tutorial-dll-state", "Preserve DLL state across activations"),
+        ("tutorial-dll-banks", "Run a DLL from RAM under ROM"),
         ("tutorial-score", "Combine a disk rule with REU records"),
+    ]),
+    ("Read and diagnose applications", [
         ("tutorial-game", "Trace a move through a complete game"),
         ("tutorial-debug", "Diagnose a program on the C64"),
     ]),
@@ -371,11 +375,17 @@ tutorial_parts = [
 tutorial_order = [entry for _, entries in tutorial_parts for entry in entries]
 tutorial_numbers = {slug: i for i, (slug, _) in enumerate(tutorial_order, 1)}
 tutorial_groups = [(name, tutorial_numbers[entries[0][0]], entries) for name, entries in tutorial_parts]
+tutorial_outcomes = [
+    "Build a PRG, handle input, and use inline assembly to call firmware.",
+    "Plan RAM, reuse storage, and bring a batch of records in from REU.",
+    "Call a disk-loaded rule, share a window, and preserve state across swaps.",
+    "Follow a complete game and trace its target behavior in VICE.",
+]
 reading_order = "".join(
-    f'<div><h3>{name}</h3><ol start="{start}">'
+    f'<div><h3>{name}</h3><p>{outcome}</p><ol start="{start}">'
     + "".join(f'<li><a href="{slug}.html">{title}</a></li>' for slug, title in entries)
     + "</ol></div>"
-    for name, start, entries in tutorial_groups
+    for (name, start, entries), outcome in zip(tutorial_groups, tutorial_outcomes, strict=True)
 )
 write_reading_page(Path("docs/tutorial.html"), page("ZeroPage tutorial", "Learn ZeroPage by writing native Commodore 64 programs.", "Tutorial", tutorial_page(reading_order)))
 
@@ -1630,6 +1640,25 @@ x64sc -reu -reusize 16384 -autostart "$score_build/missing.d64:boot"
 <p>{fixture_link("lang/pass/abi/named_regions_arena_dll", "Host fixture checking the arena and DLL byte locations")} · {fixture_link("lang/fail_compile/zeropage_module_loader_reu_heap_overlap", "Compile-fail fixture for a cache overlap")} · <a href="guide-module-lifecycle.html#diagnostics">DLL diagnostics</a></p>'''),
 ])
 
+guide_page("tutorial-dma", "Move raw bytes through an REU", "Transfer an eight-byte pattern between address spaces and check the byte count before starting DMA.", [
+    ("spaces", "Budget each end of the transfer", '''
+<p>Think of an REU as a second address space. The CPU reads a C64 RAM buffer through a pointer. The REU controller copies bytes between that buffer and an REU address. The transfer in this lesson starts at <code>$010000</code> in REU and ends at <code>$9000</code> in visible C64 RAM.</p>
+<table><thead><tr><th scope="col">Owner</th><th scope="col">Address and capacity</th><th scope="col">Job</th></tr></thead><tbody>
+<tr><td>REU pattern</td><td><code>$010000–$010007</code></td><td>Hold eight bytes of pattern data.</td></tr>
+<tr><td>C64 output buffer</td><td><code>$9000–$9007</code></td><td>Receive the portion the CPU needs.</td></tr>
+</tbody></table>
+<p>The highest exclusive REU address is <code>$010008</code>. A 128 KiB expansion covers that address. The presence check is separate from this capacity calculation. Named regions reserve addresses in the compiler's map. A raw DMA call uses the addresses supplied at its call site, so the program must stay within those regions.</p>'''),
+    ("bounds", "Reject zero and oversized requests before the copy", f'''
+<p>The caller can choose a runtime byte count. A zero count encodes a 64 KiB transfer at the hardware, so return before issuing DMA when the caller requests zero bytes. Also reject a count larger than either buffer's remaining capacity. This example starts at each buffer's base, so both limits are eight.</p>
+{sample("docs/tutorial-examples/reu-bounded-copy.zp64")}
+{example_run("docs/tutorial-examples/reu-bounded-copy.zp64", "tutorial-dma", True, anchor="tutorial-dma-copy", reu_size=128)}
+<p>The rejected requests for zero and nine bytes leave the destination alone. The request for three bytes copies the pattern. Expect <code>BOUNDED COPY OK</code>. In the VICE monitor, <code>m 9000 9003</code> should show <code>55 55 55 00</code>. The fourth byte was outside the transfer.</p>'''),
+    ("roundtrip", "Choose the direction from the data you need", f'''
+<p>In the round-trip example, <code>copyC64ToReu</code> saves the source, then <code>copyReuToC64</code> fetches it into another C64 address. <code>compare</code> checks the two ranges. After a <code>fill</code> in REU, <code>swap</code> exchanges the REU pattern and C64 result. The screen reports <code>REU TRANSFER OK</code> after checking both sides.</p>
+{example_run("docs/tutorial-examples/reu-transfer.zp64", "tutorial-dma-roundtrip", True, anchor="tutorial-dma-roundtrip", reu_size=128)}
+<p>Use raw transfers for a byte pattern or an asset with a known layout. When the program works with fields such as terrain, visit counters, and patrol data, use the typed views in the next two chapters. The <a href="guide-reu.html#raw">REU guide</a> lists the raw operations and their operand limits.</p>'''),
+])
+
 guide_page("tutorial-reu", "Edit one page of a map in REU", "Use a small C64 buffer to edit a table that is larger than the buffer.", [
     ("plan", "Work out the two memory budgets", '''
 <p>Each sector contains one byte of terrain, one byte of flags, a two-byte visit counter, and four tile bytes. Forty sectors need 320 bytes of REU. A page of four sectors needs 32 bytes of C64 RAM. Keep those allocations separate so you can reuse the C64 buffer for the next page.</p>
@@ -1891,6 +1920,25 @@ guide_page("tutorial-dll-state", "Preserve DLL state across activations", "Separ
     ("compare", "Choose what happens to state at unload", '''
 <p>Replace <code>persist_in_reu at 0x0780 size 1;</code> with <code>discard_on_unload;</code> and rebuild. The manually cleared byte stays zero after reload. Expect <code>STATE 00</code> and <code>STATE CYCLE FAILED</code>. Restore the snapshot declaration and compare the results.</p>
 <p>Snapshots also cover replacement by another module in the same window. The loader saves the outgoing module's declared bytes, copies and relocates the next payload, then restores that module's saved bytes. Keep state offsets inside the assigned window and separate from code. State consumes REU space in addition to the payload cache. The <a href="guide-modules.html#swap">shared-window state example</a> writes two bytes and checks them after another DLL runs.</p>'''),
+])
+
+guide_page("tutorial-dll-banks", "Run a DLL from RAM under ROM", "Choose a window that fits the export, then observe a call that temporarily hides KERNAL ROM.", [
+    ("choose", "Choose a bank from the services the export needs", '''
+<p>A DLL takes space only in its configured execution window while active. If visible RAM is scarce, a window can use RAM behind BASIC or KERNAL ROM. The CPU still executes from C64 RAM. The REU cache supplies the payload bytes.</p>
+<table><thead><tr><th scope="col">Window</th><th scope="col">Example range</th><th scope="col">What changes during the call</th></tr></thead><tbody>
+<tr><td>Visible RAM</td><td><code>$6000–$6fff</code></td><td>The payload runs without hiding a ROM.</td></tr>
+<tr><td>RAM under BASIC</td><td><code>$a000–$a7ff</code></td><td>The loader temporarily exposes the RAM under BASIC.</td></tr>
+<tr><td>RAM under KERNAL</td><td><code>$e000–$e7ff</code></td><td>The loader exposes RAM, preserves processor status, and masks IRQs during the banked operation.</td></tr>
+</tbody></table>
+<p>The range must fit entirely inside its chosen bank. In a KERNAL-hidden export, keep keyboard and disk operations in the resident caller. Supported console output has a generated path to screen-writing helpers. Use a visible window if your export requires KERNAL services.</p>'''),
+    ("run", "Follow a banner export into the hidden window", f'''
+<p>This program seeds the cache from its resident PRG. The loader copies and relocates the payload into the window at <code>$e000</code>. The banner runs there. Its supported console call uses the compiler's trampoline path, and the byte return survives restoration of the caller's mapping.</p>
+{sample("examples/small/93_module_kernal_console_trampoline.zp64")}
+{example_run("examples/small/93_module_kernal_console_trampoline.zp64", "tutorial-banked-dll", True, anchor="tutorial-banked-dll", reu_size=256)}
+<p>Expect <code>TRAMP EXPORT</code> from the DLL and <code>TRAMP OK</code> from resident code, with a green border. The declared cache starts at REU <code>$030000</code> and ends at <code>$040000</code> exclusive, which fits the command's 256 KiB configuration.</p>'''),
+    ("inspect", "Verify the return and the restored mapping", '''
+<p>In the VICE monitor, read the processor port with <code>m 0001 0001</code> at entry to <code>main</code> and again after the call. Use the generated label file to set breakpoints in your build. In the default configuration both reads show <code>37</code>. Inspect the generated assembly to find the save, bank switch, call, and restore sequence. The export's green-border return and the restored port check two different effects.</p>
+<p>Try replacing <code>return 5;</code> with <code>return c64.keyboard.readPetscii();</code> in <code>banner</code>. The compiler rejects the keyboard helper in this stack-frame export. Read the key in resident code and pass its byte to the export instead. See <a href="guide-module-lifecycle.html#banks">the banked-window guide</a> for BASIC banking, independent windows, and restrictions when assigning producers to a different window.</p>'''),
 ])
 
 guide_page("tutorial-score", "Combine a disk rule with REU records", "Update an application record in an arena while a disk-loaded rule uses a separate REU cache and execution window.", [

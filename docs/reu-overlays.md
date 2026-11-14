@@ -10,6 +10,11 @@ const ZeroPage = @import("ZeroPage");
 
 The complete callable surface is listed in [API reference](api.md).
 
+For a guided sequence, start with [bounded raw DMA](https://readyos-c64.github.io/ZeroPageLang/tutorial-dma.html),
+then [update an enemy roster in batches of 20](https://readyos-c64.github.io/ZeroPageLang/tutorial-reu-pages.html#enemy-roster).
+The [shared-window lesson](https://readyos-c64.github.io/ZeroPageLang/tutorial-dll-cache.html)
+uses REU for code instead of records and traces when disk is read.
+
 ## Raw REU transfers
 
 `ZeroPage.reu` supports presence detection, C64-to-REU and REU-to-C64 copies, swap, compare, and fill. A raw REU address must currently be a compile-time integer in `0..0x00ff_ffff`. Literal zero-length transfers are rejected; this avoids accidentally requesting the REU hardware's special 64 KB transfer.

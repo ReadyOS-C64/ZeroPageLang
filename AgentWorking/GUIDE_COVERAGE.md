@@ -5,15 +5,16 @@ Each chapter uses complete repository sources or labels code as excerpts.
 For runnable examples, compare the published blocks with their source and
 run the target program when its behavior is part of the lesson.
 
-The tutorial has twenty chapters in three parts. The reader starts with a
+The tutorial has twenty-two chapters in four parts. The reader starts with a
 PRG, byte and word arithmetic, and an interactive sector survey. Local imports
 and typed input events lead into screen access, inline assembly, and a firmware
 call with string operands and a carry result. The memory
 part covers near arenas, banked placements, software-stack frames, fixed-block
-pools, and paged REU storage. The final part introduces typed and named DLL
+pools, raw DMA, and paged REU storage. The third part introduces typed and named DLL
 calls, builds two producers that share one execution window, compares load
 policies and graph ownership, saves and restores module state, and combines
-a scoring DLL with a separate REU arena. The game
+a scoring DLL with a separate REU arena. It also exercises a DLL window under
+KERNAL ROM. The final part follows an application and its diagnosis. The game
 chapter follows a complete Tic-Tac-Toe round from input through rules and
 rendering, then changes the winning border without changing the moves. The
 VICE monitor lesson traces the cache behavior. Use chapter links for the learning
@@ -52,6 +53,12 @@ The enemy-roster lesson processes 200 twelve-byte records in groups of 20.
 VICE with a 128 KiB REU confirms the first and last records and the damage
 count. The trace between initialization and display confirms ten transfers
 in each direction. A 239-byte scratch reservation exercises batch exhaustion.
+
+The raw DMA chapter was checked in VICE with a 128 KiB REU. The bounded
+transfer leaves `55 55 55 00` in the destination and the round trip leaves
+`55 55` in the swap result. The banked DLL prints its banner and returns
+the expected byte with a 256 KiB REU. The VICE processor port reads `37`
+at entry and after return. Compiling a keyboard read in the export fails.
 
 | Area | Current guide evidence | Sources for the next review |
 | --- | --- | --- |

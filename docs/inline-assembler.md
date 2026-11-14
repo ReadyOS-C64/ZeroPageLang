@@ -15,6 +15,12 @@ The block body uses 64tass-style instruction and operand syntax. ZeroPage
 analyzes the instructions, resolves source operands, and emits the block into
 the generated 64tass assembly.
 
+The [assembly tutorial](https://readyos-c64.github.io/ZeroPageLang/tutorial-assembly.html)
+shows a source block and its emitted wrapper side by side. The
+[firmware chapter](https://readyos-c64.github.io/ZeroPageLang/tutorial-firmware.html)
+follows immediate address bytes, an indirect zero-page read, and a KERNAL call
+whose carry result is saved before status is restored.
+
 ## Design
 
 `asm { ... }` is ZeroPage syntax, not native Zig syntax. To keep Zig's parser as the syntax front door for the rest of the language, the compiler runs a narrow preparser before `std.zig.Ast.parse`:
