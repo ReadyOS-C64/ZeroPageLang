@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build and run commands for Draw and talk to hardware">
+<title>Commands · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
+<script src="site/copy.js?v=chapter-navigation" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide commands"><article><p><a href="tutorial-hardware.html">← Draw and talk to hardware</a></p><h1>Commands</h1><p class="lead">Draw and talk to hardware</p><section id="commands-tutorial-volatile"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/volatile-border.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-volatile.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-volatile.prg
+</code></pre></div><p><a href="tutorial-hardware.html#commands-tutorial-volatile">Return to the guide</a></p></section><section id="commands-tutorial-asm-border"><h2>Build and run this example</h2><div class="codebox"><div class="codebar"><span class="mono">Terminal</span></div><pre tabindex="0"><code>mkdir<span class="w"> </span>-p<span class="w"> </span>build
+./zig-out/bin/zp64c<span class="w"> </span>compile<span class="w"> </span>docs/tutorial-examples/asm-border.zp64<span class="w"> </span>-o<span class="w"> </span>build/tutorial-asm-border.prg
+x64sc<span class="w"> </span>-autostart<span class="w"> </span>build/tutorial-asm-border.prg
+</code></pre></div><p><a href="tutorial-hardware.html#commands-tutorial-asm-border">Return to the guide</a></p></section></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

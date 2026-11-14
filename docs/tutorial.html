@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Learn ZeroPage by writing native Commodore 64 programs.">
 <title>ZeroPage tutorial</title>
-<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
 <script src="site/copy.js?v=chapter-navigation" defer></script>
 </head>
 <body>
@@ -13,11 +13,21 @@
 <header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
 
 <main id="main" class="wrap guide">
-  <aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#hello">Read your first program</a></li><li><a href="#language">Write typed 6510 code</a></li><li><a href="#records">Model a small piece of game state</a></li><li><a href="#hardware">Talk to the hardware</a></li><li><a href="#assembly">Use assembly for one machine operation</a></li><li><a href="#memory">Plan the memory layout</a></li><li><a href="#storage">Give temporary data a lifetime</a></li><li><a href="#far-memory">Edit records stored in REU</a></li><li><a href="#disk-modules">Call code loaded from disk</a></li><li><a href="#inspect">Check the result on the target</a></li><li><a href="#next">Continue into the full guide</a></li></ul></details></aside>
+  <aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#model">Start with the C64 programming model</a></li><li><a href="#hello">Read your first program</a></li><li><a href="#language">Write typed 6510 code</a></li><li><a href="#records">Model a small piece of game state</a></li><li><a href="#hardware">Talk to the hardware</a></li><li><a href="#assembly">Use assembly for one machine operation</a></li><li><a href="#memory">Plan the memory layout</a></li><li><a href="#storage">Give temporary data a lifetime</a></li><li><a href="#far-memory">Edit records stored in REU</a></li><li><a href="#disk-modules">Call code loaded from disk</a></li><li><a href="#inspect">Check the result on the target</a></li><li><a href="#next">Continue into the full guide</a></li></ul></details></aside>
   <article>
     <h1>Learn ZeroPage</h1>
     <p class="lead">Start with a small C64 program, then work through typed state, hardware, memory, and code loaded from disk. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
-    <section id="hello"><h2>Read your first program</h2>
+    <nav class="tutorial-route" aria-label="Tutorial chapters"><ol><li><a href="tutorial-first.html">Build and read a first PRG</a></li><li><a href="tutorial-state.html">Keep state and handle input</a></li><li><a href="tutorial-hardware.html">Draw and talk to hardware</a></li><li><a href="tutorial-memory.html">Plan RAM and reuse scratch storage</a></li><li><a href="tutorial-reu.html">Edit one page of a map in REU</a></li><li><a href="tutorial-dll.html">Build and call a disk-loaded DLL</a></li><li><a href="tutorial-debug.html">Diagnose a program on the C64</a></li></ol></nav>
+    <section id="model"><h2>Start with the C64 programming model</h2>
+<p>ZeroPage is a language for writing native Commodore 64 programs. Write functions, records, and control flow in a Zig-shaped source file. The compiler emits 6510 assembly, and 64tass turns it into a PRG. The program runs on the C64 and contains the runtime helpers it uses.</p>
+<table><thead><tr><th scope="col">When you need to</th><th scope="col">Use</th><th scope="col">What you decide</th></tr></thead><tbody>
+<tr><td>Keep and update a value</td><td>Typed locals and records</td><td>Choose a byte or a word and who can modify it.</td></tr>
+<tr><td>Reach the machine</td><td>C64 helpers, volatile pointers, or inline assembly</td><td>Choose the device operation and which effects must survive the call.</td></tr>
+<tr><td>Make room for data</td><td>Named RAM regions, arenas, and REU views</td><td>Choose who owns the bytes, when to reuse them, and what to transfer.</td></tr>
+<tr><td>Make room for code</td><td>Placed resident code or disk-loaded DLLs</td><td>Choose where code runs and when it becomes available.</td></tr>
+</tbody></table>
+<p>Start with the first program below. Then build a small sector survey. First it tracks a selection and a visit count on the C64. Later exercises encode a sector record, move a larger table into an REU, and show how a separate disk payload supplies code. Each step starts with a result you can check on screen or in the emulator.</p>
+<p>Zig supplies the parser for ordinary source syntax. ZeroPage supports a target-specific subset and adds declarations for the machine. The <a href="guide-language.html#boundary">language chapter</a> explains where that boundary matters. You can read the tutorial before installing anything. Use <a href="setup.html">Setup</a> when you want to build the first PRG.</p></section><section id="hello"><h2>Read your first program</h2>
 <p>The compiler starts at <code>export fn main() void</code>. The <code>c64</code> import provides the machine-facing API. <code>.{}</code> is an empty argument tuple for the formatter.</p>
 <div class="codebox"><div class="codebar"><span class="mono">hello.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
 
@@ -175,8 +185,8 @@
 <p><a href="tutorial-dll.html">Follow a DLL from source to a running disk</a>, then continue with the <a href="guide-memory-plan.html">score updater</a> to see a disk DLL, a far arena, and a near working copy in a single program.</p></section><section id="inspect"><h2>Check the result on the target</h2>
 <p>Start with what the program should do. Observe the screen or border for a device write, or look at the destination bytes in the VICE monitor for a copy. Read the compiler's assembly when you need to see the instructions and its map when you need to see which code or data owns an address.</p>
 <p>For the placement example above, check both the load and run address of the hidden table. For the disk example, check that the disk contains the payload under the declared name. The <a href="guide-verification.html">verification chapter</a> connects each question to a compiler artifact or an emulator observation.</p></section><section id="next"><h2>Continue into the full guide</h2>
-<p>The full guide continues with types, inline assembly, memory maps, arenas, REU records, DLL caching, and target verification. Each chapter links runnable examples and explains the limits that matter on a 6510.</p>
-<p><a class="button primary" href="guide.html">Open the full guide</a> <a class="button" href="setup.html">Install and build</a></p></section>
+<p>Work through the tutorial chapters in order or return to the step you need. The full guide gives you more detail about specific language features, APIs, and machine contracts.</p>
+<p><a class="button primary" href="tutorial-first.html">Start the first chapter</a> <a class="button" href="guide.html#chapters">Browse the full guide</a></p></section>
   </article>
 </main>
 <footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>

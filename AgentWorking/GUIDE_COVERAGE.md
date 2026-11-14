@@ -5,6 +5,12 @@ Each chapter uses complete repository sources or labels code as excerpts.
 For runnable examples, compare the published blocks with their source and
 run the target program when its behavior is part of the lesson.
 
+The tutorial now has its own reading sequence from the first PRG through a
+sector survey, screen and device access, scratch storage, REU pages, disk DLLs,
+and diagnosis. Use chapter links for the learning path and guide links for
+reference. In the programming chapters, demonstrate the result through screen
+output or target memory. Keep compiler test hooks in compiler testing material.
+
 | Area | Current guide evidence | Sources for the next review |
 | --- | --- | --- |
 | Types, expressions, imports | Language and record chapters cover layout, effects, control, imported data, casts, optionals, and tagged unions. Worked examples cover carry and inference, early returns, fixed array literals, exact/list/range dispatch, and copied records with shared and subsequently rebound pointers. A layout example distinguishes compile-time queries from runtime functions. | Scalar, composite, pointer, control-flow, and layout parity fixtures |

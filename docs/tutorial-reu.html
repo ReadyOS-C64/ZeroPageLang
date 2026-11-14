@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Use a small C64 buffer to edit a table that is larger than the buffer.">
 <title>Edit one page of a map in REU · ZeroPage</title>
-<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
 <script src="site/copy.js?v=chapter-navigation" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
-<main id="main" class="wrap guide"><aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#plan">Work out the two memory budgets</a></li><li><a href="#edit">Read, edit, and flush one page</a></li><li><a href="#experiment">Try two changes that make the page unavailable</a></li></ul></details></aside><article><h1>Edit one page of a map in REU</h1><p class="lead">Use a small C64 buffer to edit a table that is larger than the buffer.</p><section id="plan"><h2>Work out the two memory budgets</h2>
+<main id="main" class="wrap guide"><aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#plan">Work out the two memory budgets</a></li><li><a href="#edit">Read, edit, and flush one page</a></li><li><a href="#experiment">Try two changes that make the page unavailable</a></li></ul></details></aside><article><p class="guide-breadcrumb"><a href="tutorial.html">Tutorial</a> / Chapter 5 of 7</p><h1>Edit one page of a map in REU</h1><p class="lead">Use a small C64 buffer to edit a table that is larger than the buffer.</p><section id="plan"><h2>Work out the two memory budgets</h2>
 <p>Each sector contains one byte of terrain, one byte of flags, a two-byte visit counter, and four tile bytes. Forty sectors need 320 bytes of REU. A page of four sectors needs 32 bytes of C64 RAM. Keep those allocations separate so you can reuse the C64 buffer for the next page.</p>
 <p><a href="tutorial.html#far-memory">Back to the main tutorial</a> · <a href="guide-reu.html#capacity">Choose an REU capacity</a></p></section><section id="edit"><h2>Read, edit, and flush one page</h2>
 <p>The program initializes all forty sectors, then selects sectors 36 through 39. Local index zero is far index 36. Update visits and flags in the near view, and pass the original start to <code>flushRange</code> so the result goes back to the right place. Reset scratch once the near view is out of use.</p>
@@ -90,7 +90,7 @@
 <p>Expect <code>MAP SECTORS OK</code>. The result comes from a fresh far read after the flush. Sector zero is checked as well because it is outside the edited page.</p></section><section id="experiment"><h2>Try two changes that make the page unavailable</h2>
 <ol><li>Change the requested start from 36 to 37. The four-sector page would cross the end of the view.</li>
 <li>Restore start 36 and change the C64 scratch reservation from 32 bytes to 31. The page fits the far view but cannot fit in scratch.</li></ol>
-<p>Both changes produce <code>MAP SECTORS FAILED</code>. Restore both values and rerun before continuing. The <a href="guide-reu.html#range-failure">REU guide</a> shows how an application can report the two causes separately. Continue to <a href="tutorial-dll.html">load executable code from disk</a>.</p></section></article></main>
+<p>Both changes produce <code>MAP SECTORS FAILED</code>. Restore both values and rerun before continuing. The <a href="guide-reu.html#range-failure">REU guide</a> shows how an application can report the two causes separately. Continue to <a href="tutorial-dll.html">load executable code from disk</a>.</p></section><nav class="chapter-nav" aria-label="Tutorial chapter navigation"><a href="tutorial-memory.html">← Plan RAM and reuse scratch storage</a><a href="tutorial-dll.html">Build and call a disk-loaded DLL →</a></nav></article></main>
 <footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
 </body>
 </html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Write a small sector survey that remembers the current selection and counts visits.">
+<title>Keep state and handle input · ZeroPage</title>
+<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
+<script src="site/copy.js?v=chapter-navigation" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="tutorial.html" aria-current="page">Tutorial</a><a href="guide.html">Guide</a><a href="setup.html">Setup</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+<main id="main" class="wrap guide"><aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc"><li><a href="#shape">Choose what the program remembers</a></li><li><a href="#loop">Give input, updates, and drawing separate jobs</a></li><li><a href="#practice">Predict the screen before pressing keys</a></li></ul></details></aside><article><p class="guide-breadcrumb"><a href="tutorial.html">Tutorial</a> / Chapter 2 of 7</p><h1>Keep state and handle input</h1><p class="lead">Write a small sector survey that remembers the current selection and counts visits.</p><section id="shape"><h2>Choose what the program remembers</h2>
+<p>The first version remembers a sector number and a total visit count. Four sectors fit in a byte. Use a word for the counter so it can hold more than 255 visits. Keep both fields in one record because the input loop and display operate on the same state.</p>
+<p>Space moves to the next sector. Return adds a visit. Q exits. Decide what happens at the end of the sector list before writing the loop. This program wraps from sector 3 to sector 0. The visit counter continues across sector changes.</p></section><section id="loop"><h2>Give input, updates, and drawing separate jobs</h2>
+<p>The loop reads one buffered key at a time. <code>switch</code> selects a state change. After changing state, redraw the display. An empty buffer produces zero and falls into the empty default branch. This keeps the loop ready for future work between keys, such as animation.</p>
+<div class="codebox"><div class="codebar"><span class="mono">survey-console.zp64</span></div><pre tabindex="0"><code><span class="kr">const</span><span class="w"> </span><span class="n">c64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">@import</span><span class="p">(</span><span class="s">&quot;c64&quot;</span><span class="p">);</span>
+
+<span class="kr">const</span><span class="w"> </span><span class="n">Survey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">sector</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">visits</span><span class="o">:</span><span class="w"> </span><span class="kt">u16</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">advance</span><span class="p">(</span><span class="n">survey</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="n">Survey</span><span class="p">)</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">survey</span><span class="p">.</span><span class="n">sector</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">survey</span><span class="p">.</span><span class="n">sector</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">survey</span><span class="p">.</span><span class="n">sector</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">show</span><span class="p">(</span><span class="n">survey</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="n">Survey</span><span class="p">)</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">const</span><span class="w"> </span><span class="n">sector</span><span class="o">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">survey</span><span class="p">.</span><span class="n">sector</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">const</span><span class="w"> </span><span class="n">visits</span><span class="o">:</span><span class="w"> </span><span class="kt">u16</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">survey</span><span class="p">.</span><span class="n">visits</span><span class="p">;</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;SECTOR {x} VISITS {x16}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{</span><span class="w"> </span><span class="n">sector</span><span class="p">,</span><span class="w"> </span><span class="n">visits</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">console</span><span class="p">.</span><span class="n">print</span><span class="p">(</span><span class="s">&quot;SPACE NEXT  RETURN MARK  Q QUIT</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">.{});</span>
+<span class="p">}</span>
+
+<span class="kr">export</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">survey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Survey</span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">sector</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">visits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="n">show</span><span class="p">(</span><span class="o">&amp;</span><span class="n">survey</span><span class="p">);</span>
+<span class="w">    </span><span class="kr">var</span><span class="w"> </span><span class="n">running</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">const</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c64</span><span class="p">.</span><span class="n">keyboard</span><span class="p">.</span><span class="n">readPetscii</span><span class="p">();</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">c64</span><span class="p">.</span><span class="n">key</span><span class="p">.</span><span class="n">space</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">advance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">survey</span><span class="p">);</span>
+<span class="w">                </span><span class="n">show</span><span class="p">(</span><span class="o">&amp;</span><span class="n">survey</span><span class="p">);</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">c64</span><span class="p">.</span><span class="n">key</span><span class="p">.</span><span class="n">return_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">survey</span><span class="p">.</span><span class="n">visits</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">                </span><span class="n">show</span><span class="p">(</span><span class="o">&amp;</span><span class="n">survey</span><span class="p">);</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="mh">0x51</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">running</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">            </span><span class="k">else</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{},</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">c64</span><span class="p">.</span><span class="n">vic</span><span class="p">.</span><span class="n">border</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><a href="tutorial-examples/survey-console.zp64">Open the complete source</a></p><p id="commands-survey-console" class="command-link"><a href="tutorial-state-commands.html#commands-survey-console">Build and run this example</a></p>
+<p><code>advance</code> takes a pointer because it changes the caller's survey. <code>show</code> reads the current record and copies its fields into typed locals for printing. The sector is a byte printed with <code>{x}</code>. The visit total is a word printed with <code>{x16}</code>. Use the <a href="guide-data.html#ownership">record chapter</a> if you want a separate snapshot for undo or replay.</p></section><section id="practice"><h2>Predict the screen before pressing keys</h2>
+<ol><li>On startup expect <code>SECTOR 00 VISITS 0000</code>.</li><li>Press Space, then Return. Expect <code>SECTOR 01 VISITS 0001</code>.</li><li>Press Space three more times. The sector wraps to 00 while the visit count stays 0001.</li><li>Press Q. The border turns green and the program returns.</li></ol>
+<p>This version counts visits for the whole session. The REU exercise later stores visits in each sector record, which lets you change and inspect only the page you need.</p></section><nav class="chapter-nav" aria-label="Tutorial chapter navigation"><a href="tutorial-first.html">← Build and read a first PRG</a><a href="tutorial-hardware.html">Draw and talk to hardware →</a></nav></article></main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>

@@ -74,7 +74,7 @@ def page(title, desc, active, content):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{escape(desc)}">
 <title>{escape(title)}</title>
-<link rel="stylesheet" href="site/style.css?v=chapter-navigation">
+<link rel="stylesheet" href="site/style.css?v=tutorial-chapters">
 <script src="site/copy.js?v=chapter-navigation" defer></script>
 </head>
 <body>
@@ -165,6 +165,7 @@ if (RegionDll.load()) {
 Path("docs/index.html").write_text(page("ZeroPage · A language for the Commodore 64", "ZeroPage is a Zig-shaped programming language and compiler for native C64 programs.", "", index))
 
 lessons = [
+    ("model", "Start with the C64 programming model"),
     ("hello", "Read your first program"),
     ("language", "Write typed 6510 code"),
     ("records", "Model a small piece of game state"),
@@ -180,6 +181,16 @@ lessons = [
 toc = "".join(f'<li><a href="#{anchor}">{title}</a></li>' for anchor, title in lessons)
 
 lesson = {}
+lesson["model"] = """
+<p>ZeroPage is a language for writing native Commodore 64 programs. Write functions, records, and control flow in a Zig-shaped source file. The compiler emits 6510 assembly, and 64tass turns it into a PRG. The program runs on the C64 and contains the runtime helpers it uses.</p>
+<table><thead><tr><th scope="col">When you need to</th><th scope="col">Use</th><th scope="col">What you decide</th></tr></thead><tbody>
+<tr><td>Keep and update a value</td><td>Typed locals and records</td><td>Choose a byte or a word and who can modify it.</td></tr>
+<tr><td>Reach the machine</td><td>C64 helpers, volatile pointers, or inline assembly</td><td>Choose the device operation and which effects must survive the call.</td></tr>
+<tr><td>Make room for data</td><td>Named RAM regions, arenas, and REU views</td><td>Choose who owns the bytes, when to reuse them, and what to transfer.</td></tr>
+<tr><td>Make room for code</td><td>Placed resident code or disk-loaded DLLs</td><td>Choose where code runs and when it becomes available.</td></tr>
+</tbody></table>
+<p>Start with the first program below. Then build a small sector survey. First it tracks a selection and a visit count on the C64. Later exercises encode a sector record, move a larger table into an REU, and show how a separate disk payload supplies code. Each step starts with a result you can check on screen or in the emulator.</p>
+<p>Zig supplies the parser for ordinary source syntax. ZeroPage supports a target-specific subset and adds declarations for the machine. The <a href="guide-language.html#boundary">language chapter</a> explains where that boundary matters. You can read the tutorial before installing anything. Use <a href="setup.html">Setup</a> when you want to build the first PRG.</p>"""
 lesson["install"] = f'''
 <p>Download and unpack Zig <strong>0.16.0</strong> and install 64tass <strong>1.60.3243</strong>. Put the directories containing the two executables on your shell's <code>PATH</code>. Zig builds the host compiler and provides its parser. 64tass assembles the emitted 6510 code. Install VICE for <code>x64sc</code> and the optional <code>c1541</code> disk utility. <a href="https://ziglang.org/download/">Zig downloads</a> · <a href="https://sourceforge.net/projects/tass64/files/">64tass downloads</a> · <a href="https://vice-emu.sourceforge.io/">VICE downloads</a></p>
 {shell("""
@@ -285,22 +296,23 @@ lesson["inspect"] = """
 <p>For the placement example above, check both the load and run address of the hidden table. For the disk example, check that the disk contains the payload under the declared name. The <a href="guide-verification.html">verification chapter</a> connects each question to a compiler artifact or an emulator observation.</p>"""
 
 lesson["next"] = """
-<p>The full guide continues with types, inline assembly, memory maps, arenas, REU records, DLL caching, and target verification. Each chapter links runnable examples and explains the limits that matter on a 6510.</p>
-<p><a class="button primary" href="guide.html">Open the full guide</a> <a class="button" href="setup.html">Install and build</a></p>"""
+<p>Work through the tutorial chapters in order or return to the step you need. The full guide gives you more detail about specific language features, APIs, and machine contracts.</p>
+<p><a class="button primary" href="tutorial-first.html">Start the first chapter</a> <a class="button" href="guide.html#chapters">Browse the full guide</a></p>"""
 sections = "".join(f'<section id="{anchor}"><h2>{title}</h2>{lesson[anchor]}</section>' for anchor,title in lessons)
 def section_menu(links):
     return f'<aside aria-label="Section links"><details class="section-menu" open><summary>In this chapter</summary><ul class="toc">{links}</ul></details></aside>'
 
-tutorial = f'''
+def tutorial_page(reading_order):
+    return f'''
 <main id="main" class="wrap guide">
   {section_menu(toc)}
   <article>
     <h1>Learn ZeroPage</h1>
     <p class="lead">Start with a small C64 program, then work through typed state, hardware, memory, and code loaded from disk. <a href="setup.html">Install and build</a> when you are ready to run the examples.</p>
+    <nav class="tutorial-route" aria-label="Tutorial chapters"><ol>{reading_order}</ol></nav>
     {sections}
   </article>
 </main>'''
-write_reading_page(Path("docs/tutorial.html"), page("ZeroPage tutorial", "Learn ZeroPage by writing native Commodore 64 programs.", "Tutorial", tutorial))
 
 chapters = [
     ("language", "Types, control flow, and imports", "Read data layout, expressions, and diagnostics through the 6510's byte and word model."),
@@ -327,6 +339,17 @@ guide_parts = [
 ]
 chapter_order = [chapters_by_slug[slug] for _, slugs in guide_parts for slug in slugs]
 chapter_numbers = {slug: i for i, (slug, _, _) in enumerate(chapter_order, 1)}
+tutorial_order = [
+    ("tutorial-first", "Build and read a first PRG"),
+    ("tutorial-state", "Keep state and handle input"),
+    ("tutorial-hardware", "Draw and talk to hardware"),
+    ("tutorial-memory", "Plan RAM and reuse scratch storage"),
+    ("tutorial-reu", "Edit one page of a map in REU"),
+    ("tutorial-dll", "Build and call a disk-loaded DLL"),
+    ("tutorial-debug", "Diagnose a program on the C64"),
+]
+reading_order = "".join(f'<li><a href="{slug}.html">{title}</a></li>' for slug, title in tutorial_order)
+write_reading_page(Path("docs/tutorial.html"), page("ZeroPage tutorial", "Learn ZeroPage by writing native Commodore 64 programs.", "Tutorial", tutorial_page(reading_order)))
 
 def chapter_sections(items):
     return "".join(f'<section id="{anchor}"><h2>{heading}</h2>{body}</section>' for anchor, heading, body in items)
@@ -343,6 +366,12 @@ def guide_page(slug, title, lead, items, chapters_nav=True):
         prev_label = "Guide contents" if i == 0 else chapter_order[i-1][1]
         next_label = "Guide contents" if i+1 == len(chapter_order) else chapter_order[i+1][1]
         footer = f'<nav class="chapter-nav" aria-label="Chapter navigation"><a href="{prev}">← {prev_label}</a><a href="{next_link}">{next_label} →</a></nav>'
+    elif slug.startswith("tutorial-"):
+        i = [name for name, _ in tutorial_order].index(slug)
+        previous = ("tutorial", "Tutorial overview") if i == 0 else tutorial_order[i-1]
+        following = ("guide", "Full guide") if i+1 == len(tutorial_order) else tutorial_order[i+1]
+        breadcrumb = f'<p class="guide-breadcrumb"><a href="tutorial.html">Tutorial</a> / Chapter {i+1} of {len(tutorial_order)}</p>'
+        footer = f'<nav class="chapter-nav" aria-label="Tutorial chapter navigation"><a href="{previous[0]}.html">← {previous[1]}</a><a href="{following[0]}.html">{following[1]} →</a></nav>'
     main = f'<main id="main" class="wrap guide">{section_menu(local)}<article>{breadcrumb}<h1>{title}</h1><p class="lead">{lead}</p>{chapter_sections(items)}{footer}</article></main>'
     if slug.startswith("tutorial-"):
         file, active = f"{slug}.html", "Tutorial"
@@ -1580,4 +1609,86 @@ x64sc -reu -reusize 16384 -autostart "$out/with-dll.d64:boot"
 x64sc -reu -reusize 16384 -autostart "$out/without-dll.d64:boot"
 """, "Build and boot both disk images", "run-dll")}
 <p>Expect <code>REAL LOAD OK</code> with the payload present and <code>REAL LOAD FAIL</code> when it is missing. Next, try the <a href="guide-memory-plan.html">score updater</a>, which combines a separately built DLL with an application-owned REU table.</p>'''),
+], False)
+
+guide_page("tutorial-first", "Build and read a first PRG", "Start with one observable result, then follow the source to the program that runs on the C64.", [
+    ("read", "Read the program before installing tools", f'''
+<p>Three lines do the work. Clear the console, print a greeting, and set the border color. <code>c64</code> is the built-in module that supplies those operations. The formatter accepts an argument tuple. Here the empty tuple means the message contains no values to insert.</p>
+{sample("examples/hello.zp64")}
+<p>The entry function is <code>main</code>. It returns <code>void</code> because its effect is visible on the machine. ZeroPage lowers the program to 6510 assembly. It includes console support because the program prints text, and leaves out features such as REU DMA and DLL loading because this source never uses them.</p>'''),
+    ("run", "Run it and change one thing", f'''
+<p>Use the pinned tools from <a href="setup.html">Setup</a>. When the program runs, expect <code>HELLO FROM ZEROPAGE</code> and a green border. Change the border value from 5 to 2, rebuild, and check that the text stays the same while the border turns red.</p>
+{example_run("examples/hello.zp64", "tutorial-first", anchor="first-prg")}
+<p>The default PRG starts at <code>$0801</code> and carries a BASIC line that enters the generated machine code. That is why the disk and emulator can start it with the normal BASIC run flow. A raw image needs an explicit entry supplied by the host.</p>'''),
+    ("recover", "Recognize the first three failure points", '''
+<table><thead><tr><th scope="col">What you see</th><th scope="col">Where to look</th></tr></thead><tbody>
+<tr><td><code>zp64c</code> is missing</td><td>Build the host compiler. Setup gives the expected <code>zig-out/bin</code> path.</td></tr>
+<tr><td>The compiler cannot find 64tass</td><td>Check the assembler path with <code>zp64c tools</code>.</td></tr>
+<tr><td>The emulator runs an older greeting</td><td>Check the path supplied to VICE and the build output path. Rebuild the same file you boot.</td></tr>
+</tbody></table>
+<p>Once you can change a visible result, add state and use input to change it during the run.</p>'''),
+], False)
+
+guide_page("tutorial-state", "Keep state and handle input", "Write a small sector survey that remembers the current selection and counts visits.", [
+    ("shape", "Choose what the program remembers", '''
+<p>The first version remembers a sector number and a total visit count. Four sectors fit in a byte. Use a word for the counter so it can hold more than 255 visits. Keep both fields in one record because the input loop and display operate on the same state.</p>
+<p>Space moves to the next sector. Return adds a visit. Q exits. Decide what happens at the end of the sector list before writing the loop. This program wraps from sector 3 to sector 0. The visit counter continues across sector changes.</p>'''),
+    ("loop", "Give input, updates, and drawing separate jobs", f'''
+<p>The loop reads one buffered key at a time. <code>switch</code> selects a state change. After changing state, redraw the display. An empty buffer produces zero and falls into the empty default branch. This keeps the loop ready for future work between keys, such as animation.</p>
+{sample("docs/tutorial-examples/survey-console.zp64")}
+{example_run("docs/tutorial-examples/survey-console.zp64", "survey-console", anchor="survey-console")}
+<p><code>advance</code> takes a pointer because it changes the caller's survey. <code>show</code> reads the current record and copies its fields into typed locals for printing. The sector is a byte printed with <code>{{x}}</code>. The visit total is a word printed with <code>{{x16}}</code>. Use the <a href="guide-data.html#ownership">record chapter</a> if you want a separate snapshot for undo or replay.</p>'''),
+    ("practice", "Predict the screen before pressing keys", '''
+<ol><li>On startup expect <code>SECTOR 00 VISITS 0000</code>.</li><li>Press Space, then Return. Expect <code>SECTOR 01 VISITS 0001</code>.</li><li>Press Space three more times. The sector wraps to 00 while the visit count stays 0001.</li><li>Press Q. The border turns green and the program returns.</li></ol>
+<p>This version counts visits for the whole session. The REU exercise later stores visits in each sector record, which lets you change and inspect only the page you need.</p>'''),
+], False)
+
+guide_page("tutorial-hardware", "Draw and talk to hardware", "Use C64 helpers for display, a volatile pointer for a register, and assembly when you need its operands.", [
+    ("choose", "Choose an interface by the effect you need", '''
+<table><thead><tr><th scope="col">Effect</th><th scope="col">Interface</th></tr></thead><tbody>
+<tr><td>Print the sector and visit count</td><td>Console formatting with typed arguments</td></tr>
+<tr><td>Draw a tile at a screen coordinate</td><td><code>c64.screen</code> or explicit screen RAM writes</td></tr>
+<tr><td>Change a VIC-II register</td><td>A C64 helper or a typed volatile pointer</td></tr>
+<tr><td>Call firmware with values in A, X, and Y</td><td>Inline assembly when a built-in helper does not cover the call</td></tr>
+</tbody></table>
+<p>The screen and keyboard use different byte conventions. The default screen stores the A glyph as <code>$01</code>. The keyboard returns PETSCII <code>$41</code> for A in the standard input configuration. The <a href="guide-hardware.html#encoding">encoding example</a> prints the stored screen bytes so you can check the difference.</p>'''),
+    ("register", "Write a register through a volatile pointer", f'''
+{sample("docs/tutorial-examples/volatile-border.zp64")}
+{example_run("docs/tutorial-examples/volatile-border.zp64", "tutorial-volatile", anchor="tutorial-volatile")}
+<p>The address and type explain the operation. The pointer addresses a byte at the VIC-II register. Volatile makes the load or store a device access. The register is available when the C64 mapping exposes I/O. Keep the default mapping for these exercises.</p>'''),
+    ("asm", "Keep an assembly operation small", f'''
+{sample("docs/tutorial-examples/asm-border.zp64")}
+{example_run("docs/tutorial-examples/asm-border.zp64", "tutorial-asm-border", anchor="tutorial-asm-border")}
+<p>The loop changes X, A, and status. ZeroPage preserves those across the block. It leaves the source byte and border write in place. To return a firmware value to source code, store it inside the block before the wrapper restores registers. The <a href="guide-assembly.html#kernal-result">GETIN example</a> does this for one byte. The <a href="guide-assembly.html#kernal-load">checked LOAD example</a> passes a string address and captures a status flag.</p>'''),
+    ("practice", "Apply it to the survey", '''
+<p>Use the survey's green border as a completion indicator. Add a second color for the active survey and set it before entering the input loop. After Q, check that the border changes to green. Use the built-in border assignment first, then try the volatile store from this chapter to see the same effect through a literal hardware address.</p>'''),
+], False)
+
+guide_page("tutorial-memory", "Plan RAM and reuse scratch storage", "Give one sector record a byte layout and decide when its encoded bytes can be reused.", [
+    ("budget", "Name the space before allocating from it", '''
+<p>A C64 address can belong to the loaded program, system workspace, I/O, or RAM reserved for your data. Here, reserve 16 visible bytes at <code>$9000</code> for staging. The region is a compile-time ownership declaration. The arena manages allocations within that region at runtime. Its optional result handles a request that does not fit.</p>
+<p>A sector record has two bytes of visits and one byte of flags. The encoder uses <code>@sizeOf</code> and <code>@offsetOf</code> to tie the staging layout to the type. It writes a word low byte first. An independent data format can use explicit offsets when the encoding must remain stable across source changes.</p>'''),
+    ("encode", "Encode and reuse one small record buffer", f'''
+{sample("docs/tutorial-examples/survey-buffer.zp64")}
+{example_run("docs/tutorial-examples/survey-buffer.zp64", "survey-buffer", anchor="survey-buffer")}
+<p>Expect <code>RECORD 02 01 04</code>, then <code>RECORD 03 01 04</code>. The first two bytes change with the visit count. The flags stay the same. Each call finishes reading its buffer before resetting the arena. The next allocation can start at the same address because no old pointer remains in use.</p>'''),
+    ("lifetime", "Choose a lifetime that matches the work", '''
+<p>An arena suits scratch data that expires together. If independently managed objects must remain live while others are freed, use a fixed-block pool. A far arena applies the reset model to REU addresses, where explicit copies replace C64 pointer access. The <a href="guide-arenas.html#choose">arena guide</a> compares the three allocation results and their release rules.</p>
+<p>Try shrinking the staging reservation to two bytes. The record still needs three. Both calls should print <code>SCRATCH FULL</code>. Restore the reservation before moving on to the larger REU table.</p>'''),
+], False)
+
+guide_page("tutorial-debug", "Diagnose a program on the C64", "Start with the result you expected and pick the smallest observation that can explain the difference.", [
+    ("behavior", "Check behavior before reading assembly", '''
+<p>Boot the survey and replay the Space, Return, and Q sequence. Check the selected sector and visit count after each action. If a value is wrong, first locate where it changes. The screen shows the last value drawn, and a monitor breakpoint lets you inspect the live value before the renderer uses it.</p>
+<p>For the REU map, compare one edited sector and one untouched sector after the flush. For the DLL, test both the present and missing payload. A successful call returning a Boolean false is still a result. An optional with no value says the loader could not make the export available.</p>'''),
+    ("artifact", "Read the artifact that answers your question", '''
+<table><thead><tr><th scope="col">Question</th><th scope="col">Artifact or observation</th></tr></thead><tbody>
+<tr><td>Where did the compiler put my code or data?</td><td>The map lists regions, sections, and placements.</td></tr>
+<tr><td>Where should I break to inspect a function?</td><td>The labels file gives the assembled addresses.</td></tr>
+<tr><td>What did an assembly wrapper preserve?</td><td>The generated assembly shows its pushes and pulls.</td></tr>
+<tr><td>Did the DLL file make it onto the disk?</td><td>List the disk, extract the entry, and compare it to the payload from the same build.</td></tr>
+</tbody></table>
+<p>When a program works, keep a short reproduction sequence and the expected result. Change one value, memory claim, or load policy at a time. See <a href="guide-verification.html">Inspect, test, and compare</a> for monitor and build workflows.</p>'''),
+    ("continue", "Continue from the feature you need next", '''
+<p>Use the <a href="guide-application.html">Tic-Tac-Toe case study</a> for a complete input and drawing loop. Use the <a href="guide-memory-plan.html">score updater</a> when you need REU data and disk-loaded code in the same application. The <a href="guide.html#chapters">guide contents</a> lists the remaining chapters by topic.</p>'''),
 ], False)

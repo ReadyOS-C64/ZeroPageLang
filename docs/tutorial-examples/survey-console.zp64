@@ -1,0 +1,41 @@
+const c64 = @import("c64");
+
+const Survey = struct { sector: u8, visits: u16 };
+
+fn advance(survey: *Survey) void {
+    if (survey.sector == 3) {
+        survey.sector = 0;
+    } else {
+        survey.sector += 1;
+    }
+}
+
+fn show(survey: *Survey) void {
+    const sector: u8 = survey.sector;
+    const visits: u16 = survey.visits;
+    c64.console.clear();
+    c64.console.print("SECTOR {x} VISITS {x16}\n", .{ sector, visits });
+    c64.console.print("SPACE NEXT  RETURN MARK  Q QUIT\n", .{});
+}
+
+export fn main() void {
+    var survey = Survey{ .sector = 0, .visits = 0 };
+    show(&survey);
+    var running = true;
+    while (running) {
+        const key = c64.keyboard.readPetscii();
+        switch (key) {
+            c64.key.space => {
+                advance(&survey);
+                show(&survey);
+            },
+            c64.key.return_ => {
+                survey.visits += 1;
+                show(&survey);
+            },
+            0x51 => { running = false; },
+            else => {},
+        }
+    }
+    c64.vic.border = 5;
+}
