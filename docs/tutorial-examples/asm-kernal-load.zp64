@@ -1,0 +1,43 @@
+const c64 = @import("c64");
+const filename = "tile";
+
+memory {
+    region staging: c64 at 0x9000 size 0x0100;
+}
+
+fn loadTile() bool {
+    var loaded: bool = false;
+    asm {
+        lda #@filename.len
+        ldx #<@filename.data
+        ldy #>@filename.data
+        jsr $ffbd
+
+        lda #1
+        ldx #8
+        ldy #0
+        jsr $ffba
+
+        lda #0
+        ldx #$00
+        ldy #$90
+        jsr $ffd5
+        bcs done
+        lda #1
+        sta @loaded
+    done:
+    }
+    return loaded;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (loadTile()) {
+        const tile: *volatile u8 = @ptrFromInt(0x9000);
+        c64.console.print("TILE {x}\n", .{tile.*});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("LOAD FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

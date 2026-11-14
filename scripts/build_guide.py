@@ -329,6 +329,7 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-data.html#ownership">Choose a snapshot or an in-place update</a> for game state.</li>
 <li><a href="guide-assembly.html#strings">Pass a string address and length to assembly</a> and trace what the wrapper preserves.</li>
 <li><a href="guide-assembly.html#kernal-result">Capture a KERNAL register result</a> in a typed function.</li>
+<li><a href="guide-assembly.html#kernal-load">Pass a filename to KERNAL and capture carry</a> before the assembly wrapper restores status.</li>
 <li><a href="guide-memory.html#reservation">Reserve bytes for application code</a> and read the resulting zero-page map.</li>
 <li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
 <li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
@@ -516,6 +517,24 @@ guide_page("assembly", chapters[2][1], chapters[2][2], [
 {sample("docs/tutorial-examples/asm-getin.zp64")}
 {example_run("docs/tutorial-examples/asm-getin.zp64", "asm-getin", anchor="asm-getin")}
 <p>With KERNAL visible and the standard keyboard input selected, press A at the prompt. The unshifted A key on the default C64 keyboard configuration prints <code>KEY 41</code>. For ordinary keyboard reads, <code>c64.keyboard.readPetscii()</code> provides the built-in operation. The assembly example exposes the register boundary you also use with other firmware calls.</p>'''),
+    ("kernal-load", "Pass a filename and capture the KERNAL carry flag", f'''
+<p>Prepare the inputs and consume the result inside one assembly block. For SETNAM, A holds the filename length and X/Y hold its address, low byte first. The string binding supplies all three without a generated label name. SETLFS selects logical file 1, disk device 8, and secondary address 0. With this setup, LOAD uses the destination in X/Y, here <code>$9000</code>. <a href="https://github.com/mist64/c64ref/blob/main/src/kernal/kernal_prg.txt">Commodore Programmer's Reference Guide, KERNAL routines transcription</a></p>
+{sample("docs/tutorial-examples/asm-kernal-load.zp64")}
+<p>LOAD reports an error with carry set. Branch immediately with <code>BCS</code>. The error path leaves <code>loaded</code> false, and the success path stores 1 into the Boolean cell. Both paths fall through the wrapper, which restores A, X, Y, and status. The source code reads the result cell after that restoration. KERNAL's writes to workspace and destination RAM survive.</p>
+<p>Boot the disk with the one-byte tile to see <code>TILE 55</code>. Boot the version with only <code>boot</code> to see <code>LOAD FAILED</code>. The example expects a known one-byte PRG on device 8 and leaves KERNAL and I/O visible. The staging declaration reserves RAM from other compiler claims. KERNAL LOAD can write beyond that reservation if the input is larger, so use the supplied payload when following the exercise.</p>
+{shell(r"""
+mkdir -p build
+firmware_build=$(mktemp -d build/kernal-load.XXXXXX)
+./zig-out/bin/zp64c compile docs/tutorial-examples/asm-kernal-load.zp64 -o "$firmware_build/boot.prg"
+printf '\000\220\125' > "$firmware_build/tile.prg"
+c1541 -format 'kernal call,01' d64 "$firmware_build/load.d64" \
+  -write "$firmware_build/boot.prg" boot -write "$firmware_build/tile.prg" tile
+c1541 -format 'missing tile,02' d64 "$firmware_build/missing.d64" \
+  -write "$firmware_build/boot.prg" boot
+x64sc -autostart "$firmware_build/load.d64:boot"
+x64sc -autostart "$firmware_build/missing.d64:boot"
+""", "Build and boot the two KERNAL load disks", "kernal-load")}
+<p>{example_link("docs/tutorial-examples/asm-kernal-load.zp64", "Complete checked load source")} · <a href="guide-modules.html#disk">Follow a DLL through KERNAL staging into REU</a></p>'''),
     ("control", "External calls, terminal jumps, and rejected forms", f'''
 <p>External <code>jsr</code> accepts a numeric address or an assembler-resolved symbol and must return with the hardware stack balanced. Local <code>jsr</code>, inline <code>rts</code>/<code>rti</code>/<code>brk</code>, and stack manipulation such as <code>pha</code> or <code>txs</code> are rejected. Keep directives, includes, macros, and data declarations outside the inline form. Use a static-frame function. Stack frames and DLL exports have stricter body rules.</p>
 {block("ReadyOS terminal transfer · requires the resident shim", "asm {\n    jmp $c80c\n}\n")}
@@ -628,6 +647,14 @@ guide_page("reu", chapters[5][1], chapters[5][2], [
 {example_run("docs/tutorial-examples/reu-transfer.zp64", "reu-transfer", True)}
 <p>The example first copies <code>11 22</code> through the REU and checks the result. It then fills the REU range with <code>55 55</code> and swaps it with the result buffer. The C64 result now holds <code>55 55</code>, and the REU again holds <code>11 22</code>. Expect <strong>REU TRANSFER OK</strong>.</p>
 <p>The <code>scratch_reu</code> declaration records the range in the program's memory map. A raw DMA call still uses the address supplied at its call site. Keep raw transfers within the ranges you own, away from far arenas, DLL caches, and saved state. {fixture_link("lang/pass/parity/abi/raw_reu_runtime", "Transfer and compare assertions")} · {fixture_link("lang/fail_compile/reu_zero_length", "Literal zero-count diagnostic")}</p>'''),
+    ("capacity", "Choose an REU size from the addresses you use", f'''
+<p>For each fixed region, add its size to its base. The sum is the exclusive end, so the expansion must have at least that many bytes. Use the greatest end across raw transfers, far arenas, module caches, and saved-state ranges. An REU that answers the presence check can still be too small for a particular address.</p>
+<table><thead><tr><th scope="col">Example</th><th scope="col">Highest exclusive end</th><th scope="col">Smallest tested VICE setting for this layout</th></tr></thead><tbody>
+<tr><td><a href="#bounded-copy">Bounded DMA</a></td><td><code>$010008</code></td><td>128 KiB</td></tr>
+<tr><td><a href="#split-tables">Artwork and mutable state</a></td><td><code>$021004</code></td><td>256 KiB</td></tr>
+<tr><td><a href="guide-memory-plan.html#layout">Score updater and DLL cache</a></td><td><code>$032000</code></td><td>256 KiB</td></tr>
+</tbody></table>
+<p>The linked commands use 16 MiB so they work across the whole guide. To reproduce the smaller configurations above, replace <code>-reusize 16384</code> with <code>-reusize 128</code> or <code>-reusize 256</code> for the matching example. The original smoke demo touches <code>$100000</code> through <code>$100002</code>, beyond a 1 MiB address range. On physical hardware, choose a layout that fits the installed unit before running any transfers. The compiler validates layouts against the address space, and the program owns the installed-capacity assumption.</p>'''),
     ("bounded-copy", "Check the transfer length before starting DMA", f'''
 <p>When a count comes from input or a calculation, check both ends before touching the REU. The example gives the source and destination eight bytes each. It rejects 0 and 9, then copies exactly three bytes. The fourth byte stays zero. For a transfer starting partway through either range, check the count against the remaining capacity of both ranges.</p>
 {sample("docs/tutorial-examples/reu-bounded-copy.zp64")}
@@ -1087,6 +1114,28 @@ x64sc -reu -reusize 16384 -autostart "$reuse_build/dll-reuse.d64:boot"
 x64sc -reu -reusize 16384 -autostart "$reuse_build/memory-plan.d64:boot"
 """, "Build the producer once and boot both callers", "reuse-producer")}
 <p>{example_link("docs/tutorial-examples/memory-plan-math.zp64", "Producer source")} · {example_link("docs/tutorial-examples/dll-reuse.zp64", "Calculator source")} · {doc("cli", "Dependency sidecar options")}</p>'''),
+    ("window-compatibility", "Use a producer built for a different window", f'''
+<p>By default, the caller expects an unassigned dependency's producer window to match its main window in address and size. In the calculator, that is <code>$6000</code> with <code>$1000</code> bytes. Change the producer to <code>$7000</code> with <code>$0800</code> bytes and the default caller rejects its sidecars.</p>
+<p>An explicit window assignment enables relocation to that named destination. Add <code>window = main;</code> to the calculator's <code>dependency fixed_math</code> block. The producer's declared window size must fit within the destination window, and the payload and export requirements must fit too. This example boots with the same <code>BIAS 23</code>. Its first jump instruction at <code>$6000</code> points to <code>$6003</code>, inside the caller's window. The producer still uses disk staging at <code>$9000</code>.</p>
+{shell(r"""
+mkdir -p build
+window_build=$(mktemp -d build/window-fit.XXXXXX)
+sed 's/at 0x6000 size 0x1000/at 0x7000 size 0x0800/' \
+  docs/tutorial-examples/memory-plan-math.zp64 > "$window_build/producer.zp64"
+sed '/        file = "fixedmath";/a\
+        window = main;
+' docs/tutorial-examples/dll-reuse.zp64 > "$window_build/caller.zp64"
+compiler=./zig-out/bin/zp64c
+"$compiler" compile "$window_build/producer.zp64" -o "$window_build/math.prg"
+"$compiler" compile "$window_build/caller.zp64" -o "$window_build/caller.prg" \
+  --dependency-module "fixed_math=$window_build/math.prg.zpmod.json" \
+  --dependency-relocsim "fixed_math=$window_build/math.prg.zpmod.relocsim.json"
+c1541 -format 'assigned window,01' d64 "$window_build/caller.d64" \
+  -write "$window_build/caller.prg" boot \
+  -write "$window_build/math.prg.zpmod.disk.prg" fixedmath
+x64sc -reu -reusize 256 -autostart "$window_build/caller.d64:boot"
+""", "Rebuild the producer and assign its execution window", "window-compatibility")}
+<p>To see the diagnostic, use the original calculator source with the same new producer sidecars. A valid assignment only resolves the window constraint. The caller still checks the module ID, ABI, export signatures, and bank requirements. {doc("reu-overlays", "Window compatibility reference")} · <a href="#relocation">How the loader patches addresses</a></p>'''),
     ("disk-audit", "Check what actually made it onto the disk", f'''
 <p>A successful build proves the binding and the sidecars agree. The disk can still contain an older file under the right name. Starting with the <a href="guide-modules.html#disk">typed disk exercise</a>, list the D64 directory and extract <code>enemyrt</code>. Compare its bytes with the <code>.zpmod.disk.prg</code> generated by the same build. An empty <code>cmp</code> result with exit status zero means the files match. Rebuild the disk from the matching caller and producer outputs if they differ.</p>
 {shell("""

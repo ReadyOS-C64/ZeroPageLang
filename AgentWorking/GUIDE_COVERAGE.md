@@ -14,6 +14,13 @@ run the target program when its behavior is part of the lesson.
 | DLLs | Complete named and typed disk calls lead into loading policies, ownership, saved state, banking, relocation, and graph rollback. The lifecycle chapter verifies D64 bytes, checks independent active windows and state restoration, and compares preload, on-demand, and manual loading. The reusable producer exercise builds FixedMath once and boots two callers that use the same disk bytes with different loading policies. | Cross-check producer and caller window restrictions for differently sized windows and link the tested cases from the reference |
 | Application and validation | Tic-Tac-Toe case study compares standalone and hosted image contracts, input and rendering paths, and ReadyOS transfer vectors. A fixed workload compares the default and KERNAL scratch policies using measured PRG bytes and host cycles. | Check hosted navigation under its real host and connect hardware-specific VICE checks to the application |
 
+The current edition also exercises the REU layouts at 128 and 256 KiB in
+VICE, checks firmware carry on a present and missing disk file, and compares
+default DLL window validation with explicit assignment to a different
+address and larger window. These tests cover the command paths shown in the
+guide. Physical REU configurations and hosted ReadyOS navigation have not
+been exercised by this documentation pass.
+
 The REU chapter compares direct far updates with materialization using the
 same workload, VICE stopwatch readings, DMA counts, and RAM cost. The ABI
 chapter compares both stack budgets on a nested host fixture. The DLL

@@ -203,6 +203,13 @@ inside the block. The wrapper restores the caller's A before execution
 returns to source code. For a routine that communicates through flags,
 branch inside the block and store a byte result before fallthrough.
 
+The [checked KERNAL load example](tutorial-examples/asm-kernal-load.zp64)
+uses the filename's length and address with SETNAM, sets device parameters
+with SETLFS, and branches on carry immediately after LOAD. The Boolean
+stored before fallthrough survives register restoration. LOAD writes to
+RAM and uses KERNAL workspace. The example pairs a known small file with a
+reserved staging region.
+
 ## Preservation at a glance
 
 The analyzer combines clobbers across the entire block, including instructions

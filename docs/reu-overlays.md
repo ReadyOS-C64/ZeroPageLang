@@ -16,6 +16,11 @@ The complete callable surface is listed in [API reference](api.md).
 
 The generated runtime programs `$df00-$df0a`. Peddle-based tests model the same register behavior, and optional VICE tests run with a 16 MB REU.
 
+Presence detection establishes that the registers respond. Size the layout
+against the installed capacity by adding each region's size to its base and
+taking the largest exclusive end. Include the ranges of raw transfers as well
+as arena, module payload, and saved-state reservations.
+
 ## Far heaps and views
 
 Declare a far arena with `arena assets in asset_ram;` in `memory`, where `asset_ram` is an REU region. Regions must be non-empty, non-overlapping, and contained within the 16 MB REU address space.
@@ -117,6 +122,12 @@ Typed bindings such as `extern module MathCore = math_core { fn add(value: u8) u
 ## Multiple and banked windows
 
 Rows may be assigned to `.main` or to additional named windows. Each window tracks its own active row, so activating one window does not evict another.
+
+An unassigned dependency must match the caller's main window address and size
+in its producer sidecars. With an explicit `window = NAME;` assignment, the
+producer's declared window size must fit in the destination window and the
+loader applies relocation for that destination. Signature, payload, and bank
+checks still apply.
 
 Three window modes are supported:
 
