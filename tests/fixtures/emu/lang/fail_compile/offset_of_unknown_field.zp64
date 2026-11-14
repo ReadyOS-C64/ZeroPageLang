@@ -1,0 +1,9 @@
+// zeropage-emu-error: UnknownField
+const test6502 = @import("test6502");
+
+const Header = struct { tag: u8, word: u16 };
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0, @offsetOf(Header, "missing"));
+    test6502.pass();
+}

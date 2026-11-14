@@ -1,0 +1,6 @@
+// zeropage-emu-error: invalid zeropage_options image
+pub const zeropage_options = .{
+    .image = .{ .load_addr = 0x1000, .entry_addr = 0x1010, .basic_stub = true },
+};
+
+export fn main() void {}

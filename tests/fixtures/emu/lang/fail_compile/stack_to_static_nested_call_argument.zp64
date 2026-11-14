@@ -1,0 +1,18 @@
+// zeropage-emu-error: unsupported stack frame bridge argument
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .main = .{ .frame = .stack } } },
+};
+
+fn inner() u8 {
+    return 2;
+}
+
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+export fn main() void {
+    var value: u8 = add(inner(), 3);
+    _ = value;
+}

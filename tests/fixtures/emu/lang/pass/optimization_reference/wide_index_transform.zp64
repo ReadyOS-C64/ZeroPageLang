@@ -1,0 +1,42 @@
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const a: [*]u8 = @ptrFromInt(0x60fd);
+    const b: [*]u8 = @ptrFromInt(0x68fe);
+    const out_a: [*]u8 = @ptrFromInt(0x7000);
+    const out_b: [*]u8 = @ptrFromInt(0x7600);
+    const before: *u8 = @ptrFromInt(0x6fff);
+    const after: *u8 = @ptrFromInt(0x7b00);
+    before.* = 0x2b;
+    after.* = 0x47;
+
+    var i: u16 = 0;
+    while (i < 1280) { a[i] = 0x44; b[i] = 0x80; i += 1; }
+    a[3] = 0x11;
+    b[2] = 0x22;
+    i = 0;
+    while (i < 1280) {
+        const delta_a: u8 = if (i >= 768 and i < 1024) 0x69 else 0x35;
+        const delta_b: u8 = if (i >= 768 and i < 1024) 0x96 else 0xc6;
+        out_a[i] = a[i] + delta_a;
+        out_b[i] = b[i] + delta_b;
+        i += 1;
+    }
+
+    test6502.expectEqualU8(1, 0x2b, before.*);
+    test6502.expectEqualU8(2, 0x79, out_a[2]);
+    test6502.expectEqualU8(3, 0x46, out_a[3]);
+    test6502.expectEqualU8(4, 0xe8, out_b[2]);
+    test6502.expectEqualU8(5, 0x46, out_b[3]);
+    test6502.expectEqualU8(6, 0x79, out_a[767]);
+    test6502.expectEqualU8(7, 0xad, out_a[768]);
+    test6502.expectEqualU8(8, 0xad, out_a[1023]);
+    test6502.expectEqualU8(9, 0x79, out_a[1024]);
+    test6502.expectEqualU8(10, 0x46, out_b[767]);
+    test6502.expectEqualU8(11, 0x16, out_b[768]);
+    test6502.expectEqualU8(12, 0x16, out_b[1023]);
+    test6502.expectEqualU8(13, 0x46, out_b[1024]);
+    test6502.expectEqualU8(14, 0x46, out_b[1279]);
+    test6502.expectEqualU8(15, 0x47, after.*);
+    test6502.pass();
+}

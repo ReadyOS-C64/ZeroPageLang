@@ -1,0 +1,18 @@
+// Later nested calls must not overwrite the first argument staging slot.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn combine(value: u16, mask: u16) u16 { return value ^ mask; }
+fn inner(value: u16, mask: u16) u16 { return value ^ mask; }
+fn nested(location: *u16, mask: u16) u16 { return combine(location.*, inner(mask, 0xa55a)); }
+fn rotate(left: u16, right: u16, depth: u8) u16 {
+    if (depth == 0) { return (left << 1) ^ right; }
+    return rotate(right, left, 0);
+}
+fn swapCase(left: u16, right: u16) u16 { return rotate(left, right, 1); }
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    test6502.expectEqualU16(1, 0x7655, nested(location, 0x52f0));
+    test6502.expectEqualU16(2, 0x81fb, swapCase(0x81ff, 2));
+    test6502.pass();
+}

@@ -1,0 +1,21 @@
+// zeropage-emu-error: unsupported stack frame optional
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{
+        .functions = .{
+            .maybe = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .maybe = maybe },
+};
+
+fn maybe(value: u8) ?u8 {
+    _ = value;
+    return 7;
+}

@@ -1,0 +1,18 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("CONSOLE {s}\n", .{"SCROLL"});
+
+    var line: u8 = 0;
+    while (line < 30) {
+        c64.console.print("LINE {x}\n", .{line});
+        line += 1;
+        if (line == 24) {
+            c64.time.sleepTicks(2);
+        }
+    }
+
+    c64.console.print("DONE {x}", .{line});
+    c64.time.sleepTicks(2);
+}

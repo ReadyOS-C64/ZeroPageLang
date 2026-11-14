@@ -1,0 +1,25 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+const source = "asm string ok";
+
+export fn main() void {
+    var msg = c64.string.buffer(32);
+
+    asm {
+        ldy #0
+copy:
+        lda @source.data,y
+        sta @msg.data,y
+        iny
+        cpy #@source.len
+        bne copy
+        lda #@source.len
+        sta @msg.len
+        lda #33
+        sta @msg.data+12
+    }
+
+    test6502.expectString(1, msg, "ASM STRING O!");
+    test6502.pass();
+}

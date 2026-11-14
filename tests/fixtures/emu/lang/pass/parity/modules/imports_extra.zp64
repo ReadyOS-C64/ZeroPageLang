@@ -1,0 +1,18 @@
+const test6502 = @import("test6502");
+const math_a = @import("_modules_math.zp64");
+const math_b = @import("_modules_math.zp64");
+const empty = @import("_empty.zp64");
+
+export fn main() void {
+    test6502.expectEqualU8(1, 6, math_a.add8(2, 4));
+    test6502.expectEqualU8(2, 6, math_b.add8(1, 5));
+    test6502.expectEqualU8(3, 4, math_a.sub8(9, 5));
+    test6502.expectEqualBool(4, true, math_a.eq8(math_b.add8(2, 3), 5));
+    test6502.expectEqualU8(5, 8, math_b.choose(math_a.eq8(3, 3), 8, 1));
+    var left: u8 = math_a.add8(10, 1);
+    var right: u8 = math_b.sub8(20, 9);
+    test6502.expectEqualBool(6, true, math_a.eq8(left, right));
+    test6502.expectEqualU8(7, 11, left);
+    test6502.expectEqualU8(8, 11, right);
+    test6502.pass();
+}

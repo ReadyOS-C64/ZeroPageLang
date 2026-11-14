@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported zeropage_module metadata
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    const maybe = ZeroPage.module.call(123, "tick", .{5});
+    _ = maybe;
+}

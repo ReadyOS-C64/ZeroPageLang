@@ -1,0 +1,18 @@
+const test6502 = @import("test6502");
+
+fn scale(value: u16) u16 {
+    return value * 7;
+}
+
+export fn main() void {
+    const first: *volatile u16 = @ptrFromInt(0xc1ff);
+    const second: *volatile u16 = @ptrFromInt(0xc110);
+    var word: u16 = 0x9123;
+    first.* = word;
+    second.* = scale(word);
+    const left: u16 = first.*;
+    const right: u16 = second.*;
+    test6502.expectEqualU16(1, 0x9123, left);
+    test6502.expectEqualU16(2, 0xf7f5, right);
+    test6502.pass();
+}

@@ -1,0 +1,20 @@
+// A configured software-stack caller calls an ordinary private static callee.
+// Its private callee parameters may move; SP/FP pairs remain explicit fixed claims.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+    .stack = .{ .base = 0xc800, .size = 0x0100, .zp = .{ .sp = 0x70, .fp = 0x72 } },
+    .abi = .{ .functions = .{ .stackCaller = .{ .frame = .stack } } },
+};
+fn leaf(value: u16, mask: u8) u16 { return value ^ @as(u16, mask); }
+fn stackCaller(value: u16) u16 {
+    const result: u16 = leaf(value, 0x55);
+    return result;
+}
+fn invoke(value: u16) u16 { return stackCaller(value); }
+export fn main() void {
+    test6502.expectEqualU16(1, 0x81aa, invoke(0x81ff));
+    test6502.expectEqualU16(2, 0x0055, invoke(0));
+    test6502.expectEqualU16(3, 0xffaa, invoke(0xffff));
+    test6502.pass();
+}

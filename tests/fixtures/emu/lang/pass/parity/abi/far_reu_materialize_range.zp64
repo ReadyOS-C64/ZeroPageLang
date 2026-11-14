@@ -1,0 +1,72 @@
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+const Enemy = struct {
+    hp: u8,
+    x: u8,
+    score: u16,
+};
+
+memory {
+    region main_ram: c64 at 0x9000 size 16;
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena near_heap in main_ram;
+    arena assets in assets_ram;
+}
+
+export fn main() void {
+    const maybe_far = assets.allocBytes(@sizeOf(Enemy) * 6);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 6);
+        enemies.set(0, Enemy{ .hp = 1, .x = 10, .score = 0x1001 });
+        enemies.set(1, Enemy{ .hp = 2, .x = 11, .score = 0x1002 });
+        enemies.set(2, Enemy{ .hp = 3, .x = 12, .score = 0x1003 });
+        enemies.set(3, Enemy{ .hp = 4, .x = 13, .score = 0x1004 });
+        enemies.set(4, Enemy{ .hp = 5, .x = 14, .score = 0x1005 });
+        enemies.set(5, Enemy{ .hp = 6, .x = 15, .score = 0x1006 });
+
+        if (enemies.materializeRange(near_heap, 2, 2)) |window| {
+            test6502.expectEqualU8(1, 2, window.len);
+            const first = window.get(0);
+            test6502.expectEqualU8(2, 3, first.hp);
+            test6502.expectEqualU8(3, 12, first.x);
+            window.set(1, Enemy{ .hp = 9, .x = 19, .score = first.score + 1 });
+            enemies.flushRange(2, window);
+        } else {
+            test6502.fail(90);
+        }
+
+        const reloaded = enemies.get(3);
+        test6502.expectEqualU8(4, 9, reloaded.hp);
+        test6502.expectEqualU8(5, 19, reloaded.x);
+        test6502.expectEqualU16(6, 0x1004, reloaded.score);
+
+        near_heap.reset();
+        var start: u8 = 1;
+        if (enemies.materializeRange(near_heap, start, 3)) |runtime_window| {
+            const second = runtime_window.get(0);
+            test6502.expectEqualU8(7, 2, second.hp);
+            runtime_window.set(0, Enemy{ .hp = second.hp + 7, .x = second.x + 7, .score = second.score + 7 });
+            enemies.flushRange(start, runtime_window);
+        } else {
+            test6502.fail(91);
+        }
+
+        const runtime_reloaded = enemies.get(1);
+        test6502.expectEqualU8(8, 9, runtime_reloaded.hp);
+        test6502.expectEqualU8(9, 18, runtime_reloaded.x);
+        test6502.expectEqualU16(10, 0x1009, runtime_reloaded.score);
+
+        var bad_start: u8 = 5;
+        const bad = enemies.materializeRange(near_heap, bad_start, 2);
+        test6502.expectNull(11, bad);
+
+        const oom = enemies.materializeRange(near_heap, 0, 2);
+        test6502.expectNull(12, oom);
+    } else {
+        test6502.fail(92);
+    }
+
+    test6502.pass();
+}

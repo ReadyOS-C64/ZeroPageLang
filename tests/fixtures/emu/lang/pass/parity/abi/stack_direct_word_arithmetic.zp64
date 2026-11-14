@@ -1,0 +1,34 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fc, .size = 0x0100 },
+    .abi = .{ .default_frame = .stack, .functions = .{ .main = .{ .frame = .static } } },
+};
+
+fn add(a: u16, b: u16) u16 {
+    return a + b;
+}
+
+fn sub(a: u16, b: u16) u16 {
+    return a - b;
+}
+
+fn adjust(a: u16, b: u16) u16 {
+    var result: u16 = a;
+    result += b;
+    result -= 0x0101;
+    return result;
+}
+
+fn twice(a: u16) u16 {
+    return a + a;
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0x8000, add(0x7fff, 1));
+    test6502.expectEqualU16(2, 0x0000, add(0xffff, 1));
+    test6502.expectEqualU16(3, 0x00ff, sub(0x0100, 1));
+    test6502.expectEqualU16(4, 0xffff, sub(0, 1));
+    test6502.expectEqualU16(5, 0x8112, adjust(0x7fff, 0x0214));
+    test6502.expectEqualU16(6, 0x01fe, twice(0x80ff));
+}

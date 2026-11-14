@@ -1,0 +1,42 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+fn readKey() u8 {
+    return c64.keyboard.readPetscii();
+}
+
+fn waitKey() u8 {
+    return c64.keyboard.waitPetscii();
+}
+
+export fn main() void {
+    const first = readKey();
+    test6502.expectEqualU8(1, 65, first);
+
+    const none_after_first = c64.keyboard.readPetscii();
+    test6502.expectEqualU8(2, 0, none_after_first);
+
+    const cursor = waitKey();
+    test6502.expectEqualU8(3, 17, cursor);
+    test6502.expectEqualBool(4, true, cursor == c64.key.cursor_down);
+
+    const yellow = waitKey();
+    test6502.expectEqualU8(5, 158, yellow);
+    test6502.expectEqualBool(6, true, yellow == c64.key.yellow);
+    test6502.expectEqualU8(7, 32, c64.key.space);
+    test6502.expectEqualU8(8, 13, c64.key.return_);
+    test6502.expectEqualU8(9, 20, c64.key.delete);
+    test6502.expectEqualU8(10, 148, c64.key.insert);
+    test6502.expectEqualU8(11, 133, c64.key.f1);
+    test6502.expectEqualU8(12, 140, c64.key.f8);
+
+    const end = c64.keyboard.readPetscii();
+    test6502.expectEqualU8(13, 0, end);
+
+    if (first == 65 and cursor == c64.key.cursor_down and yellow == c64.key.yellow) {
+        c64.vic.border = 5;
+    } else {
+        c64.vic.border = 2;
+    }
+    test6502.pass();
+}

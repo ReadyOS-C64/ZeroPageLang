@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported runtime string variable
+const test6502 = @import("test6502");
+export fn main() void {
+    var msg: u8 = "hello";
+    test6502.expectEqualU8(1, 1, msg);
+}

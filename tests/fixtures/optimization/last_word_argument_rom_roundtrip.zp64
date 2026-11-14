@@ -1,0 +1,31 @@
+// Real-ROM scalar residency gate: BASIC SYS, normal RTS, stock IRQ enabled.
+// Both private parameters remain live across CHROUT, GETIN and a jiffy tick.
+const c64 = @import("c64");
+const title = "ZP SCALARS ROM\r";
+const done = "KERNAL RETURN MARKER\r";
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars, .ranges = .{ .{ .addr = 0x20, .size = 0x50 } }, .reserve = .{ .{ .addr = 0x20, .size = 4 } } },
+};
+fn consume(value: u16) u16 { return value; }
+fn liveAcrossRom(value: u16, mask: u16) u16 {
+    c64.kernal.puts(title);
+    const key: u8 = c64.keyboard.readPetscii();
+    const observed_key: *u8 = @ptrFromInt(0xc106);
+    observed_key.* = key;
+    const tick: *volatile u8 = @ptrFromInt(0xa2);
+    const before: u8 = tick.*;
+    while (tick.* == before) {}
+    const tick_before: *u8 = @ptrFromInt(0xc104);
+    const tick_after: *u8 = @ptrFromInt(0xc105);
+    tick_before.* = before;
+    tick_after.* = tick.*;
+    return consume(value ^ mask);
+}
+export fn main() void {
+    const complete: *u8 = @ptrFromInt(0xc102);
+    complete.* = 0;
+    const output: *u16 = @ptrFromInt(0xc100);
+    output.* = liveAcrossRom(0x81ff, 0xda5f);
+    complete.* = 0x5a;
+    c64.kernal.puts(done);
+}

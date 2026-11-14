@@ -1,0 +1,61 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const opening = [_]Cell{ .x, .empty, .o, .empty };
+
+fn lookup(index: u8) Cell {
+    return opening[index];
+}
+
+fn score(cell: Cell) u8 {
+    return switch (cell) {
+        Cell.empty => 0,
+        Cell.x => 1,
+        else => 2,
+    };
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 1, opening[0]);
+    test6502.expectEqualU8(2, 0, opening[1]);
+    test6502.expectEqualU8(3, 2, lookup(2));
+    test6502.expectEqualU16(4, 4, opening.len);
+
+    var board: [4]Cell = .{ .empty, .empty, .empty, .empty };
+    board[0] = Cell.x;
+    board[1] = .o;
+    var i: u8 = 2;
+    board[i] = lookup(1);
+    board[3] = if (board[0] == .x) .o else .empty;
+
+    test6502.expectEqualU8(5, 1, board[0]);
+    test6502.expectEqualU8(6, 2, board[1]);
+    test6502.expectEqualU8(7, 0, board[2]);
+    test6502.expectEqualU8(8, 2, board[3]);
+    test6502.expectEqualU16(9, 4, board.len);
+
+    var total: u8 = 0;
+    for (board) |cell| {
+        total += score(cell);
+    }
+    test6502.expectEqualU8(10, 5, total);
+
+    var weighted: u8 = 0;
+    for (board, 0..) |weighted_cell, weighted_index| {
+        if (weighted_cell == .empty) {
+            continue;
+        }
+        weighted += score(weighted_cell) + weighted_index;
+    }
+    test6502.expectEqualU8(11, 9, weighted);
+
+    for (0..board.len) |index| {
+        if (board[index] == .o) {
+            board[index] = .x;
+        }
+    }
+    test6502.expectEqualU8(12, 1, board[1]);
+    test6502.expectEqualU8(13, 1, board[3]);
+
+    test6502.pass();
+}

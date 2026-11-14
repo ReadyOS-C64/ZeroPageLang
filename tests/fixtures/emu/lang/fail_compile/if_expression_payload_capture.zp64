@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported non-bool condition
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const maybe = true;
+    const value = if (maybe) |payload| payload else false;
+    test6502.expectEqualBool(1, true, value);
+}

@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported inline asm string operand
+const c64 = @import("c64");
+const source = "abc";
+
+export fn main() void {
+    asm {
+        lda @source
+    }
+}

@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported zeropage_module metadata
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    _ = ZeroPage.module.loadFromDisk("enemy_runtime", 123);
+}

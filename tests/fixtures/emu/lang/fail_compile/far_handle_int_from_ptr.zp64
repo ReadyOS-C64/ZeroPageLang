@@ -1,0 +1,17 @@
+// zeropage-emu-error: unsupported pointer builtin
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .reu = .{
+        .heaps = .{
+            .assets = .{ .region = .{ .addr = 0x010000, .size = 0x0010 }, .kind = .arena },
+        },
+    },
+};
+
+export fn main() void {
+    const maybe_far = ZeroPage.reu.heap("assets").allocBytes(1);
+    if (maybe_far) |far| {
+        _ = @intFromPtr(far);
+    }
+}

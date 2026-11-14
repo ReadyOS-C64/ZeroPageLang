@@ -1,0 +1,34 @@
+// Source-owned policy variant of the adjacent unchanged Oscar64-inspired workload.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+};
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/intoddmultest.cpp
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+fn times3(value: u16) u16 { return value * 3; }
+fn times5(value: u16) u16 { return value * 5; }
+fn times7(value: u16) u16 { return value * 7; }
+fn times9(value: u16) u16 { return value * 9; }
+fn times10(value: u16) u16 { return value * 10; }
+fn masked(value: u16) u16 { return (value & 31) * 3 + (value & 63) * 7 + (value & 127) * 9; }
+export fn main() void {
+    const inputs = [_]u16{ 0, 1, 255, 256, 32767, 32768, 65535 };
+    const expected3 = [_]u16{ 0, 3, 765, 768, 32765, 32768, 65533 };
+    const expected5 = [_]u16{ 0, 5, 1275, 1280, 32763, 32768, 65531 };
+    const expected7 = [_]u16{ 0, 7, 1785, 1792, 32761, 32768, 65529 };
+    const expected9 = [_]u16{ 0, 9, 2295, 2304, 32759, 32768, 65527 };
+    const expected10 = [_]u16{ 0, 10, 2550, 2560, 65526, 0, 65526 };
+
+    for (inputs, 0..) |value, index| {
+        test6502.expectEqualBool(3, true, times3(value) == expected3[index]);
+        test6502.expectEqualBool(5, true, times5(value) == expected5[index]);
+        test6502.expectEqualBool(7, true, times7(value) == expected7[index]);
+        test6502.expectEqualBool(9, true, times9(value) == expected9[index]);
+        test6502.expectEqualBool(10, true, times10(value) == expected10[index]);
+
+    }
+    test6502.expectEqualU16(20, 1677, masked(65535));
+    test6502.expectEqualU16(21, 19, masked(129));
+    test6502.pass();
+}

@@ -1,0 +1,9 @@
+// zeropage-emu-error: invalid zeropage_options image
+memory {
+    image prg {
+        load_addr = 0x1000;
+        entry_addr = 0x0fff;
+        basic_stub = false;
+    }
+}
+export fn main() void {}

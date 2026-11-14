@@ -1,0 +1,4 @@
+// zeropage-emu-error: invalid zeropage_module id
+pub const zeropage_module = .{ .id = "EnemyAI", .abi = 1, .exports = .{ .tick = tick } };
+fn tick(value: u8) u8 { return value; }
+export fn main() void {}

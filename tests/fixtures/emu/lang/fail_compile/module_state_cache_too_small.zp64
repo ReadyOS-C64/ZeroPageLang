@@ -1,0 +1,30 @@
+// zeropage-emu-error: invalid zeropage_options module state
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x0800 },
+        .state = .{
+            .current = .{
+                .mode = .persist_in_reu,
+                .ranges = .{
+                    .{ .offset = 0x0100, .size = 2 },
+                },
+            },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "state_bad",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn tick(value: u8) u8 {
+    return value;
+}
+
+export fn main() void {}

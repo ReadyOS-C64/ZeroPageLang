@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported runtime string variable
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    const id = "math_core";
+    ZeroPage.module.releaseDependencyGraph(id);
+}

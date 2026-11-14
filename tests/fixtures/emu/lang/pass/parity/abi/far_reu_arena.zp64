@@ -1,0 +1,75 @@
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+memory {
+    region assets_ram: reu at 0x010000 size 0x0010;
+    region scratch_ram: reu at 0x020000 size 0x0008;
+
+    arena assets in assets_ram;
+    arena scratch in scratch_ram;
+}
+
+fn poke(addr: u16, value: u8) void {
+    const ptr: *volatile u8 = @ptrFromInt(addr);
+    ptr.* = value;
+}
+
+export fn main() void {
+    poke(0x0400, 0x41);
+    poke(0x0401, 0x42);
+    poke(0x0402, 0x43);
+
+    const first = assets.allocBytes(3);
+    if (first) |far| {
+        ZeroPage.reu.copyFromC64(far, 0x0400, 3);
+        poke(0x0420, 0);
+        poke(0x0421, 0);
+        poke(0x0422, 0);
+        ZeroPage.reu.copyToC64(far, 0x0420, 3);
+    } else {
+        test6502.fail(90);
+    }
+    test6502.expectMemU8(1, 0x0420, 0x41);
+    test6502.expectMemU8(2, 0x0421, 0x42);
+    test6502.expectMemU8(3, 0x0422, 0x43);
+
+    const second = assets.allocBytes(13);
+    if (second) |far2| {
+        ZeroPage.reu.copyFromC64(far2, 0x0400, 1);
+    } else {
+        test6502.fail(91);
+    }
+    const exhausted = assets.allocBytes(1);
+    test6502.expectNull(4, exhausted);
+
+    var zero_len: u8 = 0;
+    const runtime_zero = assets.allocBytes(zero_len);
+    test6502.expectNull(5, runtime_zero);
+
+    assets.reset();
+    const reused = assets.allocBytes(2);
+    if (reused) |far3| {
+        poke(0x0430, 0x55);
+        poke(0x0431, 0x66);
+        ZeroPage.reu.copyFromC64(far3, 0x0430, 2);
+        ZeroPage.reu.copyToC64(far3, 0x0440, 2);
+    } else {
+        test6502.fail(92);
+    }
+    test6502.expectMemU8(6, 0x0440, 0x55);
+    test6502.expectMemU8(7, 0x0441, 0x66);
+
+    const scratch = scratch.allocBytes(2);
+    if (scratch) |scratch_far| {
+        poke(0x0450, 0x77);
+        poke(0x0451, 0x88);
+        ZeroPage.reu.copyFromC64(scratch_far, 0x0450, 2);
+        ZeroPage.reu.copyToC64(scratch_far, 0x0460, 2);
+    } else {
+        test6502.fail(93);
+    }
+    test6502.expectMemU8(8, 0x0460, 0x77);
+    test6502.expectMemU8(9, 0x0461, 0x88);
+
+    test6502.pass();
+}

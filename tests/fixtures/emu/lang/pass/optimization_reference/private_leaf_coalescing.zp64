@@ -1,0 +1,25 @@
+const test6502 = @import("test6502");
+
+fn scaled(value: u16) u16 {
+    return value * 7;
+}
+
+fn masked(value: u16) u16 {
+    return (value & 31) * 3 + (value & 63) * 7;
+}
+
+export fn main() void {
+    var word: u16 = 0x9123;
+    var total: u16 = 0;
+    var i: u8 = 0;
+    while (i < 32) {
+        total += scaled(word);
+        word += 0x123;
+        i += 1;
+    }
+    const folded: u16 = masked(word);
+    test6502.expectEqualU16(1, 0x6950, total);
+    test6502.expectEqualU16(2, 0xb583, word);
+    test6502.expectEqualU16(3, 0x001e, folded);
+    test6502.pass();
+}

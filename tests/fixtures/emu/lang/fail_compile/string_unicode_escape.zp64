@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported string escape: unicode
+const test6502 = @import("test6502");
+const msg = "\u{41}";
+export fn main() void {
+    test6502.expectString(1, msg, "A");
+}

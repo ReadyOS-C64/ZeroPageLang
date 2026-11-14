@@ -1,0 +1,7 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    var wide: u32 = 1;
+    _ = wide;
+}
+

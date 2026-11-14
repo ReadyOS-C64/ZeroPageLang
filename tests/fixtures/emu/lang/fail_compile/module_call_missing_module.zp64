@@ -1,0 +1,7 @@
+// zeropage-emu-error: unknown ZeroPage.module id
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    const maybe = ZeroPage.module.call("enemy_runtime", "tick", .{5});
+    _ = maybe;
+}

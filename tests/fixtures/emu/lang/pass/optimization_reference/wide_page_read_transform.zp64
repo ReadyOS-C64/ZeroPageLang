@@ -1,0 +1,29 @@
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const input: [*]u8 = @ptrFromInt(0x60fd);
+    const output: [*]u8 = @ptrFromInt(0x60fe);
+    const after: *u8 = @ptrFromInt(0x65fe);
+    const bias_source: *u8 = @ptrFromInt(0x5900);
+    input[0] = 0x22;
+    after.* = 0xb9;
+    bias_source.* = 3;
+    const bias: u8 = bias_source.*;
+
+    // Every write becomes the next input. Reordering the loop changes the result.
+    var i: u16 = 0;
+    while (i < 1280) {
+        output[i] = input[i] + bias;
+        i += 1;
+    }
+
+    test6502.expectEqualU16(1, 1280, i);
+    test6502.expectEqualU8(2, 0x22, input[0]);
+    test6502.expectEqualU8(3, 0x25, output[0]);
+    test6502.expectEqualU8(4, 0x2b, output[2]);
+    test6502.expectEqualU8(5, 0x22, output[255]);
+    test6502.expectEqualU8(6, 0x25, output[256]);
+    test6502.expectEqualU8(7, 0x22, output[1279]);
+    test6502.expectEqualU8(8, 0xb9, after.*);
+    test6502.pass();
+}

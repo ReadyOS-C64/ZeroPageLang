@@ -1,0 +1,6 @@
+// zeropage-emu-error: UnknownFunction
+fn neverCalled() u8 {
+    return missingFunction();
+}
+
+export fn main() void {}

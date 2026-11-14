@@ -1,0 +1,19 @@
+const test6502 = @import("test6502");
+
+const values linksection("lookup") = [_]u8{ 3, 7, 11 };
+
+memory {
+    region lookup_code: c64 at 0x2000 size 0x0100;
+
+    placement lookup in lookup_code load .direct;
+}
+
+fn placedLookup(index: u8) linksection("lookup") u8 {
+    return values[index];
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 7, placedLookup(1));
+    test6502.expectMemU8(2, 0x2000, 0xad);
+    test6502.pass();
+}

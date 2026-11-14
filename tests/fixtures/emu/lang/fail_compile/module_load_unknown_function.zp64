@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported ZeroPage subset construct
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    _ = ZeroPage.module.resolve("enemy_runtime");
+}

@@ -1,0 +1,9 @@
+// zeropage-emu-error: UnsupportedInlineAsmVariableType
+const test6502 = @import("test6502");
+export fn main() void {
+    var word: u16 = 1024;
+    asm {
+        lda @word
+    }
+    test6502.pass();
+}

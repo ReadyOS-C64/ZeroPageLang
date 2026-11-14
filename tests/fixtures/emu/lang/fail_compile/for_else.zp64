@@ -1,0 +1,13 @@
+// zeropage-emu-error: unsupported feature: for else
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const xs = [_]u8{ 1, 2 };
+    for (xs) |item| {
+        _ = item;
+        test6502.hit(1);
+    } else {
+        test6502.fail(1);
+    }
+    test6502.pass();
+}

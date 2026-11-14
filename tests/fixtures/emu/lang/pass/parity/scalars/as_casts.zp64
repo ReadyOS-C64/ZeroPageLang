@@ -1,0 +1,81 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty = 0, x = 1, o = 2 };
+
+fn widen(value: u8) u16 {
+    return @as(u16, value) + 256;
+}
+
+fn keepByte(value: u8) u8 {
+    return @as(u8, value);
+}
+
+fn chooseCell(flag: bool) Cell {
+    return @as(Cell, if (flag) .x else Cell.o);
+}
+
+fn pointerEcho(ptr: [*]u8) [*]u8 {
+    return @as([*]u8, ptr);
+}
+
+export fn main() void {
+    const truth: bool = @as(bool, true);
+    const byte: u8 = @as(u8, 255);
+    const signed_byte: i8 = @as(i8, 255);
+    const word: u16 = @as(u16, 256);
+    const signed_word: i16 = @as(i16, 65535);
+    const size: usize = @as(usize, 4096);
+
+    test6502.expectEqualBool(1, true, truth);
+    test6502.expectEqualU8(2, 255, byte);
+    test6502.expectEqualI8(3, 255, signed_byte);
+    test6502.expectEqualU16(4, 256, word);
+    test6502.expectEqualU16(5, 65535, signed_word);
+    test6502.expectEqualU16(6, 4096, size);
+
+    const widened: u16 = @as(u16, byte);
+    const sized: usize = @as(usize, widened);
+    test6502.expectEqualU16(7, 255, widened);
+    test6502.expectEqualU16(8, 255, sized);
+    test6502.expectEqualU16(9, 263, widen(@as(u8, 7)));
+    test6502.expectEqualU8(10, 8, keepByte(@as(u8, 8)));
+
+    const cell: Cell = @as(Cell, .x);
+    const other: Cell = @as(Cell, Cell.o);
+    test6502.expectEqualU8(11, 1, cell);
+    test6502.expectEqualU8(12, 2, other);
+    test6502.expectEqualU8(13, 1, chooseCell(@as(bool, true)));
+
+    const selected: u8 = switch (@as(u8, 2)) {
+        1 => @as(u8, 10),
+        2 => @as(u8, 20),
+        else => @as(u8, 30),
+    };
+    test6502.expectEqualU8(14, 20, selected);
+
+    const block_word: u16 = blk: {
+        const local = @as(u8, 12);
+        break :blk @as(u16, local) + @as(u16, 300);
+    };
+    test6502.expectEqualU16(15, 312, block_word);
+
+    const if_byte: u8 = if (@as(bool, selected == 20)) @as(u8, 3) else @as(u8, 4);
+    test6502.expectEqualU8(16, 3, if_byte);
+
+    const bytes: [4]u8 = .{ @as(u8, 4), @as(u8, 8), @as(u8, 12), @as(u8, 16) };
+    test6502.expectEqualU8(17, 12, bytes[@as(u8, 2)]);
+
+    var mutable = [_]u8{ 1, 2, 3, 4 };
+    const ptr: [*]u8 = @as([*]u8, @ptrFromInt(@intFromPtr(&mutable[0])));
+    const same_ptr: [*]u8 = @as([*]u8, ptr);
+    same_ptr[@as(u8, 2)] = @as(u8, 42);
+    test6502.expectEqualU8(18, 42, mutable[2]);
+    test6502.expectEqualU16(19, 0, @intFromPtr(pointerEcho(same_ptr)) - @intFromPtr(same_ptr));
+
+    const mmio: [*]volatile u8 = @as([*]volatile u8, @ptrFromInt(@as(usize, 0x0400)));
+    const same_mmio: [*]volatile u8 = @as([*]volatile u8, mmio);
+    same_mmio[@as(u8, 0)] = @as(u8, 65);
+    test6502.expectMemU8(20, 0x0400, 65);
+
+    test6502.pass();
+}

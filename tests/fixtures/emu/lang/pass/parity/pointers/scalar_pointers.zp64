@@ -1,0 +1,75 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty = 0, x = 1, o = 2 };
+
+fn storeByte(ptr: *u8, value: u8) void {
+    ptr.* = value;
+}
+
+fn storeWord(ptr: *u16, value: u16) void {
+    ptr.* = value;
+}
+
+fn readByte(ptr: *u8) u8 {
+    return ptr.*;
+}
+
+fn readWord(ptr: *u16) u16 {
+    return ptr.*;
+}
+
+fn storeCell(ptr: *Cell, value: Cell) void {
+    ptr.* = value;
+}
+
+fn readCell(ptr: *Cell) Cell {
+    return ptr.*;
+}
+
+export fn main() void {
+    var byte: u8 = 3;
+    var word: u16 = 0x1200;
+    var signed_byte: i8 = 7;
+    var signed_word: i16 = 0x2345;
+    var cells = [_]Cell{ .empty, .x, .o };
+    var bytes = [_]u8{ 1, 2, 3, 4 };
+    var words = [_]u16{ 0x1111, 0x2222, 0x3333 };
+
+    const byte_ptr: *u8 = &byte;
+    const word_ptr: *u16 = &word;
+    const signed_byte_ptr: *i8 = &signed_byte;
+    const signed_word_ptr: *i16 = &signed_word;
+    const cell_ptr: *Cell = &cells[1];
+    const byte_elem_ptr: *u8 = &bytes[2];
+    const word_elem_ptr: *u16 = &words[1];
+
+    byte_ptr.* = 9;
+    word_ptr.* = 0xabcd;
+    signed_byte_ptr.* = 0xfe;
+    signed_word_ptr.* = 0x8001;
+    cell_ptr.* = .empty;
+    byte_elem_ptr.* = 0x44;
+    word_elem_ptr.* = 0x4455;
+
+    test6502.expectEqualU8(1, 9, byte);
+    test6502.expectEqualU8(2, 9, readByte(byte_ptr));
+    test6502.expectEqualU16(3, 0xabcd, word);
+    test6502.expectEqualU16(4, 0xabcd, readWord(word_ptr));
+    test6502.expectEqualI8(5, 0xfe, signed_byte);
+    test6502.expectEqualI8(6, 0xfe, signed_byte_ptr.*);
+    test6502.expectEqualU16(7, 0x8001, signed_word);
+    test6502.expectEqualU16(8, 0x8001, signed_word_ptr.*);
+    test6502.expectEqualU8(9, 0, readCell(cell_ptr));
+    test6502.expectEqualU8(10, 0, cells[1]);
+    test6502.expectEqualU8(11, 0x44, bytes[2]);
+    test6502.expectEqualU16(12, 0x4455, words[1]);
+
+    storeByte(byte_ptr, 0x2a);
+    storeWord(word_ptr, 0x4567);
+    storeCell(cell_ptr, .o);
+
+    test6502.expectEqualU8(13, 0x2a, byte);
+    test6502.expectEqualU16(14, 0x4567, word);
+    test6502.expectEqualU8(15, 2, cells[1]);
+    test6502.expectEqualU16(16, 0x4567, word_ptr.*);
+}

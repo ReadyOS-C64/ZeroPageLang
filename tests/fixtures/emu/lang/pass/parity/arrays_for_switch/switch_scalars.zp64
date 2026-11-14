@@ -1,0 +1,197 @@
+const test6502 = @import("test6502");
+
+fn classifyByte(value: u8) u8 {
+    return switch (value) {
+        0 => 10,
+        1, 2, 3 => 11,
+        4...8 => 12,
+        else => 13,
+    };
+}
+
+fn classifyWord(value: u16) u16 {
+    return switch (value) {
+        0...255 => 1,
+        256...511 => 2,
+        1024 => 3,
+        else => value + 1,
+    };
+}
+
+fn classifyUsize(value: usize) usize {
+    return switch (value) {
+        0 => 100,
+        1...3 => 200,
+        else => 300,
+    };
+}
+
+fn invert(flag: bool) bool {
+    return switch (flag) {
+        true => false,
+        false => true,
+    };
+}
+
+fn boolElse(flag: bool) u8 {
+    return switch (flag) {
+        true => 1,
+        else => 2,
+    };
+}
+
+fn signedByteClass(value: i8) u8 {
+    return switch (value) {
+        255 => 1,
+        128 => 2,
+        else => 3,
+    };
+}
+
+fn signedWordClass(value: i16) u16 {
+    return switch (value) {
+        65535 => 10,
+        32768 => 20,
+        else => 30,
+    };
+}
+
+fn charClass(ch: u8) u8 {
+    return switch (ch) {
+        'A', 'B' => 1,
+        ' ' => 2,
+        else => 3,
+    };
+}
+
+fn statementHit(value: u8) void {
+    switch (value) {
+        1 => {
+            test6502.hit(1);
+        },
+        2, 3 => {
+            test6502.hit(2);
+        },
+        else => {
+            test6502.hit(3);
+        },
+    }
+}
+
+fn blockProng(value: u8) u8 {
+    return switch (value) {
+        1 => blk: {
+            break :blk 5;
+        },
+        else => blk: {
+            break :blk 6;
+        },
+    };
+}
+
+fn nestedSwitch(value: u8) u8 {
+    return switch (value) {
+        1 => switch (value + 1) {
+            2 => 9,
+            else => 0,
+        },
+        else => 7,
+    };
+}
+
+fn callArg(value: u8) u8 {
+    return value + 1;
+}
+
+fn switchReturn(value: u8) u8 {
+    switch (value) {
+        1 => {
+            return 44;
+        },
+        else => {
+            return 55;
+        },
+    }
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 10, classifyByte(0));
+    test6502.expectEqualU8(2, 11, classifyByte(2));
+    test6502.expectEqualU8(3, 12, classifyByte(6));
+    test6502.expectEqualU8(4, 13, classifyByte(9));
+    test6502.expectEqualU16(5, 1, classifyWord(200));
+    test6502.expectEqualU16(6, 2, classifyWord(400));
+    test6502.expectEqualU16(7, 3, classifyWord(1024));
+    test6502.expectEqualU16(8, 4097, classifyWord(4096));
+    test6502.expectEqualU16(9, 200, classifyUsize(2));
+    test6502.expectEqualU16(10, 300, classifyUsize(9));
+    test6502.expectEqualBool(11, false, invert(true));
+    test6502.expectEqualBool(12, true, invert(false));
+    test6502.expectEqualU8(13, 1, boolElse(true));
+    test6502.expectEqualU8(14, 2, boolElse(false));
+    test6502.expectEqualU8(15, 1, signedByteClass(255));
+    test6502.expectEqualU8(16, 2, signedByteClass(128));
+    test6502.expectEqualU8(17, 3, signedByteClass(7));
+    test6502.expectEqualU16(18, 10, signedWordClass(65535));
+    test6502.expectEqualU16(19, 20, signedWordClass(32768));
+    test6502.expectEqualU16(20, 30, signedWordClass(12));
+    test6502.expectEqualU8(21, 1, charClass('A'));
+    test6502.expectEqualU8(22, 2, charClass(' '));
+    test6502.expectEqualU8(23, 3, charClass('Z'));
+
+    var assigned: u8 = switch (classifyByte(5)) {
+        12 => 20,
+        else => 1,
+    };
+    assigned += switch (assigned) {
+        20 => 2,
+        else => 0,
+    };
+    test6502.expectEqualU8(24, 22, assigned);
+    test6502.expectEqualU8(25, 23, callArg(switch (assigned) {
+        22 => 22,
+        else => 0,
+    }));
+
+    const block_value = blk: {
+        break :blk switch (assigned) {
+            22 => 77,
+            else => 0,
+        };
+    };
+    test6502.expectEqualU8(26, 77, block_value);
+    test6502.expectEqualU8(27, 5, blockProng(1));
+    test6502.expectEqualU8(28, 6, blockProng(9));
+    test6502.expectEqualU8(29, 9, nestedSwitch(1));
+    test6502.expectEqualU8(30, 7, nestedSwitch(2));
+
+    var loop_count: u8 = 0;
+    while (switch (loop_count) {
+        0...2 => true,
+        else => false,
+    }) {
+        loop_count += 1;
+    }
+    test6502.expectEqualU8(31, 3, loop_count);
+
+    if (switch (loop_count) {
+        3 => true,
+        else => false,
+    }) {
+        test6502.hit(4);
+    } else {
+        test6502.fail(1);
+    }
+    test6502.expectHitCount(4, 1);
+
+    statementHit(1);
+    statementHit(3);
+    statementHit(9);
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(2, 1);
+    test6502.expectHitCount(3, 1);
+    test6502.expectEqualU8(32, 44, switchReturn(1));
+    test6502.expectEqualU8(33, 55, switchReturn(2));
+
+    test6502.pass();
+}

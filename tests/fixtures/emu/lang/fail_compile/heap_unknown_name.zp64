@@ -1,0 +1,12 @@
+// zeropage-emu-error: unknown heap
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .heaps = .{
+        .main = .{ .region = .{ .addr = 0x9000, .size = 0x0100 }, .kind = .arena },
+    },
+};
+
+export fn main() void {
+    _ = ZeroPage.heap("missing").allocBytes(1);
+}

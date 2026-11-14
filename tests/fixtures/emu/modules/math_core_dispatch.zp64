@@ -1,0 +1,46 @@
+const reloc_table = [_]u8{ 3, 5, 8, 13 };
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x040000 size 0x010000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+}
+
+module math_core abi 1 {
+    export add;
+    export is_five = isFive;
+    export wide;
+    export table_ptr = tablePtr;
+}
+
+fn bump(value: u8) callconv(.stack) u8 {
+    return value + 2;
+}
+
+fn add(value: u8) callconv(.stack) u8 {
+    return bump(value);
+}
+
+fn isFive(value: u8) callconv(.stack) bool {
+    return value == 5;
+}
+
+fn wide(value: u16) callconv(.stack) u16 {
+    return value + 0x0101;
+}
+
+fn tablePtr() callconv(.stack) usize {
+    return @intFromPtr(&reloc_table[1]);
+}
+
+export fn main() void {}
+

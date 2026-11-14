@@ -1,0 +1,6 @@
+const test6502 = @import("test6502");
+export fn main() void {
+    var word: u16 = 1024;
+    test6502.expectEqualU16(1, 1025, word);
+    test6502.pass();
+}

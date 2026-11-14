@@ -1,0 +1,32 @@
+const test6502 = @import("test6502");
+
+fn stackArray(value: u8) u8 {
+    var values = [_]u8{ value, 7 };
+    return values[0];
+}
+
+fn stackDecimal(value: u8) u8 {
+    var values = [_]u8{ value + 123 };
+    return values[0];
+}
+
+fn stackWord(value: u16) u16 {
+    var values = [_]u16{ value, 257 };
+    return values[0];
+}
+
+export fn main() void {
+    var count: u16 = 0;
+    var value: u8 = 0;
+    while (count < 256) {
+        test6502.expectEqualBool(1, true, stackArray(value) == value);
+        test6502.expectEqualBool(2, true, stackDecimal(value) == value + 123);
+        count += 1;
+        value += 1;
+    }
+    const words = [_]u16{ 0, 1, 255, 256, 257, 32767, 32768, 65535 };
+    for (words) |word| {
+        test6502.expectEqualBool(3, true, stackWord(word) == word);
+    }
+    test6502.pass();
+}

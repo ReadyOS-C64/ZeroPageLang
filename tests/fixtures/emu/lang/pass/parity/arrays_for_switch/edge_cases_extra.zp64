@@ -1,0 +1,98 @@
+const test6502 = @import("test6502");
+
+fn zeroArrayLoop() u8 {
+    var empty: [0]u8 = .{};
+    var count: u8 = 7;
+    for (empty) |_| {
+        count += 1;
+    }
+    return count;
+}
+
+fn zeroLenRangeLoop() u8 {
+    var empty: [0]u16 = .{};
+    var count: u8 = 9;
+    for (0..empty.len) |_| {
+        count += 1;
+    }
+    return count;
+}
+
+fn boolStatementSwitch(flag: bool) u8 {
+    var result: u8 = 0;
+    switch (flag) {
+        true => {
+            result = 11;
+        },
+        false => {
+            result = 22;
+        },
+    }
+    return result;
+}
+
+fn localConstArrayRead(index: u8) u16 {
+    const words: [3]u16 = .{ 257, 514, 1028 };
+    return words[index];
+}
+
+fn forBreakBeforeBodyWork() u8 {
+    var values: [3]u8 = .{ 5, 6, 7 };
+    var total: u8 = 1;
+    for (values) |item| {
+        if (item == 5) {
+            break;
+        }
+        total += item;
+    }
+    return total;
+}
+
+fn switchOperandHit() u8 {
+    test6502.hit(40);
+    return 1;
+}
+
+fn switchProngHit() u8 {
+    test6502.hit(41);
+    return 9;
+}
+
+fn discardSwitchSideEffect() void {
+    _ = switch (switchOperandHit()) {
+        1 => switchProngHit(),
+        else => 0,
+    };
+}
+
+fn nestedSwitchInFor() u8 {
+    const values = [_]u8{ 1, 2, 3, 4 };
+    var total: u8 = 0;
+    for (values, 0..) |item, index| {
+        total += switch (item) {
+            1 => index,
+            2, 3 => item + index,
+            else => blk: {
+                break :blk item - index;
+            },
+        };
+    }
+    return total;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 7, zeroArrayLoop());
+    test6502.expectEqualU8(2, 9, zeroLenRangeLoop());
+    test6502.expectEqualU8(3, 11, boolStatementSwitch(true));
+    test6502.expectEqualU8(4, 22, boolStatementSwitch(false));
+    test6502.expectEqualU16(5, 257, localConstArrayRead(0));
+    test6502.expectEqualU16(6, 1028, localConstArrayRead(2));
+    test6502.expectEqualU8(7, 1, forBreakBeforeBodyWork());
+
+    discardSwitchSideEffect();
+    test6502.expectHitCount(40, 1);
+    test6502.expectHitCount(41, 1);
+
+    test6502.expectEqualU8(8, 9, nestedSwitchInFor());
+    test6502.pass();
+}

@@ -1,0 +1,7 @@
+// zeropage-emu-error: invalid ZeroPage machine declaration
+memory {
+    region work: c64 at 0x9000 size 0x0100;
+    arena scratch in work;
+}
+const scratch = @import("c64");
+export fn main() void {}

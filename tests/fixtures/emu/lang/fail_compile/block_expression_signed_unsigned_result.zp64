@@ -1,0 +1,16 @@
+// zeropage-emu-error: unsupported block expression result types
+const test6502 = @import("test6502");
+
+fn signedValue() i8 {
+    return 255;
+}
+
+export fn main() void {
+    const value = blk: {
+        if (true) {
+            break :blk signedValue();
+        }
+        break :blk 1;
+    };
+    test6502.expectEqualI8(1, 255, value);
+}

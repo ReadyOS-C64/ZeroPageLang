@@ -1,0 +1,87 @@
+const test6502 = @import("test6502");
+const Mark = enum(u8) { empty = 0, low = 7, high = 240 };
+
+fn byteFlags(value: u8) u8 {
+    var flags: u8 = 0;
+    if (value < 128) { flags |= 1; }
+    if (value <= 128) { flags |= 2; }
+    if (value > 128) { flags |= 4; }
+    if (value >= 128) { flags |= 8; }
+    if (value == 128) { flags |= 16; }
+    if (value != 128) { flags |= 32; }
+    return flags;
+}
+
+fn wordFlags(value: u16) u8 {
+    var flags: u8 = 0;
+    if (value < 256) { flags |= 1; }
+    if (value <= 256) { flags |= 2; }
+    if (value > 256) { flags |= 4; }
+    if (value >= 256) { flags |= 8; }
+    if (value == 256) { flags |= 16; }
+    if (value != 256) { flags |= 32; }
+    return flags;
+}
+
+fn touchByte(rhs: *u8) u8 {
+    rhs.* = 200;
+    test6502.hit(30);
+    return 199;
+}
+
+fn touchWord(rhs: *u16) u16 {
+    rhs.* = 0x0200;
+    test6502.hit(30);
+    return 0x01ff;
+}
+
+fn markEqual(mark: Mark) bool { return mark == .high; }
+fn markExplicit(mark: Mark) bool { return mark != Mark.low; }
+fn literalLeft(mark: Mark) bool { return .high == mark; }
+fn boolean(value: bool) bool { return value == true; }
+fn character(value: u8) bool { return value == 'A'; }
+fn wideNarrow(lhs: u16, rhs: u8) bool { return lhs > rhs; }
+fn narrowWide(lhs: u8, rhs: u16) bool { return lhs < rhs; }
+
+export fn main() void {
+    const bytes = [_]u8{ 0, 1, 127, 128, 129, 254, 255 };
+    const byte_expected = [_]u8{ 35, 35, 35, 26, 44, 44, 44 };
+    var i: u8 = 0;
+    while (i < 7) {
+        test6502.expectEqualBool(1, true, byteFlags(bytes[i]) == byte_expected[i]);
+        i += 1;
+    }
+    const words = [_]u16{ 0, 1, 255, 256, 257, 32767, 32768, 65535 };
+    const word_expected = [_]u8{ 35, 35, 35, 26, 44, 44, 44, 44 };
+    i = 0;
+    while (i < 8) {
+        test6502.expectEqualBool(2, true, wordFlags(words[i]) == word_expected[i]);
+        i += 1;
+    }
+    var byte_rhs: u8 = 0;
+    var word_rhs: u16 = 0;
+    test6502.expectEqualBool(3, true, touchByte(&byte_rhs) < byte_rhs);
+    test6502.expectEqualBool(4, true, touchWord(&word_rhs) < word_rhs);
+    test6502.expectHitCount(30, 2);
+    test6502.expectEqualBool(6, true, markEqual(.high));
+    test6502.expectEqualBool(7, false, markEqual(.low));
+    test6502.expectEqualBool(8, true, markExplicit(.high));
+    test6502.expectEqualBool(9, true, literalLeft(.high));
+    test6502.expectEqualBool(10, true, boolean(true));
+    test6502.expectEqualBool(11, false, boolean(false));
+    test6502.expectEqualBool(12, true, character(1));
+    test6502.expectEqualBool(13, true, wideNarrow(256, 255));
+    test6502.expectEqualBool(14, false, wideNarrow(255, 255));
+    test6502.expectEqualBool(15, true, narrowWide(255, 256));
+    test6502.expectEqualBool(16, false, narrowWide(255, 255));
+
+    // Full-width reads remain required even when a high byte decides the result.
+    const volatile_byte: *volatile u8 = @ptrFromInt(0xc100);
+    const volatile_word: *volatile u16 = @ptrFromInt(0xc102);
+    volatile_byte.* = 240;
+    volatile_word.* = 0x0201;
+    test6502.expectEqualBool(17, true, 239 < volatile_byte.*);
+    test6502.expectEqualBool(18, true, 0x0100 < volatile_word.*);
+    test6502.expectEqualBool(19, true, volatile_word.* > 0x0100);
+    test6502.pass();
+}

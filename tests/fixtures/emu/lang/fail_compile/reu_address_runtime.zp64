@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported REU address
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    var addr: u16 = 0x1000;
+    ZeroPage.reu.copyC64ToReu(0x0400, addr, 1);
+}

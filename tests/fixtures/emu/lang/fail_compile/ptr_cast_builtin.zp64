@@ -1,0 +1,6 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+export fn main() void {
+    const p: *u8 = @ptrFromInt(0x1000);
+    const q: *i8 = @ptrCast(p);
+    _ = q;
+}

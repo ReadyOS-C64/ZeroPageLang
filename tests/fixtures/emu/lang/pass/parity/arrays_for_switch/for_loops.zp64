@@ -1,0 +1,182 @@
+const test6502 = @import("test6502");
+
+const bytes = [_]u8{ 1, 2, 4, 8 };
+const words = [_]u16{ 256, 512, 1024 };
+const flags = [_]bool{ true, false, true, true };
+const signed_bytes = [_]i8{ 255, 128, 7 };
+const signed_words = [_]i16{ 65535, 32768, 12 };
+const positions = [_]usize{ 0, 1, 2, 3 };
+
+fn plusOne(value: u8) u8 {
+    return value + 1;
+}
+
+fn sumBytes() u8 {
+    var total: u8 = 0;
+    for (bytes) |byte_item| {
+        total += byte_item;
+    }
+    return total;
+}
+
+fn indexedSum() u8 {
+    var total: u8 = 0;
+    for (bytes, 0..) |indexed_item, indexed_pos| {
+        total += indexed_item + indexed_pos;
+    }
+    return total;
+}
+
+fn rangeSum() usize {
+    var total: usize = 0;
+    for (0..6) |range_index| {
+        total += range_index;
+    }
+    return total;
+}
+
+fn rangeLenSum() u8 {
+    var total: u8 = 0;
+    for (0..bytes.len) |len_index| {
+        total += bytes[len_index];
+    }
+    return total;
+}
+
+fn breakContinueSum() u8 {
+    var total: u8 = 0;
+    for (bytes) |control_item| {
+        if (control_item == 2) {
+            continue;
+        }
+        if (control_item == 8) {
+            break;
+        }
+        total += control_item;
+    }
+    return total;
+}
+
+fn nestedCount() u8 {
+    var count: u8 = 0;
+    for (0..3) |outer_index| {
+        for (0..4) |inner_index| {
+            if (inner_index == 2) {
+                continue;
+            }
+            count += 1;
+            if (outer_index == 1 and inner_index == 3) {
+                break;
+            }
+        }
+    }
+    return count;
+}
+
+fn firstLargeWord() u16 {
+    for (words) |word_item| {
+        if (word_item > 300) {
+            return word_item;
+        }
+    }
+    return 0;
+}
+
+fn trueCount() u8 {
+    var count: u8 = 0;
+    for (flags) |flag_item| {
+        if (flag_item) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+fn discardCount() u8 {
+    var count: u8 = 0;
+    for (bytes) |_| {
+        count += 1;
+    }
+    for (bytes, 0..) |_, discard_pos| {
+        count += discard_pos;
+    }
+    return count;
+}
+
+fn blockLoopValue() u8 {
+    return blk: {
+        var block_total: u8 = 0;
+        for (bytes) |block_item| {
+            block_total += plusOne(block_item);
+        }
+        break :blk block_total;
+    };
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 15, sumBytes());
+    test6502.expectEqualU8(2, 21, indexedSum());
+    test6502.expectEqualU16(3, 15, rangeSum());
+    test6502.expectEqualU8(4, 15, rangeLenSum());
+    test6502.expectEqualU8(5, 5, breakContinueSum());
+    test6502.expectEqualU8(6, 9, nestedCount());
+    test6502.expectEqualU16(7, 512, firstLargeWord());
+    test6502.expectEqualU8(8, 3, trueCount());
+    test6502.expectEqualU8(9, 10, discardCount());
+    test6502.expectEqualU8(10, 19, blockLoopValue());
+
+    var doubled: [4]u8 = .{ 0, 0, 0, 0 };
+    for (bytes, 0..) |copy_item, copy_index| {
+        doubled[copy_index] = copy_item * 2;
+    }
+    test6502.expectEqualU8(11, 2, doubled[0]);
+    test6502.expectEqualU8(12, 4, doubled[1]);
+    test6502.expectEqualU8(13, 8, doubled[2]);
+    test6502.expectEqualU8(14, 16, doubled[3]);
+
+    for (0..doubled.len) |mut_index| {
+        doubled[mut_index] += 1;
+    }
+    test6502.expectEqualU8(15, 3, doubled[0]);
+    test6502.expectEqualU8(16, 17, doubled[3]);
+
+    var word_copy: [3]u16 = .{ 0, 0, 0 };
+    for (words, 0..) |word_copy_item, word_copy_index| {
+        word_copy[word_copy_index] = word_copy_item + word_copy_index;
+    }
+    test6502.expectEqualU16(17, 256, word_copy[0]);
+    test6502.expectEqualU16(18, 513, word_copy[1]);
+    test6502.expectEqualU16(19, 1026, word_copy[2]);
+
+    var bool_copy: [4]bool = .{ false, false, false, false };
+    for (flags, 0..) |bool_item, bool_index| {
+        bool_copy[bool_index] = bool_item;
+    }
+    test6502.expectEqualBool(20, true, bool_copy[0]);
+    test6502.expectEqualBool(21, false, bool_copy[1]);
+    test6502.expectEqualBool(22, true, bool_copy[3]);
+
+    var signed_copy: [3]i8 = .{ 0, 0, 0 };
+    for (signed_bytes, 0..) |signed_item, signed_index| {
+        signed_copy[signed_index] = signed_item;
+    }
+    test6502.expectEqualI8(30, 255, signed_copy[0]);
+    test6502.expectEqualI8(31, 128, signed_copy[1]);
+    test6502.expectEqualI8(32, 7, signed_copy[2]);
+
+    var signed_word_copy: [3]i16 = .{ 0, 0, 0 };
+    for (signed_words, 0..) |signed_word_item, signed_word_index| {
+        signed_word_copy[signed_word_index] = signed_word_item;
+    }
+    test6502.expectEqualU16(40, 65535, signed_word_copy[0]);
+    test6502.expectEqualU16(41, 32768, signed_word_copy[1]);
+    test6502.expectEqualU16(42, 12, signed_word_copy[2]);
+
+    var position_sum: usize = 0;
+    for (positions, 0..) |position_item, position_index| {
+        position_sum += position_item + position_index;
+    }
+    test6502.expectEqualU16(50, 12, position_sum);
+
+    test6502.pass();
+}

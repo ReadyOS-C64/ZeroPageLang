@@ -1,0 +1,21 @@
+fn charge(total: u16, sample: u8) u16 {
+    if (sample < 64) {
+        return total + 3;
+    }
+    if (sample < 160) {
+        return total + 0x0100;
+    }
+    return total + 0x0200;
+}
+
+fn run() u16 {
+    var total: u16 = 0;
+    var sample: u8 = 17;
+    var i: u8 = 0;
+    while (i < 80) {
+        total = workload_charge(total, sample);
+        sample += 9;
+        i += 1;
+    }
+    return total;
+}

@@ -1,0 +1,24 @@
+const test6502 = @import("test6502");
+
+fn write(ptr: *volatile u8, value: u8) void {
+    ptr.* = value;
+}
+
+fn read(ptr: *volatile u8) u8 {
+    return ptr.*;
+}
+
+export fn main() void {
+    const border: *volatile u8 = @ptrFromInt(0xd020);
+    const background: *volatile u8 = @ptrFromInt(0xd021);
+
+    border.* = 6;
+    background.* = 1;
+    write(border, 5);
+
+    test6502.expectMemU8(1, 0xd020, 5);
+    test6502.expectMemU8(2, 0xd021, 1);
+    test6502.expectEqualU8(3, 5, read(border));
+    test6502.expectEqualU8(4, 1, background.*);
+    test6502.expectEqualU16(5, 0xd020, @intFromPtr(border));
+}

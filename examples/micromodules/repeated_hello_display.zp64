@@ -1,0 +1,265 @@
+// Application-owned state/scratch: $20-$28, $30, $32-$35 (14 bytes).
+// Front: $0400-$07e7. Back: $2400-$27e7. Ring: $2800-$2bff.
+// This owns the normal VIC bank-0 display and disables CIA1/VIC IRQ sources.
+// Inline asm is intentional for raster control and 6502 indirect addressing.
+fn init() void {
+    asm {
+        lda #$17
+        sta $d018
+        sta $26
+        jsr $e544
+        lda #$7f
+        sta $dc0d
+        lda $dc0d
+        lda #0
+        sta $d01a
+        lda #$0f
+        sta $d019
+        lda #$20
+        ldx #0
+clear_ring:
+        sta $2800,x
+        sta $2900,x
+        sta $2a00,x
+        sta $2b00,x
+        inx
+        bne clear_ring
+        stx $24
+        stx $25
+        stx $32
+        stx $34
+        lda #10
+        sta $33
+        lda #$24
+        sta $35
+    }
+}
+
+fn waitFrame() void {
+    asm {
+wait_low:
+        bit $d011
+        bmi wait_low
+wait_high:
+        bit $d011
+        bpl wait_high
+    }
+}
+
+fn frame() bool {
+    var print_due: u8 = 0;
+    asm {
+        lda $34
+        beq count_frame
+        lda $26
+        eor #$80
+        sta $26
+        sta $d018
+        lda $35
+        eor #$20
+        sta $35
+        lda #1
+        sta $25
+        lda #0
+        sta $34
+count_frame:
+        dec $33
+        bne done
+        lda #9
+        sta $33
+        lda #1
+        sta @print_due
+done:
+    }
+    return print_due == 1;
+}
+
+fn printLine() void {
+    asm {
+        lda #0
+        sta $25
+        ldx $32
+        cpx #25
+        bcc cursor_ready
+        ldx $24
+        lda #0
+        sta $27
+        lda #$28
+        sta $28
+        cpx #0
+        beq address_ready
+address_loop:
+        clc
+        lda $27
+        adc #40
+        sta $27
+        bcc address_next
+        inc $28
+address_next:
+        dex
+        bne address_loop
+address_ready:
+        ldx $24
+        inx
+        cpx #25
+        bne head_ready
+        ldx #0
+head_ready:
+        stx $24
+        ldy #39
+        lda #$20
+clear_row:
+        sta ($27),y
+        dey
+        bpl clear_row
+        ldx #24
+        stx $32
+cursor_ready:
+        txa
+        clc
+        adc $24
+        cmp #25
+        bcc row_ready
+        sbc #25
+row_ready:
+        tax
+        lda #0
+        sta $27
+        lda #$28
+        sta $28
+        cpx #0
+        beq text_ready
+text_address:
+        clc
+        lda $27
+        adc #40
+        sta $27
+        bcc text_next
+        inc $28
+text_next:
+        dex
+        bne text_address
+text_ready:
+        ldy #0
+        lda #$48
+        sta ($27),y
+        iny
+        lda #$05
+        sta ($27),y
+        iny
+        lda #$0c
+        sta ($27),y
+        iny
+        lda #$0c
+        sta ($27),y
+        iny
+        lda #$0f
+        sta ($27),y
+        iny
+        lda #$2c
+        sta ($27),y
+        iny
+        lda #$20
+        sta ($27),y
+        iny
+        lda #$57
+        sta ($27),y
+        iny
+        lda #$0f
+        sta ($27),y
+        iny
+        lda #$12
+        sta ($27),y
+        iny
+        lda #$0c
+        sta ($27),y
+        iny
+        lda #$04
+        sta ($27),y
+        iny
+        lda #$21
+        sta ($27),y
+        inc $32
+    }
+}
+
+// Copy the rotated ring into the hidden screen, then flip next frame.
+// Row-wise indirect copying avoids modifying executable instructions.
+fn copyPage() void {
+    asm {
+        lda #0
+        sta $22
+        sta $20
+        lda $35
+        sta $23
+        lda #$28
+        sta $21
+        ldx $24
+        beq source_ready
+source_address:
+        clc
+        lda $20
+        adc #40
+        sta $20
+        bcc source_next
+        inc $21
+source_next:
+        dex
+        bne source_address
+source_ready:
+        lda #25
+        sta $30
+next_row:
+        ldy #39
+copy_cell:
+        lda ($20),y
+        sta ($22),y
+        dey
+        bpl copy_cell
+        clc
+        lda $22
+        adc #40
+        sta $22
+        bcc advance_source
+        inc $23
+advance_source:
+        clc
+        lda $20
+        adc #40
+        sta $20
+        bcc check_wrap
+        inc $21
+check_wrap:
+        lda $21
+        cmp #$2b
+        bne row_done
+        lda $20
+        cmp #$e8
+        bne row_done
+        lda #0
+        sta $20
+        lda #$28
+        sta $21
+row_done:
+        dec $30
+        bne next_row
+        lda #1
+        sta $34
+    }
+}
+
+fn stopRequested() bool {
+    var pressed: u8 = 0;
+    asm {
+        lda #$7f
+        sta $dc00
+        ldx #$ff
+        lda $dc01
+        stx $dc00
+        bmi done
+        lda #1
+        sta @pressed
+done:
+    }
+    return pressed == 1;
+}

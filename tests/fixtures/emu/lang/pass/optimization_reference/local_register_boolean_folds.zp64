@@ -1,0 +1,29 @@
+const test6502 = @import("test6502");
+
+fn mask(word: u16) u16 {
+    return word & 63;
+}
+
+fn setLow(word: u16) u16 {
+    return word | 0x42;
+}
+
+fn setHigh(word: u16) u16 {
+    return word | 0xff00;
+}
+
+fn both(cell: u8, mark: u8) bool {
+    return cell != 0 and cell != mark;
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0x0029, mask(0x8129));
+    test6502.expectEqualU16(2, 0x816b, setLow(0x8129));
+    test6502.expectEqualU16(3, 0xff29, setHigh(0x8129));
+    test6502.expectEqualU16(4, 0x0000, mask(0xff00));
+    test6502.expectEqualBool(5, false, both(0, 1));
+    test6502.expectEqualBool(6, false, both(6, 6));
+    test6502.expectEqualBool(7, true, both(6, 8));
+    test6502.expectEqualBool(8, true, both(0xff, 0));
+    test6502.pass();
+}

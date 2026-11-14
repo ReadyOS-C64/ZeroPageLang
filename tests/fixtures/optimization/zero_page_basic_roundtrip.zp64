@@ -1,0 +1,32 @@
+// Real-ROM test: enter via BASIC SYS, return normally, and keep stock IRQ service.
+const c64 = @import("c64");
+const title = "ZP BASIC ROM\r";
+const done = "BASIC RETURN MARKER\r";
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .basic, .allocation = .scratch },
+};
+fn adjust(value: u16) u16 { return value + 257; }
+fn pipeline(value: u16, delta: u8) u16 { return adjust((value << 3) ^ 0x55aa) + @as(u16, delta) * 7; }
+export fn main() void {
+    const output: *u16 = @ptrFromInt(0xc100);
+    output.* = pipeline(0x81ff, 11);
+    const complete: *u8 = @ptrFromInt(0xc102);
+    complete.* = 0;
+    c64.kernal.puts(title);
+    var key: u8 = 255;
+    asm {
+        jsr $ffe4
+        sta @key
+    }
+    const observed_key: *u8 = @ptrFromInt(0xc106);
+    observed_key.* = key;
+    const tick: *volatile u8 = @ptrFromInt(0xa2);
+    const before: u8 = tick.*;
+    while (tick.* == before) {}
+    const tick_before: *u8 = @ptrFromInt(0xc104);
+    const tick_after: *u8 = @ptrFromInt(0xc105);
+    tick_before.* = before;
+    tick_after.* = tick.*;
+    complete.* = 0x5a;
+    c64.kernal.puts(done);
+}

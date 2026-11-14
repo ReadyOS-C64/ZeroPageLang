@@ -1,0 +1,7 @@
+fn add8(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn isEqual8(value: u8, expected: u8) bool {
+    return value == expected;
+}

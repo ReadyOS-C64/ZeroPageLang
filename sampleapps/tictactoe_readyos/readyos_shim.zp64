@@ -1,0 +1,132 @@
+// ReadyOS resident-shim micro-module port. These stable vectors come from
+// ../readyosprecog/src/boot/readyos_shim.inc; returnToLauncher mirrors the
+// focused implementation in ../readyosprecog/src/lib/tui_nav.c. F2/F4 use the
+// same token-status scan as tui_nav.c/tui_hotkeys.c and the one-byte REU DMA
+// convention from tui_readyos.c. Physical cache banks remain ReadyOS-owned.
+
+const loadDiskAndRun: u16 = 0xc800;
+const loadReuAndRun: u16 = 0xc803;
+const runApp: u16 = 0xc806;
+const preloadApp: u16 = 0xc809;
+const returnLauncher: u16 = 0xc80c;
+const switchApp: u16 = 0xc80f;
+const targetBank: u16 = 0xc820;
+const currentBank: u16 = 0xc834;
+
+fn returnToLauncher() void {
+    asm {
+        jmp $c80c
+    }
+}
+
+fn selectNextApp() u8 {
+    var found: u8 = 0;
+    asm {
+        ldx $c834
+        cpx #$01
+        bcc readyos_next_normalize
+        cpx #$41
+        bcc readyos_next_start
+readyos_next_normalize:
+        ldx #$01
+readyos_next_start:
+        ldy #$00
+readyos_next_scan:
+        inx
+        cpx #$41
+        bcc readyos_next_read
+        ldx #$01
+readyos_next_read:
+        txa
+        clc
+        adc #$40
+        sta $df04
+        lda #$b8
+        adc #$00
+        sta $df05
+        lda $c83b
+        sta $df06
+        lda #$3d
+        sta $df02
+        lda #$c8
+        sta $df03
+        lda #$01
+        sta $df07
+        lda #$00
+        sta $df08
+        lda #$91
+        sta $df01
+        lda $c83d
+        and #$02
+        bne readyos_next_switch
+        iny
+        cpy #$40
+        bne readyos_next_scan
+        jmp readyos_next_done
+readyos_next_switch:
+        stx $c820
+        lda #$01
+        sta @found
+readyos_next_done:
+    }
+    return found;
+}
+
+fn selectPreviousApp() u8 {
+    var found: u8 = 0;
+    asm {
+        ldx $c834
+        cpx #$01
+        bcc readyos_prev_normalize
+        cpx #$41
+        bcc readyos_prev_start
+readyos_prev_normalize:
+        ldx #$01
+readyos_prev_start:
+        ldy #$00
+readyos_prev_scan:
+        dex
+        cpx #$01
+        bcs readyos_prev_read
+        ldx #$40
+readyos_prev_read:
+        txa
+        clc
+        adc #$40
+        sta $df04
+        lda #$b8
+        adc #$00
+        sta $df05
+        lda $c83b
+        sta $df06
+        lda #$3d
+        sta $df02
+        lda #$c8
+        sta $df03
+        lda #$01
+        sta $df07
+        lda #$00
+        sta $df08
+        lda #$91
+        sta $df01
+        lda $c83d
+        and #$02
+        bne readyos_prev_switch
+        iny
+        cpy #$40
+        bne readyos_prev_scan
+        jmp readyos_prev_done
+readyos_prev_switch:
+        stx $c820
+        lda #$01
+        sta @found
+readyos_prev_done:
+    }
+    return found;
+}
+
+fn switchToSelectedApp() void {
+    asm {
+        jmp $c80f
+    }
+}

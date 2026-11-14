@@ -1,0 +1,64 @@
+// zeropage-emu-module: filename=enemyrt source=tests/fixtures/emu/modules/enemy_runtime.zp64
+// zeropage-emu-memory: $9000=$4c
+// zeropage-emu-memory: $c000=$4c
+// zeropage-emu-label-memory: zeropage_module_registry_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_refcount=$01
+// zeropage-emu-reu: $030000=$4c
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+    },
+    .abi = .{
+        .functions = .{
+            .tick = .{ .frame = .stack },
+            .isEven = .{ .frame = .stack },
+            .wide = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_runtime",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick, .is_even = isEven, .wide = wide },
+    .deps = .{},
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+fn isEven(value: u8) bool {
+    return value == 4;
+}
+
+fn wide(value: u16) u16 {
+    return value + 0x0101;
+}
+
+export fn main() void {
+    const window0: *volatile u8 = @ptrFromInt(0xc000);
+
+    const first_load = ZeroPage.module.loadFromDisk("enemy_runtime", "enemyrt");
+    test6502.expectEqualBool(1, true, first_load);
+    test6502.expectSomeU8(2, 6, ZeroPage.module.call("enemy_runtime", "tick", .{5}));
+    ZeroPage.module.unload("enemy_runtime");
+    test6502.expectEqualBool(3, false, ZeroPage.module.isLoaded("enemy_runtime"));
+    test6502.expectNull(4, ZeroPage.module.call("enemy_runtime", "tick", .{5}));
+    window0.* = 0;
+    test6502.expectMemU8(5, 0xc000, 0x00);
+    const second_load = ZeroPage.module.loadFromDisk("enemy_runtime", "enemyrt");
+    test6502.expectEqualBool(6, true, second_load);
+    test6502.expectMemU8(7, 0xc000, 0x4c);
+    test6502.expectSomeU8(8, 6, ZeroPage.module.call("enemy_runtime", "tick", .{5}));
+    test6502.expectSomeBool(9, true, ZeroPage.module.call("enemy_runtime", "is_even", .{4}));
+    test6502.expectSomeU16(10, 0x1335, ZeroPage.module.call("enemy_runtime", "wide", .{0x1234}));
+    test6502.pass();
+}

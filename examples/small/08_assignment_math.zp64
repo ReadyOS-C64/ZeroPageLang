@@ -1,0 +1,21 @@
+const c64 = @import("c64");
+
+fn sub8(a: u8, b: u8) u8 {
+    return a - b;
+}
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "ASSIGN MATH DEMO");
+
+    var x: u8 = 9;
+    var y: u8 = sub8(x, 2);
+    x = y;
+    x -= 2;
+
+    c64.screen.putsAt(2, 5, "SUB ASSIGN OK");
+    c64.screen.putsAt(2, 7, "X=");
+    c64.screen.hexAt(4, 7, x);
+    c64.screen.putsAt(8, 7, "Y=");
+    c64.screen.hexAt(10, 7, y);
+}

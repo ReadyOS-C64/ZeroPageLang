@@ -1,0 +1,43 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{
+        .base = 0xc800,
+        .size = 0x0400,
+        .zp = .{ .sp = 0xf3, .fp = 0xf5 },
+    },
+    .abi = .{
+        .functions = .{
+            .add8 = .{ .frame = .stack },
+            .add16 = .{ .frame = .stack },
+            .same = .{ .frame = .stack },
+        },
+    },
+};
+
+fn add8(a: u8, b: u8) u8 {
+    var total: u8 = a + b;
+    if (total == 5) {
+        return total;
+    }
+    return 0;
+}
+
+fn add16(a: u16, b: u16) u16 {
+    var total: u16 = a + b;
+    return total;
+}
+
+fn same(a: u8, b: u8) bool {
+    return a == b;
+}
+
+export fn main() void {
+    var byte: u8 = add8(2, 3);
+    var word: u16 = add16(0x0100, 5);
+    var ok: bool = same(byte, 5);
+
+    test6502.expectEqualU8(1, 5, byte);
+    test6502.expectEqualU16(2, 0x0105, word);
+    test6502.expectEqualBool(3, true, ok);
+}

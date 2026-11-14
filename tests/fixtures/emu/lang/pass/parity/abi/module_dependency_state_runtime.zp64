@@ -1,0 +1,90 @@
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-module: filename=pathing source=tests/fixtures/emu/modules/pathing_dispatch.zp64
+// zeropage-emu-memory: $c400=$2a
+// zeropage-emu-memory: $c401=$37
+// zeropage-emu-memory: $c500=$44
+// zeropage-emu-memory: $c501=$55
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row1_refcount=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row2_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row2_refcount=$01
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$02
+// zeropage-emu-label-memory: zeropage_module_state_dep1_saved=$01
+// zeropage-emu-label-memory: zeropage_module_state_dep2_saved=$01
+// zeropage-emu-reu: $032400=$2a
+// zeropage-emu-reu: $032401=$37
+// zeropage-emu-reu: $032d00=$44
+// zeropage-emu-reu: $032d01=$55
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x003000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+    capacity = 3;
+    current {
+        file = "enemyrt";
+        discard_on_unload;
+    }
+    dependency math_core {
+        file = "mathcore";
+        persist_in_reu at 0x0400 size 2;
+    }
+    dependency pathing {
+        file = "pathing";
+        persist_in_reu at 0x0500 size 2;
+    }
+}
+
+module enemy_dep_state_runtime abi 1 {
+    export tick;
+    dependency math_core;
+    dependency pathing;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    const math_state: [*]volatile u8 = @ptrFromInt(0xc400);
+    const path_state: [*]volatile u8 = @ptrFromInt(0xc500);
+
+    test6502.expectEqualBool(1, true, ZeroPage.module.loadDependency("math_core"));
+    test6502.expectEqualBool(2, true, ZeroPage.module.loadDependency("pathing"));
+
+    test6502.expectSomeU8(3, 5, ZeroPage.module.call("math_core", "add", .{3}));
+    math_state[0] = 0x2a;
+    math_state[1] = 0x37;
+
+    test6502.expectSomeU8(4, 9, ZeroPage.module.call("pathing", "step", .{5}));
+    path_state[0] = 0x44;
+    path_state[1] = 0x55;
+
+    test6502.expectSomeU8(5, 6, ZeroPage.module.call("math_core", "add", .{4}));
+    test6502.expectMemU8(6, 0xc400, 0x2a);
+    test6502.expectMemU8(7, 0xc401, 0x37);
+
+    test6502.expectSomeU8(8, 10, ZeroPage.module.call("pathing", "step", .{6}));
+    test6502.expectMemU8(9, 0xc500, 0x44);
+    test6502.expectMemU8(10, 0xc501, 0x55);
+
+    ZeroPage.module.unloadDependency("pathing");
+    path_state[0] = 0;
+    path_state[1] = 0;
+    test6502.expectEqualBool(11, true, ZeroPage.module.loadDependency("pathing"));
+    test6502.expectSomeU8(12, 11, ZeroPage.module.call("pathing", "step", .{7}));
+    test6502.expectMemU8(13, 0xc500, 0x44);
+    test6502.expectMemU8(14, 0xc501, 0x55);
+    test6502.pass();
+}

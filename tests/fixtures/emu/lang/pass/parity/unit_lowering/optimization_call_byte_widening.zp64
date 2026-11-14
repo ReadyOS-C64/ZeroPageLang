@@ -1,0 +1,19 @@
+const test6502 = @import("test6502");
+const Record = struct { bytes: [4]u8 };
+fn narrow(location: *volatile u8) u8 { return location.*; }
+fn narrowSigned(value: i8) i8 { return value; }
+fn expression(record: *Record, location: *volatile u8) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| { total += record.bytes[i] + narrow(location); }
+    return total;
+}
+fn directWord(location: *volatile u8) u16 { return narrow(location); }
+export fn main() void {
+    const location: *volatile u8 = @ptrFromInt(0xc700);
+    location.* = 1;
+    var record = Record{ .bytes = [_]u8{ 1, 2, 3, 4 } };
+    test6502.expectEqualU16(1, 14, expression(&record, location));
+    test6502.expectEqualU16(2, 1, directWord(location));
+    test6502.expectEqualI8(3, 255, narrowSigned(255));
+    test6502.pass();
+}

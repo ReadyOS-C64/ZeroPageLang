@@ -1,0 +1,47 @@
+# Zig build output and compiler caches.
+.zig-cache/
+zig-out/
+
+# zp64c generated assembly, PRGs, labels, VICE plans, and run logs.
+build/
+logs/
+
+# Agent scratch space. Keep durable notes in AgentWorking/*.md committed.
+AgentWorking/tmp/
+AgentWorking/downloads/
+scratch/
+
+# Local indexing/cache state.
+.repoql/
+
+# Local machine/editor noise.
+.DS_Store
+.env
+.env.*
+!.env.example
+*.swp
+*.swo
+*~
+
+# Local test and emulator output.
+*.log
+*.prg
+*.prg.asm
+*.prg.labels
+*.zpmap.json
+*.zpmod
+*.zpmod.json
+*.zpmod.*.json
+*.vice.yaml
+*.d64
+*.d71
+*.d81
+!examples/zeropage-demos.d64
+!examples/zeropage-reu.d64
+!sampleapps/tictactoe/tictactoe.d64
+core
+a.out
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/

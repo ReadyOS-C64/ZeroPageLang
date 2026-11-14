@@ -1,0 +1,26 @@
+// Later calls may mutate memory or an escaped caller parameter read earlier.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn pair(value: u16, mask: u16) u16 { return value ^ mask; }
+fn mutate(location: *u16) u16 { location.* = location.* ^ 0x55aa; return location.*; }
+fn aliasCase(location: *u16) u16 { return pair(location.*, mutate(location)); }
+fn escapedCase(value: u16) u16 {
+    const location: *u16 = &value;
+    return pair(value, mutate(location));
+}
+fn volatilePair(value: u8, mask: u8) u8 { return value ^ mask; }
+fn volatileCase(location: *volatile u8, other: *volatile u8) u8 {
+    return volatilePair(location.*, other.*);
+}
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    test6502.expectEqualU16(1, 0x55aa, aliasCase(location));
+    test6502.expectEqualU16(2, 0x55aa, escapedCase(0x81ff));
+    const first: *volatile u8 = @ptrFromInt(0xc500);
+    const second: *volatile u8 = @ptrFromInt(0xc501);
+    first.* = 0x81;
+    second.* = 0x42;
+    test6502.expectEqualU8(3, 0xc3, volatileCase(first, second));
+    test6502.pass();
+}

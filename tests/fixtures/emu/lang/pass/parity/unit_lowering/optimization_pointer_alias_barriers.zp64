@@ -1,0 +1,36 @@
+const test6502 = @import("test6502");
+const Pair = struct { a: u8, b: u8, word: u16 };
+
+fn aliasWrite(record: *Pair, location: *u8) u16 {
+    const a = record.a;
+    location.* = 31;
+    const b = record.b;
+    return a + b;
+}
+
+fn aliasWord(record: *Pair, location: *u16) u16 {
+    const a = record.a;
+    location.* = 0xc680;
+    const word = record.word;
+    return word + a;
+}
+
+fn acrossAsm(record: *Pair) u16 {
+    const a = record.a;
+    asm {
+        lda #$f0
+        sta $fb
+        lda #$c3
+        sta $fc
+    }
+    const b = record.b;
+    return a + b;
+}
+
+export fn main() void {
+    var record = Pair{ .a = 5, .b = 7, .word = 256 };
+    test6502.expectEqualU16(1, 36, aliasWrite(&record, &record.b));
+    test6502.expectEqualU16(2, 36, acrossAsm(&record));
+    test6502.expectEqualU16(3, 0xc685, aliasWord(&record, &record.word));
+    test6502.pass();
+}

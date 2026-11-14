@@ -1,0 +1,2 @@
+pub const zeropage_options=.{.zero_page=.{.profile=.kernal,.allocation=.scalars}};
+const c64=@import("ZeroPage");fn paint(x:u8,tag:u8)u8{c64.screen.putAt(x,255,tag);return tag;}export fn api(x:u8)u8{return paint(x,7);}export fn main()void{}

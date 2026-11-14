@@ -1,0 +1,26 @@
+const test6502 = @import("test6502");
+
+const Marker = struct { x: u8, y: u8, ch: u8, ok: bool };
+
+export fn main() void {
+    var marker = Marker{ .x = 4, .y = 2, .ch = 'S', .ok = true };
+    test6502.expectEqualU8(1, 4, marker.x);
+    test6502.expectEqualU8(2, 2, marker.y);
+    test6502.expectEqualU8(3, 19, marker.ch);
+    test6502.expectEqualBool(4, true, marker.ok);
+    if (marker.ok == true) {
+        test6502.hit(5);
+    } else {
+        test6502.fail(6);
+    }
+    test6502.expectHitCount(5, 1);
+    var marker2 = Marker{ .x = 7, .y = 2, .ch = 'T', .ok = false };
+    test6502.expectEqualU8(7, 7, marker2.x);
+    test6502.expectEqualU8(8, 9, marker2.x + marker2.y);
+    var ok: bool = marker2.x == 7;
+    test6502.expectEqualBool(9, true, ok);
+    test6502.expectEqualBool(10, true, marker.ch == 'S');
+    test6502.expectEqualBool(11, false, marker2.ok);
+    test6502.expectEqualU8(12, 20, marker2.ch);
+    test6502.pass();
+}

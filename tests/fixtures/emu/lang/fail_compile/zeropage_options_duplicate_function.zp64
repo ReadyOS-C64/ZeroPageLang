@@ -1,0 +1,11 @@
+// zeropage-emu-error: duplicate zeropage_options function frame metadata
+pub const zeropage_options = .{
+    .abi = .{
+        .functions = .{
+            .main = .{ .frame = .static },
+            .main = .{ .frame = .static },
+        },
+    },
+};
+
+export fn main() void {}

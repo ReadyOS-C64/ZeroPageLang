@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported pointer target
+const Pair = struct { value: u8 };
+
+export fn main() void {
+    const pair = Pair{ .value = 1 };
+    const ptr: *u8 = &pair.value;
+    _ = ptr;
+}

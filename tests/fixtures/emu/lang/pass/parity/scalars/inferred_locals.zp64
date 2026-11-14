@@ -1,0 +1,73 @@
+const test6502 = @import("test6502");
+
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn wordSeed() u16 {
+    return 4096;
+}
+
+fn signedByte() i8 {
+    return 128;
+}
+
+fn signedWord() i16 {
+    return 32768;
+}
+
+export fn main() void {
+    var byte_value = 5;
+    byte_value += 3;
+    byte_value = add(byte_value, 2);
+    byte_value -= 4;
+    test6502.expectEqualU8(1, 6, byte_value);
+
+    var word_value = 512;
+    word_value += 256;
+    word_value = word_value + wordSeed();
+    word_value -= 512;
+    test6502.expectEqualU16(2, 4352, word_value);
+
+    var bool_value = add(1, 2) == 3;
+    test6502.expectEqualBool(3, true, bool_value);
+    bool_value = bool_value and false;
+    test6502.expectEqualBool(4, false, bool_value);
+    bool_value = !bool_value or false;
+    test6502.expectEqualBool(5, true, bool_value);
+
+    var char_value = 'Z';
+    test6502.expectEqualU8(6, 26, char_value);
+    char_value = 'A';
+    test6502.expectEqualU8(7, 1, char_value);
+
+    var call_value = add(add(1, 2), add(3, 4));
+    test6502.expectEqualU8(8, 10, call_value);
+    call_value = add(call_value, 1);
+    test6502.expectEqualU8(9, 11, call_value);
+
+    var signed_byte = signedByte();
+    var signed_word = signedWord();
+    test6502.expectEqualI8(10, 128, signed_byte);
+    test6502.expectEqualU16(11, 32768, signed_word);
+    signed_byte = signed_byte + 1;
+    signed_word = signed_word + 1;
+    test6502.expectEqualI8(12, 129, signed_byte);
+    test6502.expectEqualU16(13, 32769, signed_word);
+
+    var i = 0;
+    var kept = 0;
+    while (i < 5) {
+        i += 1;
+        if (i == 1) {
+            continue;
+        } else if (i == 4) {
+            break;
+        } else {
+            kept += 1;
+        }
+    }
+    test6502.expectEqualU8(14, 4, i);
+    test6502.expectEqualU8(15, 2, kept);
+    test6502.pass();
+}

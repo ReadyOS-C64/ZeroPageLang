@@ -1,0 +1,5 @@
+// zeropage-emu-error: unsupported string type: sentinel
+export fn main() void {
+    const ptr: [*:0]u8 = @ptrFromInt(0x0400);
+    _ = ptr;
+}

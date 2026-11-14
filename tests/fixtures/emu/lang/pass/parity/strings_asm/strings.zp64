@@ -1,0 +1,79 @@
+const test6502 = @import("test6502");
+
+const hello = "hello";
+const world = "world";
+const greeting = hello ++ ", " ++ world;
+const empty = "";
+const single = "a";
+const mixed_case = "AbC z";
+const digits = "0123456789";
+const punctuation = "!?.,:-_";
+const quoted = "quote \"slash\\";
+const escaped = "a\x21\n";
+const control = "line\r";
+const tabbed = "a\tb";
+const nul_byte = "a\0b";
+const exact_bytes = "\x00\x41\x5a\xff";
+const line_breaks = "a\nb\rc";
+const concat_empty = empty ++ hello ++ empty;
+const concat_many = single ++ "-" ++ world ++ "!";
+const multi =
+    \\one
+    \\two
+;
+const multi_three =
+    \\red
+    \\green
+    \\blue
+;
+const multi_comment_start =
+    //\\skip
+    \\two
+    \\three
+;
+const multi_comment_middle =
+    \\one
+    //\\skip
+    \\three
+;
+const multi_comment_end =
+    \\one
+    \\two
+    //\\skip
+;
+const multi_comment_many =
+    \\one
+    //\\skip
+    \\three
+    //\\skip
+    \\five
+;
+
+export fn main() void {
+    test6502.expectString(1, hello, "HELLO");
+    test6502.expectString(2, world, "WORLD");
+    test6502.expectString(3, greeting, "HELLO, WORLD");
+    test6502.expectString(4, empty, "");
+    test6502.expectString(5, single, "A");
+    test6502.expectString(6, mixed_case, "ABC Z");
+    test6502.expectString(7, digits, "0123456789");
+    test6502.expectString(8, punctuation, "!?.,:-_");
+    test6502.expectString(9, quoted, "QUOTE \"SLASH\\");
+    test6502.expectString(10, escaped, "A!\n");
+    test6502.expectString(11, control, "LINE\r");
+    test6502.expectString(12, tabbed, "A\tB");
+    test6502.expectString(13, nul_byte, "A\0B");
+    test6502.expectString(14, exact_bytes, "\x00AZ\xff");
+    test6502.expectString(15, line_breaks, "A\rB\rC");
+    test6502.expectString(16, concat_empty, "HELLO");
+    test6502.expectString(17, concat_many, "A-WORLD!");
+    test6502.expectString(18, multi, "ONE\rTWO");
+    test6502.expectString(19, multi_three, "RED\rGREEN\rBLUE");
+    test6502.expectString(20, multi_comment_start, "TWO\rTHREE");
+    test6502.expectString(21, multi_comment_middle, "ONE\rTHREE");
+    test6502.expectString(22, multi_comment_end, "ONE\rTWO");
+    test6502.expectString(23, multi_comment_many, "ONE\rTHREE\rFIVE");
+    test6502.expectEqualU8(24, 1, true);
+    test6502.expectEqualBool(25, true, true);
+    test6502.pass();
+}

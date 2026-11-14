@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported ZeroPage subset construct
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    const MathCore = ZeroPage.module.import(.math_core, .{
+        .add = fn (u8) u8,
+    });
+    _ = MathCore.add(3);
+}

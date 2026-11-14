@@ -1,0 +1,9 @@
+const test6502 = @import("test6502");
+const assets = @import("_rodata_assets.zp64");
+
+export fn main() void {
+    test6502.expectEqualU8(1, 8, assets.numbers[1]);
+    test6502.expectEqualU8(2, 4, assets.points[1].x);
+    test6502.expectEqualU8(3, 5, assets.points[1].y);
+    test6502.pass();
+}

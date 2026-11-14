@@ -1,0 +1,30 @@
+// zeropage-emu-error: unsupported stack frame runtime helper
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+    },
+    .abi = .{ .functions = .{
+        .main = .{ .frame = .stack },
+        .tick = .{ .frame = .stack },
+    } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_runtime",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{},
+};
+
+fn tick(value: u8) u8 {
+    return value;
+}
+
+export fn main() void {
+    _ = ZeroPage.module.load("enemy_runtime");
+}

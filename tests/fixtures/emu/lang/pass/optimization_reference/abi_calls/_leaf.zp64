@@ -1,0 +1,14 @@
+fn step(state: u16, input: u16) u16 {
+    const adjusted: u16 = input + 0x8100;
+    return state + adjusted;
+}
+
+fn run() u16 {
+    var state: u16 = 0x8101;
+    var i: u16 = 0;
+    while (i < 64) {
+        state = workload_step(state, i + 3);
+        i += 1;
+    }
+    return state;
+}

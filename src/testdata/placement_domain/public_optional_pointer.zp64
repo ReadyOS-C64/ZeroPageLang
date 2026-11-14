@@ -1,0 +1,2 @@
+pub const zeropage_options=.{.zero_page=.{.profile=.kernal,.allocation=.scalars}};
+fn read(p:*u8,tag:u8)u8{return p.*+tag;}export fn api(p:?*u8)u8{if(p)|value|{return read(value,1);}return 0;}export fn main()void{}

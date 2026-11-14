@@ -1,0 +1,8 @@
+// zeropage-emu-error: immutable local binding cannot be assigned
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const value: u8 = 1;
+    value += 1;
+    test6502.expectEqualU8(1, 2, value);
+}

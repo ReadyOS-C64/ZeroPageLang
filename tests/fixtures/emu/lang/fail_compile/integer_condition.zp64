@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported non-bool condition
+const test6502 = @import("test6502");
+
+export fn main() void {
+    if (1) {
+        test6502.pass();
+    } else {
+        test6502.fail(1);
+    }
+}

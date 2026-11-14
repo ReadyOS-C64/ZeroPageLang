@@ -1,0 +1,61 @@
+const test6502 = @import("test6502");
+fn addByte(a: u8, b: u8) u8 { return a + b; }
+fn subByte(a: u8, b: u8) u8 { return a - b; }
+fn addWord(a: u16, b: u16) u16 { return a + b; }
+fn subWord(a: u16, b: u16) u16 { return a - b; }
+fn addMixed(a: u16, b: u8) u16 { return a + b; }
+fn subMixed(a: u16, b: u8) u16 { return a - b; }
+fn andByte(a: u8, b: u8) u8 { return a & b; }
+fn orByte(a: u8, b: u8) u8 { return a | b; }
+fn xorByte(a: u8, b: u8) u8 { return a ^ b; }
+fn andWord(a: u16, b: u16) u16 { return a & b; }
+fn orWord(a: u16, b: u16) u16 { return a | b; }
+fn xorWord(a: u16, b: u16) u16 { return a ^ b; }
+fn constantMask(a: u16) u16 { return (a & 0x81ff) | 0x1200; }
+fn mutate(location: *u16) u16 { location.* = 300; return 7; }
+fn withEffect(initial: u16) u16 {
+    var rhs: u16 = initial;
+    return mutate(&rhs) + rhs;
+}
+fn bitwiseEffect(initial: u16) u16 {
+    var rhs: u16 = initial;
+    return mutate(&rhs) | rhs;
+}
+fn giveWord() u16 { return 257; }
+fn rhsEffect(a: u16) u16 { return a + giveWord(); }
+fn indirect(a: u16, location: *u16) u16 { return a - location.*; }
+fn volatilePair(location: *volatile u8) u8 { return location.* + location.*; }
+fn addAssign(a: u16, b: u16) u16 { var value: u16 = a; value += b; return value; }
+fn andAssign(a: u16, b: u16) u16 { var value: u16 = a; value &= b; return value; }
+fn orAssign(a: u16, b: u16) u16 { var value: u16 = a; value |= b; return value; }
+fn xorAssign(a: u16, b: u16) u16 { var value: u16 = a; value ^= b; return value; }
+fn effectAssign(initial: u16) u16 { var value: u16 = initial; value |= mutate(&value); return value; }
+export fn main() void {
+    test6502.expectEqualU8(1, 0, addByte(255, 1));
+    test6502.expectEqualU8(2, 255, subByte(0, 1));
+    test6502.expectEqualU16(3, 0, addWord(0xffff, 1));
+    test6502.expectEqualU16(4, 0xffff, subWord(0, 1));
+    test6502.expectEqualU16(5, 256, addMixed(255, 1));
+    test6502.expectEqualU16(6, 255, subMixed(256, 1));
+    test6502.expectEqualU8(7, 1, andByte(0x81, 0x7f));
+    test6502.expectEqualU8(8, 0xff, orByte(0x81, 0x7f));
+    test6502.expectEqualU8(9, 0xfe, xorByte(0x81, 0x7f));
+    test6502.expectEqualU16(10, 0x0101, andWord(0x8101, 0x7fff));
+    test6502.expectEqualU16(11, 0xffff, orWord(0x8101, 0x7fff));
+    test6502.expectEqualU16(12, 0xfefe, xorWord(0x8101, 0x7fff));
+    test6502.expectEqualU16(13, 0x93ff, constantMask(0xffff));
+    test6502.expectEqualU16(14, 307, withEffect(1));
+    test6502.expectEqualU16(15, 303, bitwiseEffect(1));
+    test6502.expectEqualU16(16, 256, rhsEffect(0xffff));
+    var word: u16 = 0x100;
+    test6502.expectEqualU16(17, 0xffff, indirect(255, &word));
+    const location: *volatile u8 = @ptrFromInt(0xc700);
+    location.* = 3;
+    test6502.expectEqualU8(18, 6, volatilePair(location));
+    test6502.expectEqualU16(19, 256, addAssign(255, 1));
+    test6502.expectEqualU16(20, 0x0101, andAssign(0x8101, 0x7fff));
+    test6502.expectEqualU16(21, 0xffff, orAssign(0x8101, 0x7fff));
+    test6502.expectEqualU16(22, 0xfefe, xorAssign(0x8101, 0x7fff));
+    test6502.expectEqualU16(23, 303, effectAssign(1));
+    test6502.pass();
+}

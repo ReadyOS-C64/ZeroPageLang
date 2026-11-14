@@ -1,0 +1,20 @@
+const test6502 = @import("test6502");
+
+export fn main() void {
+    test6502.expectEqualU8(1, 1, 'A');
+    test6502.expectEqualU8(2, 26, 'Z');
+    test6502.expectEqualU8(3, 1, 'a');
+    test6502.expectEqualU8(4, 26, 'z');
+    test6502.expectEqualU8(5, 48, '0');
+    test6502.expectEqualU8(6, 57, '9');
+    test6502.expectEqualU8(7, 32, ' ');
+    test6502.expectEqualU8(8, 33, '!');
+    test6502.expectEqualU8(9, 63, '?');
+    test6502.expectEqualU8(10, 46, '.');
+    var ch: u8 = 'C';
+    test6502.expectEqualU8(11, 3, ch);
+    ch = 'd';
+    test6502.expectEqualU8(12, 4, ch);
+    test6502.expectEqualBool(13, true, ch == 'D');
+    test6502.pass();
+}

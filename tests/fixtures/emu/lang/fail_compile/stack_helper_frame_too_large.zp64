@@ -1,0 +1,46 @@
+// zeropage-emu-error: unsupported stack frame size
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .worker = .{ .frame = .stack } } },
+};
+
+fn worker() u8 {
+    var v000: u16 = 0; var v001: u16 = 0; var v002: u16 = 0; var v003: u16 = 0;
+    var v004: u16 = 0; var v005: u16 = 0; var v006: u16 = 0; var v007: u16 = 0;
+    var v008: u16 = 0; var v009: u16 = 0; var v010: u16 = 0; var v011: u16 = 0;
+    var v012: u16 = 0; var v013: u16 = 0; var v014: u16 = 0; var v015: u16 = 0;
+    var v016: u16 = 0; var v017: u16 = 0; var v018: u16 = 0; var v019: u16 = 0;
+    var v020: u16 = 0; var v021: u16 = 0; var v022: u16 = 0; var v023: u16 = 0;
+    var v024: u16 = 0; var v025: u16 = 0; var v026: u16 = 0; var v027: u16 = 0;
+    var v028: u16 = 0; var v029: u16 = 0; var v030: u16 = 0; var v031: u16 = 0;
+    var v032: u16 = 0; var v033: u16 = 0; var v034: u16 = 0; var v035: u16 = 0;
+    var v036: u16 = 0; var v037: u16 = 0; var v038: u16 = 0; var v039: u16 = 0;
+    var v040: u16 = 0; var v041: u16 = 0; var v042: u16 = 0; var v043: u16 = 0;
+    var v044: u16 = 0; var v045: u16 = 0; var v046: u16 = 0; var v047: u16 = 0;
+    var v048: u16 = 0; var v049: u16 = 0; var v050: u16 = 0; var v051: u16 = 0;
+    var v052: u16 = 0; var v053: u16 = 0; var v054: u16 = 0; var v055: u16 = 0;
+    var v056: u16 = 0; var v057: u16 = 0; var v058: u16 = 0; var v059: u16 = 0;
+    var v060: u16 = 0; var v061: u16 = 0; var v062: u16 = 0; var v063: u16 = 0;
+    var v064: u16 = 0; var v065: u16 = 0; var v066: u16 = 0; var v067: u16 = 0;
+    var v068: u16 = 0; var v069: u16 = 0; var v070: u16 = 0; var v071: u16 = 0;
+    var v072: u16 = 0; var v073: u16 = 0; var v074: u16 = 0; var v075: u16 = 0;
+    var v076: u16 = 0; var v077: u16 = 0; var v078: u16 = 0; var v079: u16 = 0;
+    var v080: u16 = 0; var v081: u16 = 0; var v082: u16 = 0; var v083: u16 = 0;
+    var v084: u16 = 0; var v085: u16 = 0; var v086: u16 = 0; var v087: u16 = 0;
+    var v088: u16 = 0; var v089: u16 = 0; var v090: u16 = 0; var v091: u16 = 0;
+    var v092: u16 = 0; var v093: u16 = 0; var v094: u16 = 0; var v095: u16 = 0;
+    var v096: u16 = 0; var v097: u16 = 0; var v098: u16 = 0; var v099: u16 = 0;
+    var v100: u16 = 0; var v101: u16 = 0; var v102: u16 = 0; var v103: u16 = 0;
+    var v104: u16 = 0; var v105: u16 = 0; var v106: u16 = 0; var v107: u16 = 0;
+    var v108: u16 = 0; var v109: u16 = 0; var v110: u16 = 0; var v111: u16 = 0;
+    var v112: u16 = 0; var v113: u16 = 0; var v114: u16 = 0; var v115: u16 = 0;
+    var v116: u16 = 0; var v117: u16 = 0; var v118: u16 = 0; var v119: u16 = 0;
+    var v120: u16 = 0; var v121: u16 = 0; var v122: u16 = 0; var v123: u16 = 0;
+    var v124: u16 = 0; var v125: u16 = 0; var v126: u16 = 0; var v127: u16 = 0;
+    _ = v000 + v127;
+    return 1;
+}
+
+export fn main() void {
+    _ = worker();
+}

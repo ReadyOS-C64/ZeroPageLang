@@ -1,0 +1,74 @@
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-module: filename=fixedmath source=tests/fixtures/emu/modules/fixed_math_runtime.zp64
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row3_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$ff
+// zeropage-emu-reu: $030800=$4c
+// zeropage-emu-reu: $031800=$4c
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+const MathCore = ZeroPage.module.import(.math_core, .{
+    .add = fn (u8) u8,
+});
+
+const FixedMath = ZeroPage.module.import(.fixed_math, .{
+    .bias = fn (u8) u8,
+});
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x002000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 4 },
+        .disk_manifest = .{
+            .current = "enemygnb",
+            .deps = .{
+                .math_core = "mathcore",
+                .pathing = "pathing",
+                .fixed_math = "fixedmath",
+            },
+        },
+        .dependency_graph = .{
+            .math_core = .{ .deps = .{ .fixed_math } },
+            .pathing = .{ .deps = .{} },
+            .fixed_math = .{ .deps = .{} },
+        },
+    },
+    .abi = .{
+        .default_frame = .static,
+        .functions = .{
+            .tick = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_typed_graph_node",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(state: u8) u8 {
+    return state + 1;
+}
+
+export fn main() void {
+    test6502.expectNull(1, FixedMath.bias(4));
+    test6502.expectEqualBool(2, true, MathCore.acquireGraph());
+    test6502.expectEqualBool(3, true, FixedMath.isLoaded());
+    if (FixedMath.bias(4)) |first| {
+        test6502.expectEqualU8(4, 7, first);
+    } else {
+        test6502.fail(5);
+    }
+    test6502.expectMemU8(6, 0xc000, 0x4c);
+    MathCore.releaseGraph();
+    test6502.expectEqualBool(7, false, FixedMath.isLoaded());
+    test6502.expectNull(8, FixedMath.bias(4));
+    test6502.pass();
+}

@@ -1,0 +1,50 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fc, .size = 0x0100 },
+    .abi = .{ .default_frame = .stack, .functions = .{ .main = .{ .frame = .static } } },
+};
+
+fn relations(a: u8, b: u8) u8 {
+    var mask: u8 = 0;
+    if (a == b) { mask += 1; }
+    if (a != b) { mask += 2; }
+    if (a < b) { mask += 4; }
+    if (a <= b) { mask += 8; }
+    if (a > b) { mask += 16; }
+    if (a >= b) { mask += 32; }
+    return mask;
+}
+
+fn same(a: u8) bool {
+    return a == 255;
+}
+
+fn step(a: u8) u8 {
+    return a + 1;
+}
+
+fn count(limit: u8) u8 {
+    var i: u8 = 0;
+    var total: u8 = 0;
+    while (i < limit) {
+        i = step(i);
+        if (i == 1) { continue; }
+        if (i == 3) { break; }
+        // The body exceeds the range of a relative branch.
+        total = step(total);
+        total = step(total);
+        total = step(total);
+    }
+    return total;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 14, relations(127, 128));
+    test6502.expectEqualU8(2, 41, relations(255, 255));
+    test6502.expectEqualU8(3, 50, relations(128, 127));
+    test6502.expectEqualBool(4, true, same(255));
+    test6502.expectEqualBool(5, false, same(0));
+    test6502.expectEqualU8(6, 3, count(4));
+    test6502.expectEqualU8(7, 0, count(0));
+}

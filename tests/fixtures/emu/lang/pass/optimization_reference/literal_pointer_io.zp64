@@ -1,0 +1,22 @@
+const test6502 = @import("test6502");
+
+fn transform(value: u16) u16 {
+    return value + 0x01b9;
+}
+
+export fn main() void {
+    const input: *volatile u16 = @ptrFromInt(0xc1ff);
+    const output: *volatile u16 = @ptrFromInt(0xc3ff);
+    const before: *volatile u8 = @ptrFromInt(0xc3fe);
+    const after: *volatile u8 = @ptrFromInt(0xc401);
+    before.* = 0x31;
+    after.* = 0xa7;
+    input.* = 0x9c53;
+    const value: u16 = input.*;
+    output.* = transform(value);
+    test6502.expectEqualU16(1, 0x9c53, input.*);
+    test6502.expectEqualU16(2, 0x9e0c, output.*);
+    test6502.expectEqualU8(3, 0x31, before.*);
+    test6502.expectEqualU8(4, 0xa7, after.*);
+    test6502.pass();
+}

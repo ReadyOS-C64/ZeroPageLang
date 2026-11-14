@@ -1,0 +1,22 @@
+// zeropage-emu-error: unsupported zeropage_module export
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn helper(value: u8) u8 {
+    return value + 1;
+}
+
+fn tick(value: u8) u8 {
+    return helper(value);
+}
+
+export fn main() void {}

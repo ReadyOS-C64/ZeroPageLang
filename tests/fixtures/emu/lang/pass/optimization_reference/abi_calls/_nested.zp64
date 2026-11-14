@@ -1,0 +1,23 @@
+fn mix(word: u16, salt: u16) u16 {
+    const adjusted: u16 = salt + 0x0305;
+    return word + adjusted;
+}
+
+fn update(state: u16, input: u16) u16 {
+    var delta: u16 = input;
+    delta = delta + delta;
+    delta = delta + delta;
+    const left: u16 = state + delta;
+    const right: u16 = workload_mix(left, input);
+    return right + left;
+}
+
+fn run() u16 {
+    var state: u16 = 12345;
+    var i: u16 = 0;
+    while (i < 48) {
+        state = workload_update(state, i);
+        i += 1;
+    }
+    return state;
+}

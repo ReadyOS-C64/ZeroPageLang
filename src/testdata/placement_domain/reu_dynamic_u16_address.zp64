@@ -1,0 +1,2 @@
+pub const zeropage_options=.{.zero_page=.{.profile=.kernal,.allocation=.scalars}};
+const ZeroPage=@import("ZeroPage");fn copy(addr:u16,len:u16,tag:u8)u8{ZeroPage.reu.copyReuToC64(0x10000,addr,len);return tag;}export fn api(addr:u16,len:u16)u8{return copy(addr,len,7);}export fn main()void{}

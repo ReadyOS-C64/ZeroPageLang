@@ -1,0 +1,24 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+const kernal = "kernal ok\r";
+
+fn plus(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+export fn main() void {
+    c64.vic.border = 14;
+    c64.console.clear();
+    c64.console.print("CONSOLE {x} {x16}\n", .{ plus(5, 6), 1025 });
+    c64.screen.putsAt(0, 2, "BUILTINS");
+    c64.screen.putAt(0, 3, plus(0, 1));
+    c64.screen.hexAt(2, 3, plus(4, 6));
+    c64.screen.hex16At(5, 3, 1024);
+    c64.kernal.puts(kernal);
+    c64.kernal.setName(kernal);
+    c64.time.sleepTicks(1);
+    c64.time.sleepFrames(1);
+    test6502.expectMemU8(1, 53280, 14);
+    test6502.pass();
+}

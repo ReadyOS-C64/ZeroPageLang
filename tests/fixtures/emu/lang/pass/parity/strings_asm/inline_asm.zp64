@@ -1,0 +1,107 @@
+const test6502 = @import("test6502");
+
+fn copyByte(input: u8, signed: i8, ok: bool) u8 {
+    var out: u8 = 0;
+    asm {
+        lda @input
+        clc
+        adc #1
+        sta @out
+        lda @signed
+        sta @out
+        lda @ok
+        beq done
+        lda #$ff
+        sta @out
+done:
+    }
+    return out;
+}
+
+fn mutateParam(value: u8) u8 {
+    asm {
+        lda @value
+        clc
+        adc #5
+        sta @value
+    }
+    return value;
+}
+
+fn readWriteByteTypes(input: u8, signed: i8, ok: bool) u8 {
+    var unsigned_out: u8 = 0;
+    var signed_out: i8 = 0;
+    var bool_out: bool = false;
+    asm {
+        lda @input
+        sta @unsigned_out
+        lda @signed
+        sta @signed_out
+        lda @ok
+        sta @bool_out
+    }
+    if (bool_out == true) {
+        return signed_out;
+    } else {
+        return unsigned_out;
+    }
+}
+
+export fn main() void {
+    var copied: u8 = copyByte(9, 8, false);
+    test6502.expectEqualU8(1, 8, copied);
+    test6502.expectEqualU8(2, 8, copyByte(1, 8, false));
+    test6502.expectEqualU8(3, 255, copyByte(1, 8, true));
+    var direct: u8 = 0;
+    asm {
+        lda #$2a
+        sta @direct
+    }
+    test6502.expectEqualU8(4, 42, direct);
+    test6502.expectSP(5, 255);
+    test6502.expectEqualBool(6, true, direct == 42);
+    test6502.expectEqualU8(7, 43, direct + 1);
+    test6502.expectEqualBool(8, false, direct == 41);
+    test6502.expectEqualU8(9, 15, mutateParam(10));
+    test6502.expectEqualU8(10, 33, readWriteByteTypes(33, 44, false));
+    test6502.expectEqualU8(11, 44, readWriteByteTypes(33, 44, true));
+
+    var local_u8: u8 = 1;
+    var local_i8: i8 = 2;
+    var local_bool: bool = false;
+    asm {
+        lda #$11
+        sta @local_u8
+        lda #$fe
+        sta @local_i8
+        lda #$01
+        sta @local_bool
+    }
+    test6502.expectEqualU8(12, 17, local_u8);
+    test6502.expectEqualI8(13, 254, local_i8);
+    test6502.expectEqualBool(14, true, local_bool);
+
+    test6502.primeRegs(15, 18, 52, 86, 131);
+    asm {
+        lda #$ff
+        ldx #$ee
+        ldy #$dd
+        clc
+        clv
+    }
+    test6502.expectA(16, 18);
+    test6502.expectX(17, 52);
+    test6502.expectY(18, 86);
+    test6502.expectP(19, 195, 131);
+
+    test6502.primeRegs(20, 33, 67, 101, 3);
+    asm {
+        jsr $ffe4
+    }
+    test6502.expectA(21, 33);
+    test6502.expectX(22, 67);
+    test6502.expectY(23, 101);
+    test6502.expectP(24, 3, 3);
+
+    test6502.pass();
+}

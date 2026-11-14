@@ -1,0 +1,11 @@
+// zeropage-emu-error: unsupported struct
+const test6502 = @import("test6502");
+
+const Pair = struct { left: u8, right: u8 };
+
+export fn main() void {
+    const value = blk: {
+        break :blk Pair{ .left = 1, .right = 2 };
+    };
+    test6502.expectEqualU8(1, 1, value.left);
+}

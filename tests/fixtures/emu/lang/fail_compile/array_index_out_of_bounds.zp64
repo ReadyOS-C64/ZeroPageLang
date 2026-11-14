@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported array index
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var xs: [2]u8 = .{ 1, 2 };
+    test6502.expectEqualU8(1, 0, xs[2]);
+    test6502.pass();
+}

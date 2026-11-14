@@ -1,0 +1,66 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty = 0, x = 1, o = 2 };
+const Board = struct { cells: [9]Cell };
+const Game = struct { board: Board, history: [9]u8, move_count: u8 };
+
+fn markForTurn(turn: u8) Cell {
+    return switch (turn) {
+        0 => .x,
+        else => .o,
+    };
+}
+
+fn cellScore(cell: Cell) u8 {
+    return switch (cell) {
+        Cell.empty => 0,
+        Cell.x => 1,
+        else => 2,
+    };
+}
+
+export fn main() void {
+    var game = Game{
+        .board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty } },
+        .history = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        .move_count = 0,
+    };
+
+    game.board.cells[0] = markForTurn(0);
+    game.history[0] = 0;
+    game.move_count = game.move_count + 1;
+
+    game.board.cells[4] = markForTurn(1);
+    game.history[1] = 4;
+    game.move_count = game.move_count + 1;
+
+    var next_index: u8 = game.move_count;
+    game.board.cells[8] = if (next_index == 2) .x else .empty;
+    game.history[next_index] = 8;
+    game.move_count = game.move_count + 1;
+
+    test6502.expectEqualU8(1, 1, game.board.cells[0]);
+    test6502.expectEqualU8(2, 2, game.board.cells[4]);
+    test6502.expectEqualU8(3, 1, game.board.cells[8]);
+    test6502.expectEqualU8(4, 3, game.move_count);
+    test6502.expectEqualU8(5, 8, game.history[2]);
+    test6502.expectEqualU16(6, 9, game.board.cells.len);
+    test6502.expectEqualU16(7, 9, game.history.len);
+
+    var score: u8 = 0;
+    for (0..9) |i| {
+        score += cellScore(game.board.cells[i]);
+    }
+    test6502.expectEqualU8(8, 4, score);
+
+    const immutable = Game{
+        .board = Board{ .cells = [_]Cell{ .o, .x, .empty, .empty, .empty, .empty, .empty, .empty, .empty } },
+        .history = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+        .move_count = 2,
+    };
+    test6502.expectEqualU8(9, 2, immutable.board.cells[0]);
+    test6502.expectEqualU8(10, 2, immutable.move_count);
+    test6502.expectEqualU8(11, 4, immutable.history[3]);
+
+    test6502.pass();
+}

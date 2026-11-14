@@ -1,0 +1,32 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+fn copyByte(input: u8, signed: i8, ok: bool) u8 {
+    var out: u8 = 0;
+    asm {
+        lda @input
+loop:
+        sta @out
+        lda @signed
+        sta @out
+        lda @ok
+        bne loop
+    }
+    return out;
+}
+
+export fn main() void {
+    var copied: u8 = copyByte(9, 8, false);
+    test6502.expectA(1, 8);
+    c64.screen.clear();
+    c64.screen.putsAt(0, 0, "ASM");
+    c64.screen.hexAt(0, 1, copied);
+    asm {
+        lda #$06
+        sta $d020
+        lda #$2a
+        jsr $ffd2
+    }
+    test6502.expectMemU8(2, 53280, 6);
+    test6502.pass();
+}

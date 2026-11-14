@@ -1,0 +1,11 @@
+// zeropage-emu-error: invalid zeropage_options REU heap region
+pub const zeropage_options = .{
+    .reu = .{
+        .heaps = .{
+            .assets = .{ .region = .{ .addr = 0x010000, .size = 0x0100 }, .kind = .arena },
+            .scratch = .{ .region = .{ .addr = 0x010080, .size = 0x0100 }, .kind = .arena },
+        },
+    },
+};
+
+export fn main() void {}

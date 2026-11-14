@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported zeropage_options metadata
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800 },
+};
+
+export fn main() void {}

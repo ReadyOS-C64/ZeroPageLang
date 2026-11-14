@@ -1,0 +1,18 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fc, .size = 10 },
+    .abi = .{ .default_frame = .stack },
+};
+
+fn identity(value: u16) u16 {
+    return value;
+}
+
+fn relay(value: u16) u16 {
+    return identity(value);
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0x805a, relay(0x805a));
+}

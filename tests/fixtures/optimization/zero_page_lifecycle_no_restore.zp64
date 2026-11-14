@@ -1,0 +1,27 @@
+// Native lifecycle proof: run zeropage_entry until its real return, with seeded ZP.
+// No pass hook: cleanup must execute. BASIC/IRQ ownership follows the declared profile.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scratch, .ranges = .{ .{ .addr = 0x20, .size = 0x20 }, .{ .addr = 0x60, .size = 0x10 } }, .reserve = .{ .{ .addr = 0x20, .size = 4 }, .{ .addr = 0x60, .size = 4 } }, .restore_basic = false },
+};
+
+const c64 = @import("c64");
+fn adjust(value: u16) u16 { return value + 257; }
+fn pipeline(value: u16, delta: u8) u16 { return adjust((value << 3) ^ 0x55aa) + @as(u16, delta) * 7; }
+fn worker(value: u16) u16 { return value + 1; }
+fn moved(value: u16) u16 { return value ^ 257; }
+export fn main() void {
+    const result: *u16 = @ptrFromInt(0xc100);
+    result.* = pipeline(0x81ff, 11);
+    const marker: *u8 = @ptrFromInt(0xc102);
+    marker.* = 0x5a;
+    const crossed: *u16 = @ptrFromInt(0xc1ff);
+    crossed.* = 0x81ff;
+    crossed.* = (crossed.* << 3) + 257;
+    var source = c64.string.buffer(12);
+    source = "zp";
+    c64.string.append(source, " abi");
+    var message = c64.string.buffer(12);
+    c64.string.append(message, source);
+    c64.string.clear(source);
+    source = "unused";
+}

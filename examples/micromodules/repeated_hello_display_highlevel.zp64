@@ -1,0 +1,146 @@
+// The state lives in the compiler's ordinary static frame, not fixed ZP slots.
+// init() returns a pointer to that singleton; another init() resets it.
+const RepeatedHelloState = struct {
+    head: u8,
+    row: u8,
+    shown: bool,
+    screen_select: u8,
+    back_address: u16,
+    frames_left: u8,
+    pending: bool,
+};
+
+fn init() *RepeatedHelloState {
+    var state = RepeatedHelloState{
+        .head = 0,
+        .row = 0,
+        .shown = false,
+        .screen_select = 0x17,
+        .back_address = 0x2400,
+        .frames_left = 10,
+        .pending = false,
+    };
+    const screen_select: *volatile u8 = @ptrFromInt(0xd018);
+    screen_select.* = state.screen_select;
+    asm {
+        jsr $e544
+    }
+
+    const cia_irq: *volatile u8 = @ptrFromInt(0xdc0d);
+    const vic_irq_enable: *volatile u8 = @ptrFromInt(0xd01a);
+    const vic_irq_flags: *volatile u8 = @ptrFromInt(0xd019);
+    cia_irq.* = 0x7f;
+    _ = cia_irq.*;
+    vic_irq_enable.* = 0;
+    vic_irq_flags.* = 0x0f;
+
+    const ring: [*]u8 = @ptrFromInt(0x2800);
+    var offset: u16 = 0;
+    while (offset < 1024) {
+        ring[offset] = 32;
+        offset += 1;
+    }
+    return &state;
+}
+
+fn waitFrame() void {
+    asm {
+wait_low:
+        bit $d011
+        bmi wait_low
+wait_high:
+        bit $d011
+        bpl wait_high
+    }
+}
+
+fn frame(state: *RepeatedHelloState) bool {
+    if (state.pending) {
+        state.screen_select ^= 0x80;
+        const screen_select: *volatile u8 = @ptrFromInt(0xd018);
+        screen_select.* = state.screen_select;
+        state.back_address ^= 0x2000;
+        state.shown = true;
+        state.pending = false;
+    }
+
+    state.frames_left -= 1;
+    if (state.frames_left == 0) {
+        state.frames_left = 9;
+        return true;
+    }
+    return false;
+}
+
+fn printLine(state: *RepeatedHelloState) void {
+    // Mixed-case screen codes for the lowercase character set.
+    const greeting = [_]u8{
+        0x48, 0x05, 0x0c, 0x0c, 0x0f, 0x2c, 0x20,
+        0x57, 0x0f, 0x12, 0x0c, 0x04, 0x21,
+    };
+    const ring: [*]u8 = @ptrFromInt(0x2800);
+    state.shown = false;
+    if (state.row == 25) {
+        var clear_offset: u16 = @as(u16, state.head) * 40;
+        var column: u8 = 0;
+        while (column < 40) {
+            ring[clear_offset] = 32;
+            clear_offset += 1;
+            column += 1;
+        }
+        state.head += 1;
+        if (state.head == 25) {
+            state.head = 0;
+        }
+        state.row = 24;
+    }
+
+    var physical_row: u8 = state.head + state.row;
+    if (physical_row >= 25) {
+        physical_row -= 25;
+    }
+    var offset: u16 = @as(u16, physical_row) * 40;
+    for (greeting) |ch| {
+        ring[offset] = ch;
+        offset += 1;
+    }
+    state.row += 1;
+}
+
+fn copyPage(state: *RepeatedHelloState) void {
+    // These two fixed ZP pairs select the 6502 indirect addressing mode.
+    // The row-copy kernel is the only screen-copy logic written in assembly.
+    const source_pointer: *u16 = @ptrFromInt(0x20);
+    const target_pointer: *u16 = @ptrFromInt(0x22);
+    var source_row: u8 = state.head;
+    var target_offset: u16 = 0;
+    var row: u8 = 0;
+    while (row < 25) {
+        source_pointer.* = 0x2800 + @as(u16, source_row) * 40;
+        target_pointer.* = state.back_address + target_offset;
+        asm {
+            ldy #39
+copy_cell:
+            lda ($20),y
+            sta ($22),y
+            dey
+            bpl copy_cell
+        }
+        target_offset += 40;
+        source_row += 1;
+        if (source_row == 25) {
+            source_row = 0;
+        }
+        row += 1;
+    }
+    state.pending = true;
+}
+
+fn stopRequested() bool {
+    const keyboard_columns: *volatile u8 = @ptrFromInt(0xdc00);
+    const keyboard_rows: *volatile u8 = @ptrFromInt(0xdc01);
+    keyboard_columns.* = 0x7f;
+    const rows = keyboard_rows.*;
+    keyboard_columns.* = 0xff;
+    return (rows & 0x80) == 0;
+}

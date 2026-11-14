@@ -1,0 +1,43 @@
+// Native paired proof for source-owned private-parameter placement.
+// Named parameter/local objects are checked independently of changing frame offsets.
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+    .stack = .{ .base = 0xc800, .size = 0x0100, .zp = .{ .sp = 0x70, .fp = 0x72 } },
+    .abi = .{ .functions = .{
+        .configured = .{ .frame = .static },
+        .stackCall = .{ .frame = .static },
+        .stacked = .{ .frame = .stack },
+    } },
+    .memory = .{
+        .regions = .{ .cold = .{ .addr = 0xc600, .size = 0x0100 } },
+        .placements = .{ .pinned = .{ .region = .cold, .load = .startup_copy, .functions = .{ placed } } },
+    },
+};
+fn eligible(value: u16) u16 { return value ^ 0x1111; }
+export fn publicValue(value: u16) u16 { return value ^ 0x55aa; }
+fn configured(value: u16) u16 { const saved: u16 = value ^ 0x2222; return saved; }
+fn placed(value: u16) u16 { return value | 0x0101; }
+fn escaped(value: u8) u16 {
+    const location: *u8 = &value;
+    location.* = location.* ^ 0x55;
+    return @as(u16, value);
+}
+fn cycle(value: u8) u8 {
+    if (value == 0) { return 3; }
+    return cycle(value - 1);
+}
+fn stacked(value: u16) u16 { var result: u16 = value + 1; return result; }
+fn stackCall(value: u16) u16 { return stacked(value); }
+export fn main() void {
+    test6502.expectEqualU16(1, 0x90ee, eligible(0x81ff));
+    test6502.expectEqualU16(2, 0xd455, publicValue(0x81ff));
+    test6502.expectEqualU16(3, 0xa3dd, configured(0x81ff));
+    test6502.expectEqualU16(4, 0x8101, placed(0x8000));
+    test6502.expectEqualU16(5, 0xd4, escaped(0x81));
+    // The SCC eligibility proof uses only the nonrecursive runtime branch.
+    test6502.expectEqualU8(6, 3, cycle(0));
+    test6502.expectEqualU16(7, 256, stackCall(255));
+    test6502.pass();
+}

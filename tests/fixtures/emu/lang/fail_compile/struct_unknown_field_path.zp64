@@ -1,0 +1,10 @@
+// zeropage-emu-error: UnknownVariable
+const test6502 = @import("test6502");
+
+const Pair = struct { left: u8, right: u8 };
+
+export fn main() void {
+    var pair = Pair{ .left = 1, .right = 2 };
+    pair.middle = 3;
+    test6502.expectEqualU8(1, 3, pair.middle);
+}

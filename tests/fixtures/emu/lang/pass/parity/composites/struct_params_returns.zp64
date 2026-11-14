@@ -1,0 +1,75 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Row = struct { cells: [3]Cell, weight: u16 };
+const Board = struct { row: Row, turn: Cell };
+
+fn makeRow(a: Cell, b: Cell, c: Cell, weight: u16) Row {
+    return Row{ .cells = [_]Cell{ a, b, c }, .weight = weight };
+}
+
+fn makeBoard(turn: Cell) Board {
+    return Board{ .row = makeRow(.x, turn, .o, 300), .turn = turn };
+}
+
+fn cloneRow(row: Row) Row {
+    return row;
+}
+
+fn cloneBoard(board: Board) Board {
+    return board;
+}
+
+fn mutateCopy(row: Row) u8 {
+    row.cells[0] = .o;
+    row.weight = row.weight + 1;
+    return row.cells[0] + row.weight;
+}
+
+fn rowTotal(row: Row) u8 {
+    var total: u8 = 0;
+    for (0..3) |i| {
+        total += switch (row.cells[i]) {
+            Cell.empty => 0,
+            Cell.x => 1,
+            else => 2,
+        };
+    }
+    return total;
+}
+
+fn boardTotal(board: Board) u8 {
+    return rowTotal(board.row) + board.turn;
+}
+
+export fn main() void {
+    var row = makeRow(.x, .empty, .o, 10);
+    test6502.expectEqualU8(1, 3, rowTotal(row));
+    test6502.expectEqualU8(2, 13, mutateCopy(row));
+    test6502.expectEqualU8(3, 1, row.cells[0]);
+    test6502.expectEqualU16(4, 10, row.weight);
+
+    const copied_row = cloneRow(row);
+    test6502.expectEqualU8(5, 1, copied_row.cells[0]);
+    test6502.expectEqualU8(6, 2, copied_row.cells[2]);
+    test6502.expectEqualU16(7, 10, copied_row.weight);
+
+    var board = makeBoard(.x);
+    test6502.expectEqualU8(8, 1, board.row.cells[0]);
+    test6502.expectEqualU8(9, 1, board.row.cells[1]);
+    test6502.expectEqualU8(10, 2, board.row.cells[2]);
+    test6502.expectEqualU16(11, 300, board.row.weight);
+    test6502.expectEqualU8(12, 5, boardTotal(board));
+
+    const cloned_board = cloneBoard(board);
+    board.row.cells[1] = .empty;
+    board.turn = .o;
+    test6502.expectEqualU8(13, 1, cloned_board.row.cells[1]);
+    test6502.expectEqualU8(14, 1, cloned_board.turn);
+    test6502.expectEqualU8(15, 0, board.row.cells[1]);
+    test6502.expectEqualU8(16, 2, board.turn);
+
+    test6502.expectEqualU8(17, 5, boardTotal(Board{ .row = Row{ .cells = [_]Cell{ .x, .empty, .o }, .weight = 7 }, .turn = .o }));
+
+    test6502.pass();
+}

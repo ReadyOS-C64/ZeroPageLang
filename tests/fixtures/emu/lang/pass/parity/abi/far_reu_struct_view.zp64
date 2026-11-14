@@ -1,0 +1,85 @@
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+const Team = enum(u8) { red = 3, blue = 7 };
+const Pos = struct { x: u8, y: u8 };
+const Enemy = struct {
+    hp: u8,
+    alive: bool,
+    score: u16,
+    team: Team,
+    pos: Pos,
+    patrol: [2]u8,
+    tags: [2]Team,
+};
+
+memory {
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena assets in assets_ram;
+}
+
+export fn main() void {
+    const maybe_far = assets.allocBytes(@sizeOf(Enemy) * 3);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 3);
+        const first = Enemy{
+            .hp = 10,
+            .alive = true,
+            .score = 0x1234,
+            .team = .red,
+            .pos = Pos{ .x = 4, .y = 5 },
+            .patrol = [_]u8{ 8, 9 },
+            .tags = [_]Team{ .blue, .red },
+        };
+        const second = Enemy{
+            .hp = 20,
+            .alive = false,
+            .score = 0x2345,
+            .team = .blue,
+            .pos = Pos{ .x = 6, .y = 7 },
+            .patrol = [_]u8{ 1, 2 },
+            .tags = [_]Team{ .red, .blue },
+        };
+
+        enemies.set(0, first);
+        enemies.set(1, second);
+
+        const loaded = enemies.get(0);
+        test6502.expectEqualU8(1, 10, loaded.hp);
+        test6502.expectEqualBool(2, true, loaded.alive);
+        test6502.expectEqualU16(3, 0x1234, loaded.score);
+        test6502.expectEqualU8(4, 3, loaded.team);
+        test6502.expectEqualU8(5, 4, loaded.pos.x);
+        test6502.expectEqualU8(6, 5, loaded.pos.y);
+        test6502.expectEqualU8(7, 9, loaded.patrol[1]);
+        test6502.expectEqualU8(8, 7, loaded.tags[0]);
+        test6502.expectEqualU8(9, 3, enemies.len);
+
+        var idx: u8 = 1;
+        const runtime_loaded = enemies.get(idx);
+        test6502.expectEqualU8(10, 20, runtime_loaded.hp);
+        test6502.expectEqualBool(11, false, runtime_loaded.alive);
+        test6502.expectEqualU16(12, 0x2345, runtime_loaded.score);
+        test6502.expectEqualU8(13, 7, runtime_loaded.pos.y);
+
+        const changed = Enemy{
+            .hp = 21,
+            .alive = true,
+            .score = 0x3456,
+            .team = .blue,
+            .pos = Pos{ .x = 9, .y = 10 },
+            .patrol = [_]u8{ 3, 4 },
+            .tags = [_]Team{ .blue, .blue },
+        };
+        enemies.set(idx, changed);
+        const reloaded = enemies.get(1);
+        test6502.expectEqualU8(14, 21, reloaded.hp);
+        test6502.expectEqualU16(15, 0x3456, reloaded.score);
+        test6502.expectEqualU8(16, 3, reloaded.patrol[0]);
+    } else {
+        test6502.fail(90);
+    }
+
+    test6502.pass();
+}

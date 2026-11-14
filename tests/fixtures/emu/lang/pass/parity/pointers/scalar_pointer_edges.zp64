@@ -1,0 +1,73 @@
+const test6502 = @import("test6502");
+
+const State = enum(u8) { off, on };
+const Pair = struct { lo: u8, hi: u8 };
+
+fn flip(ptr: *bool) void {
+    ptr.* = !ptr.*;
+}
+
+fn setUsize(ptr: *usize, value: usize) void {
+    ptr.* = value;
+}
+
+fn returnBytePtr(ptr: *u8) *u8 {
+    return ptr;
+}
+
+fn returnBoolPtr(ptr: *bool) *bool {
+    return ptr;
+}
+
+export fn main() void {
+    var flag: bool = false;
+    var count: usize = 0x1234;
+    var left: u8 = 4;
+    var right: u8 = 9;
+    var state: State = .off;
+    var bytes = [_]u8{ 3, 5, 7 };
+    var words = [_]u16{ 0x0102, 0x0304 };
+    var snapshot = Pair{ .lo = 1, .hi = 2 };
+
+    const flag_ptr: *bool = &flag;
+    const count_ptr: *usize = &count;
+    const left_ptr: *u8 = &left;
+    const right_ptr: *u8 = &right;
+    const state_ptr: *State = &state;
+    const byte_ptr: *u8 = &bytes[0];
+    const word_ptr: *u16 = &words[1];
+
+    flip(flag_ptr);
+    const flag_again = returnBoolPtr(flag_ptr);
+    test6502.expectEqualBool(1, true, flag);
+    test6502.expectEqualBool(2, true, flag_again.*);
+
+    setUsize(count_ptr, 0xabcd);
+    test6502.expectEqualU16(3, 0xabcd, count);
+    test6502.expectEqualU16(4, 0xabcd, count_ptr.*);
+
+    const returned_left = returnBytePtr(left_ptr);
+    const returned_right = returnBytePtr(right_ptr);
+    returned_left.* = 0x11;
+    returned_right.* = 0x22;
+    test6502.expectEqualU8(5, 0x11, left);
+    test6502.expectEqualU8(6, 0x22, right);
+
+    state_ptr.* = .on;
+    test6502.expectEqualU8(7, 1, state);
+    test6502.expectEqualU8(8, 3, byte_ptr.*);
+    byte_ptr.* = byte_ptr.* + 4;
+    test6502.expectEqualU8(9, 7, bytes[0]);
+
+    word_ptr.* = word_ptr.* + 0x0101;
+    test6502.expectEqualU16(10, 0x0405, words[1]);
+    test6502.expectEqualU16(11, 0x0405, word_ptr.*);
+
+    snapshot.lo = left_ptr.*;
+    snapshot.hi = right_ptr.*;
+    test6502.expectEqualU8(12, 0x11, snapshot.lo);
+    test6502.expectEqualU8(13, 0x22, snapshot.hi);
+
+    test6502.expectEqualU16(14, 0, @intFromPtr(left_ptr) - @intFromPtr(left_ptr));
+    test6502.pass();
+}

@@ -1,0 +1,5 @@
+// zeropage-emu-error: duplicate zeropage_module export
+pub const zeropage_module = .{ .id = "enemy_ai", .abi = 1, .exports = .{ .tick = tick, .tick = tick2 } };
+fn tick(value: u8) u8 { return value; }
+fn tick2(value: u8) u8 { return value; }
+export fn main() void {}

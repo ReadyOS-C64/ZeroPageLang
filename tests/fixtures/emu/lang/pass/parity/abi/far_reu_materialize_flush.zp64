@@ -1,0 +1,64 @@
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+const Enemy = struct {
+    hp: u8,
+    x: u8,
+    score: u16,
+};
+
+memory {
+    region main_ram: c64 at 0x9000 size 16;
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena near_heap in main_ram;
+    arena assets in assets_ram;
+}
+
+export fn main() void {
+    const maybe_far = assets.allocBytes(@sizeOf(Enemy) * 3);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 3);
+        enemies.set(0, Enemy{ .hp = 3, .x = 4, .score = 0x1234 });
+        enemies.set(1, Enemy{ .hp = 5, .x = 6, .score = 0x3456 });
+        enemies.set(2, Enemy{ .hp = 7, .x = 8, .score = 0x5678 });
+
+        const maybe_local = enemies.materialize(near_heap);
+        if (maybe_local) |local| {
+            test6502.expectEqualU8(1, 3, local.len);
+            const first = local.get(0);
+            test6502.expectEqualU8(2, 3, first.hp);
+            test6502.expectEqualU8(3, 4, first.x);
+            test6502.expectEqualU16(4, 0x1234, first.score);
+
+            var idx: u8 = 1;
+            const second = local.get(idx);
+            test6502.expectEqualU8(5, 5, second.hp);
+            local.set(idx, Enemy{ .hp = 9, .x = second.x + 1, .score = second.score + 1 });
+            enemies.flush(local);
+        } else {
+            test6502.fail(90);
+        }
+
+        const reloaded = enemies.get(1);
+        test6502.expectEqualU8(6, 9, reloaded.hp);
+        test6502.expectEqualU8(7, 7, reloaded.x);
+        test6502.expectEqualU16(8, 0x3457, reloaded.score);
+
+        const oom = enemies.materialize(near_heap);
+        test6502.expectNull(9, oom);
+        near_heap.reset();
+        const reused = enemies.materialize(near_heap);
+        if (reused) |again| {
+            const third = again.get(2);
+            test6502.expectEqualU8(10, 7, third.hp);
+            test6502.expectEqualU8(11, 8, third.x);
+        } else {
+            test6502.fail(91);
+        }
+    } else {
+        test6502.fail(92);
+    }
+
+    test6502.pass();
+}

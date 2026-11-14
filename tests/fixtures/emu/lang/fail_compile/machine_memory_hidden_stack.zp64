@@ -1,0 +1,6 @@
+// zeropage-emu-error: invalid zeropage_options memory region
+memory {
+    region hidden: c64 at 0xe000 size 0x0400 bank .ram_under_kernal;
+    stack in hidden;
+}
+export fn main() callconv(.stack) void {}

@@ -1,0 +1,30 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+fn poke(addr: u16, value: u8) void {
+    const ptr: *volatile u8 = @ptrFromInt(addr);
+    ptr.* = value;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("reu copy smoke\n", .{});
+
+    poke(0x0500, 'R');
+    poke(0x0501, 'E');
+    poke(0x0502, 'U');
+    ZeroPage.reu.copyC64ToReu(0x0500, 0x100000, 3);
+
+    poke(0x0528, '.');
+    poke(0x0529, '.');
+    poke(0x052a, '.');
+    ZeroPage.reu.copyReuToC64(0x100000, 0x0528, 3);
+
+    if (ZeroPage.reu.present() and ZeroPage.reu.compare(0x0528, 0x100000, 3)) {
+        c64.console.print("reu ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("reu bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

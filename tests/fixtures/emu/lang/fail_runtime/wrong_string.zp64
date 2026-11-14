@@ -1,0 +1,6 @@
+const test6502 = @import("test6502");
+const msg = "hello";
+export fn main() void {
+    test6502.expectString(1, msg, "WORLD");
+    test6502.pass();
+}

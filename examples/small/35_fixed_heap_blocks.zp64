@@ -1,0 +1,40 @@
+const c64 = @import("c64");
+
+memory {
+    region sprites_ram: c64 at 0x9200 size 0x0040;
+
+    pool sprites in sprites_ram block 16;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("FIXED HEAP BLOCKS\n", .{});
+
+    const first = sprites.allocBytes(8);
+    const second = sprites.allocBytes(8);
+    if (first) |first_buf| {
+        first_buf[0] = 0x46;
+        first_buf[1] = 0x48;
+        sprites.free(first_buf);
+    }
+    if (second) |second_buf| {
+        second_buf[0] = 0x42;
+    }
+
+    const reused = sprites.allocBytes(4);
+    if (reused) |reused_buf| {
+        if (@intFromPtr(reused_buf) == 0x9200) {
+            reused_buf[2] = 0x52;
+            c64.console.print("FREE REUSE OK\n", .{});
+        }
+    }
+
+    sprites.reset();
+    const reset_block = sprites.allocBytes(1);
+    if (reset_block) |reset_buf| {
+        if (@intFromPtr(reset_buf) == 0x9200) {
+            c64.console.print("RESET OK\n", .{});
+            c64.vic.border = 5;
+        }
+    }
+}

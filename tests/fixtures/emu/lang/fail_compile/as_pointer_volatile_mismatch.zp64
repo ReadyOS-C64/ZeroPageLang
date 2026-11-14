@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported pointer builtin
+export fn main() void {
+    const raw: [*]volatile u8 = @as([*]volatile u8, @ptrFromInt(0x0400));
+    const bad: [*]u8 = @as([*]u8, raw);
+    _ = @intFromPtr(bad);
+}

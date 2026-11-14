@@ -1,0 +1,11 @@
+// zeropage-emu-error: invalid zeropage_options module disk manifest
+pub const zeropage_options = .{
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+        .registry = .{ .capacity = 1 },
+        .disk_manifest = .{ .current = "enemyrt", .deps = .{} },
+    },
+};
+
+export fn main() void {}

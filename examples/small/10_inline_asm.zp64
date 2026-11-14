@@ -1,0 +1,60 @@
+const c64 = @import("c64");
+
+fn copyWithAsm(unsigned_param: u8, signed_param: i8, glyph_param: u8, flag_param: bool) void {
+    var unsigned_local: u8 = 0;
+    var signed_local: i8 = 0;
+    var glyph_local: u8 = ' ';
+    var flag_local: bool = false;
+
+    // ZeroPage byte params and locals are visible in asm as @name operands.
+    // The compiler resolves them to the generated 64tass storage labels.
+    asm {
+        lda @unsigned_param
+        clc
+        adc #1
+        sta @unsigned_local
+        lda @signed_param
+        sta @signed_local
+        lda @glyph_param
+        sta @glyph_local
+        lda @flag_param
+        sta @flag_local
+    }
+
+    c64.screen.putsAt(2, 12, "ASM VARS OK");
+    c64.screen.hexAt(14, 12, unsigned_local);
+    c64.screen.putAt(18, 12, glyph_local);
+    if (flag_local == true) {
+        c64.screen.putsAt(2, 10, "ASM PARAMS OK");
+    }
+}
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "INLINE ASM DEMO");
+
+    asm {
+        lda #$06
+        sta $d020
+        ldx #$03
+loop:
+        inc $d021
+        dex
+        bne loop
+    }
+
+    c64.screen.putsAt(2, 4, "LABEL LOOP OK");
+
+    // $ffd2 is the C64 KERNAL CHROUT routine. Calling outside ZeroPage code is
+    // assumed to clobber A/X/Y/status, so the inline-asm wrapper preserves them.
+    asm {
+        lda #65
+        jsr $ffd2
+    }
+
+    // If this still renders correctly after CHROUT, ZeroPage resumed with its
+    // compiler-managed state intact.
+    c64.screen.putsAt(2, 6, "JSR PRESERVE OK");
+
+    copyWithAsm(4, 255, 'Z', true);
+}

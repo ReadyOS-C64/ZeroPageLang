@@ -1,0 +1,56 @@
+// Source-owned policy variant of the adjacent unchanged Oscar64-inspired workload.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scratch },
+};
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/loopindexrebasetest.c
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+fn fill(a: [*]u8, b: [*]u8) void {
+    var i: u16 = 768;
+    while (i < 1024) { a[i] = 0x69; b[i] = 0x96; i += 1; }
+}
+fn retainLast(a: [*]u8) usize {
+    var i: u16 = 768;
+    var last: *u8 = @ptrFromInt(@intFromPtr(a));
+    while (i < 1024) {
+        last = @ptrFromInt(@intFromPtr(a) + i);
+        last.* = 0x69;
+        i += 1;
+    }
+    last.* = 0xa7;
+    return @intFromPtr(last);
+}
+fn indexBytes(a: [*]u8, b: [*]u8) void {
+    var i: u16 = 768;
+    while (i < 1024) { a[i] = i; b[i] = i >> 8; i += 1; }
+}
+export fn main() void {
+    const a: [*]u8 = @ptrFromInt(0x6000);
+    const b: [*]u8 = @ptrFromInt(0x6800);
+    var i: u16 = 0;
+    while (i < 1280) { a[i] = 0x35; b[i] = 0xc6; i += 1; }
+    fill(a, b);
+    i = 0;
+    while (i < 1280) {
+        const expected_a: u8 = if (i >= 768 and i < 1024) 0x69 else 0x35;
+        const expected_b: u8 = if (i >= 768 and i < 1024) 0x96 else 0xc6;
+        test6502.expectEqualBool(1, true, a[i] == expected_a);
+        test6502.expectEqualBool(2, true, b[i] == expected_b);
+        i += 1;
+    }
+    test6502.expectEqualU16(3, 0x63ff, retainLast(a));
+    test6502.expectEqualU8(4, 0xa7, a[1023]);
+    test6502.expectEqualU8(5, 0x35, a[1024]);
+    indexBytes(a, b);
+    i = 768;
+    var low: u8 = 0;
+    while (i < 1024) {
+        test6502.expectEqualBool(6, true, a[i] == low);
+        test6502.expectEqualU8(7, 3, b[i]);
+        low += 1; i += 1;
+    }
+    test6502.expectEqualU8(8, 0x35, a[767]);
+    test6502.expectEqualU8(9, 0xc6, b[1024]);
+    test6502.pass();
+}

@@ -1,0 +1,49 @@
+// zeropage-emu-error: unsupported stack frame size
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{
+        .main = .{ .frame = .stack },
+        .huge = .{ .frame = .stack },
+    } },
+};
+
+fn huge(seed: u8) u8 {
+    var a0: u16 = 0; var a1: u16 = 1; var a2: u16 = 2; var a3: u16 = 3;
+    var a4: u16 = 4; var a5: u16 = 5; var a6: u16 = 6; var a7: u16 = 7;
+    var a8: u16 = 8; var a9: u16 = 9; var a10: u16 = 10; var a11: u16 = 11;
+    var a12: u16 = 12; var a13: u16 = 13; var a14: u16 = 14; var a15: u16 = 15;
+    var a16: u16 = 16; var a17: u16 = 17; var a18: u16 = 18; var a19: u16 = 19;
+    var a20: u16 = 20; var a21: u16 = 21; var a22: u16 = 22; var a23: u16 = 23;
+    var a24: u16 = 24; var a25: u16 = 25; var a26: u16 = 26; var a27: u16 = 27;
+    var a28: u16 = 28; var a29: u16 = 29; var a30: u16 = 30; var a31: u16 = 31;
+    var a32: u16 = 32; var a33: u16 = 33; var a34: u16 = 34; var a35: u16 = 35;
+    var a36: u16 = 36; var a37: u16 = 37; var a38: u16 = 38; var a39: u16 = 39;
+    var a40: u16 = 40; var a41: u16 = 41; var a42: u16 = 42; var a43: u16 = 43;
+    var a44: u16 = 44; var a45: u16 = 45; var a46: u16 = 46; var a47: u16 = 47;
+    var a48: u16 = 48; var a49: u16 = 49; var a50: u16 = 50; var a51: u16 = 51;
+    var a52: u16 = 52; var a53: u16 = 53; var a54: u16 = 54; var a55: u16 = 55;
+    var a56: u16 = 56; var a57: u16 = 57; var a58: u16 = 58; var a59: u16 = 59;
+    var a60: u16 = 60; var a61: u16 = 61; var a62: u16 = 62; var a63: u16 = 63;
+    var a64: u16 = 64; var a65: u16 = 65; var a66: u16 = 66; var a67: u16 = 67;
+    var a68: u16 = 68; var a69: u16 = 69; var a70: u16 = 70; var a71: u16 = 71;
+    var a72: u16 = 72; var a73: u16 = 73; var a74: u16 = 74; var a75: u16 = 75;
+    var a76: u16 = 76; var a77: u16 = 77; var a78: u16 = 78; var a79: u16 = 79;
+    var a80: u16 = 80; var a81: u16 = 81; var a82: u16 = 82; var a83: u16 = 83;
+    var a84: u16 = 84; var a85: u16 = 85; var a86: u16 = 86; var a87: u16 = 87;
+    var a88: u16 = 88; var a89: u16 = 89; var a90: u16 = 90; var a91: u16 = 91;
+    var a92: u16 = 92; var a93: u16 = 93; var a94: u16 = 94; var a95: u16 = 95;
+    var a96: u16 = 96; var a97: u16 = 97; var a98: u16 = 98; var a99: u16 = 99;
+    var a100: u16 = 100; var a101: u16 = 101; var a102: u16 = 102; var a103: u16 = 103;
+    var a104: u16 = 104; var a105: u16 = 105; var a106: u16 = 106; var a107: u16 = 107;
+    var a108: u16 = 108; var a109: u16 = 109; var a110: u16 = 110; var a111: u16 = 111;
+    var a112: u16 = 112; var a113: u16 = 113; var a114: u16 = 114; var a115: u16 = 115;
+    var a116: u16 = 116; var a117: u16 = 117; var a118: u16 = 118; var a119: u16 = 119;
+    var a120: u16 = 120; var a121: u16 = 121; var a122: u16 = 122; var a123: u16 = 123;
+    var a124: u16 = 124; var a125: u16 = 125; var a126: u16 = 126; var a127: u16 = 127;
+    return seed + @as(u8, a0);
+}
+
+export fn main() void {
+    var value: u8 = huge(1);
+    _ = value;
+}

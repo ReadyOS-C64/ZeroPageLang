@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported switch payload
+export fn main() void {
+    const maybe: ?u8 = 7;
+    switch (maybe) {
+        else => |value| {
+            _ = value;
+        },
+    }
+}

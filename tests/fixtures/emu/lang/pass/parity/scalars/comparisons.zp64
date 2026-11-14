@@ -1,0 +1,91 @@
+const test6502 = @import("test6502");
+
+fn id8(value: u8) u8 {
+    return value;
+}
+
+fn id16(value: u16) u16 {
+    return value;
+}
+
+fn add8(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn add16(a: u16, b: u16) u16 {
+    return a + b;
+}
+
+fn isBig(value: u16) bool {
+    return value > 255;
+}
+
+fn choose(ok: bool, yes_value: u8, no_value: u8) u8 {
+    if (ok) {
+        return yes_value;
+    } else {
+        return no_value;
+    }
+}
+
+export fn main() void {
+    var a: u8 = 5;
+    var b: u8 = 7;
+    test6502.expectEqualBool(1, true, a == 5);
+    test6502.expectEqualBool(2, true, a != b);
+    test6502.expectEqualBool(3, true, a < b);
+    test6502.expectEqualBool(4, true, b > a);
+    test6502.expectEqualBool(5, true, a <= 5);
+    test6502.expectEqualBool(6, true, b >= 7);
+    test6502.expectEqualBool(7, false, a == b);
+    test6502.expectEqualBool(8, false, b < a);
+
+    var t: bool = true;
+    var f: bool = false;
+    test6502.expectEqualBool(9, true, t == true);
+    test6502.expectEqualBool(10, true, t != f);
+    test6502.expectEqualBool(11, false, f != false);
+
+    var signed_byte: i8 = 255;
+    var signed_same: i8 = 255;
+    test6502.expectEqualBool(12, true, signed_byte == signed_same);
+    test6502.expectEqualBool(13, true, signed_byte != 0);
+
+    var signed_word: i16 = 65535;
+    var signed_word_same: i16 = 65535;
+    test6502.expectEqualBool(14, true, signed_word == signed_word_same);
+    test6502.expectEqualBool(15, true, signed_word != 1);
+
+    var low: u16 = 255;
+    var page: u16 = 256;
+    var max: u16 = 65535;
+    var zero: u16 = 0;
+    test6502.expectEqualBool(16, true, low < page);
+    test6502.expectEqualBool(17, true, page > low);
+    test6502.expectEqualBool(18, true, max >= max);
+    test6502.expectEqualBool(19, true, zero < max);
+    test6502.expectEqualBool(20, true, zero != max);
+    test6502.expectEqualBool(21, true, page <= 256);
+    test6502.expectEqualBool(22, false, max < page);
+
+    var ptr: usize = 4096;
+    var ptr2: usize = 4351;
+    test6502.expectEqualBool(23, true, ptr < ptr2);
+    test6502.expectEqualBool(24, true, ptr2 >= 4351);
+    test6502.expectEqualBool(25, true, ptr2 != ptr);
+
+    test6502.expectEqualBool(26, true, id8(5) == 5);
+    test6502.expectEqualBool(27, true, id16(4096) >= 4096);
+    test6502.expectEqualBool(28, true, add16(id16(255), 1) == 256);
+    test6502.expectEqualBool(29, true, isBig(add16(255, 1)));
+    test6502.expectEqualBool(30, true, add8(add8(1, 2), add8(3, 4)) == 10);
+
+    var ok: bool = add16(1, 2) == 3;
+    test6502.expectEqualBool(31, true, ok);
+    ok = id8(4) < 3;
+    test6502.expectEqualBool(32, false, ok);
+    test6502.expectEqualU8(33, 9, choose(add16(1, 2) == 3, 9, 1));
+    test6502.expectEqualU8(34, 1, choose(add8(1, 1) > 3, 9, 1));
+
+    test6502.pass();
+}

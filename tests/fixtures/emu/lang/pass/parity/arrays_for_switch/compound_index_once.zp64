@@ -1,0 +1,35 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .scale = .{ .frame = .stack } } },
+};
+
+fn index(counter: *u8) u8 {
+    counter.* = counter.* + 1;
+    return counter.* - 1;
+}
+
+fn scale(a: u16, b: u16) u16 {
+    return a + b;
+}
+
+fn nested(log: *u8, target: *u16) u16 {
+    var values = [_]u16{ 9, 7 };
+    var count: u8 = 0;
+    values[index(&count)] *= scale(2, 1) * 2;
+    target.* = 55;
+    log.* = log.* * 10 + count;
+    return values[0] + count;
+}
+
+export fn main() void {
+    var count: u8 = 0;
+    var log: u8 = 0;
+    var values = [_]u16{ 5, 20 };
+    values[index(&count)] += nested(&log, &values[0]);
+    test6502.expectEqualU16(1, 60, values[0]);
+    test6502.expectEqualU16(2, 20, values[1]);
+    test6502.expectEqualU8(3, 1, count);
+    test6502.expectEqualU8(4, 1, log);
+}

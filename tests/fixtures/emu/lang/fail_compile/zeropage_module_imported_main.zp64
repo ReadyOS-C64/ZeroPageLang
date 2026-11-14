@@ -1,0 +1,3 @@
+// zeropage-emu-error: unsupported imported zeropage_module metadata
+const mod = @import("../../../pass/zeropage_module_imported_mod.zp64");
+export fn main() void {}

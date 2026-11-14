@@ -1,0 +1,45 @@
+// zeropage-emu-start: program_entry
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row2_loaded=$00
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001800 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 3 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{ .math_core = "mathcore", .pathing = "pathing" },
+        },
+        .policy = .{
+            .current = .{ .mode = .manual },
+            .deps = .{
+                .math_core = .{ .mode = .preload },
+                .pathing = .{ .mode = .preload },
+            },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_dep_preload_missing",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, false, ZeroPage.module.isLoaded("math_core"));
+    test6502.expectEqualBool(2, false, ZeroPage.module.isLoaded("pathing"));
+    test6502.pass();
+}

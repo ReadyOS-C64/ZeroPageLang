@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported struct
+const Event = union(enum) { none, key: u8 };
+const Wrapper = struct { event: Event };
+
+export fn main() void {
+    var wrapper = Wrapper{ .event = Event{ .key = 1 } };
+    _ = wrapper.event;
+}

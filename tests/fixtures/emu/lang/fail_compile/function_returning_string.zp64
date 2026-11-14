@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported string type: slice
+const test6502 = @import("test6502");
+fn message() []const u8 {
+    return "hello";
+}
+export fn main() void {
+    test6502.expectString(1, message(), "HELLO");
+}

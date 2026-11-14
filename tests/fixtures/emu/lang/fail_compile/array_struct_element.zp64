@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported array by-value use
+const test6502 = @import("test6502");
+
+const Point = struct { x: u8 };
+
+export fn main() void {
+    var xs: [2]Point = .{ Point{ .x = 1 }, Point{ .x = 2 } };
+    _ = xs;
+    test6502.pass();
+}

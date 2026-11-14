@@ -1,0 +1,6 @@
+// zeropage-emu-error: invalid zeropage_options memory region
+memory {
+    region backing: reu at 0x010000 size 0x0100;
+    pool objects in backing block 16;
+}
+export fn main() void {}

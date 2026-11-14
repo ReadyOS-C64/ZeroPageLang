@@ -1,0 +1,8 @@
+// zeropage-emu-error: ArgumentCountMismatch
+const test6502 = @import("test6502");
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+export fn main() void {
+    test6502.expectEqualU8(1, 1, add(1));
+}

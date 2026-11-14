@@ -1,0 +1,5 @@
+// zeropage-emu-error: unsupported pointer builtin
+export fn main() void {
+    const ptr = @ptrFromInt(0xd020);
+    _ = ptr;
+}

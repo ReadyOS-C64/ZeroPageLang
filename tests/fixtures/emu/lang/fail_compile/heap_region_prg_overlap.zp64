@@ -1,0 +1,8 @@
+// zeropage-emu-error: invalid zeropage_options heap region
+pub const zeropage_options = .{
+    .heaps = .{
+        .main = .{ .region = .{ .addr = 0x080d, .size = 0x0100 }, .kind = .arena },
+    },
+};
+
+export fn main() void {}

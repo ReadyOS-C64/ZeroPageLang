@@ -1,0 +1,31 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var x: u8 = 3;
+    test6502.expectA(1, 3);
+    x += 4;
+    test6502.expectA(2, 7);
+    x = x + 2;
+    test6502.expectA(3, 9);
+    x -= 4;
+    test6502.expectA(4, 5);
+
+    var neg: i8 = 255;
+    test6502.expectA(5, 255);
+    var flag: bool = true;
+    test6502.expectA(6, 1);
+    var base: u16 = 1024;
+    var signed: i16 = 1025;
+    var ptr: usize = 1026;
+
+    c64.screen.clear();
+    c64.screen.putsAt(0, 0, "SCALARS");
+    c64.screen.hexAt(0, 1, x);
+    c64.screen.hexAt(3, 1, neg);
+    c64.screen.hexAt(6, 1, flag);
+    c64.screen.hex16At(0, 2, base);
+    c64.screen.hex16At(5, 2, signed);
+    c64.screen.hex16At(10, 2, ptr);
+    test6502.pass();
+}

@@ -1,0 +1,34 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.screen.clear();
+
+    var count: u8 = 3;
+    var signed_step: i8 = 1;
+    var ok: bool = true;
+    var screen_base: u16 = 1024;
+    var signed_base: i16 = 2048;
+    var screen_ptr: usize = 1024;
+
+    c64.screen.putsAt(2, 2, "TYPES DEMO");
+    c64.screen.putsAt(2, 3, "COUNT STEP OK");
+    c64.screen.hexAt(13, 3, count);
+    c64.screen.hexAt(16, 3, signed_step);
+    c64.screen.hexAt(19, 3, ok);
+    if (ok == true) {
+        c64.screen.putsAt(2, 4, "BOOL U8 I8 U16");
+    }
+
+    while (count < 7) {
+        c64.screen.putAt(2 + count, 6, '*');
+        count += signed_step;
+    }
+    c64.screen.putsAt(2, 8, "COUNT=");
+    c64.screen.hexAt(8, 8, count);
+    c64.screen.putsAt(2, 9, "U16=");
+    c64.screen.hex16At(6, 9, screen_base);
+    c64.screen.putsAt(12, 9, "I16=");
+    c64.screen.hex16At(16, 9, signed_base);
+    c64.screen.putsAt(2, 10, "USIZE=");
+    c64.screen.hex16At(8, 10, screen_ptr);
+}

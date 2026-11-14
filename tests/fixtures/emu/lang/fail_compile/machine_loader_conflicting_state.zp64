@@ -1,0 +1,10 @@
+// zeropage-emu-error: invalid ZeroPage machine declaration
+module_loader {
+    window main in run;
+    reu_cache in cache;
+    current {
+        discard_on_unload;
+        persist_in_reu at 0 size 1;
+    }
+}
+export fn main() void {}

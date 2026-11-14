@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported pointer builtin
+export fn main() void {
+    var a: u8 = 1;
+    var b: u8 = 2;
+    const pa: *u8 = &a;
+    const pb: *u8 = &b;
+    const same = pa == pb;
+    _ = same;
+}

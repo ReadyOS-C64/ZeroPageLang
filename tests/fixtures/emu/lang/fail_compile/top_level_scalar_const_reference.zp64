@@ -1,0 +1,7 @@
+// zeropage-emu-error: UnknownVariable
+const test6502 = @import("test6502");
+const value: u8 = 1;
+
+export fn main() void {
+    test6502.expectEqualU8(1, 1, value);
+}

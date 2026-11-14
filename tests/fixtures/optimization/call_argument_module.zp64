@@ -1,0 +1,15 @@
+// The module export is a software-stack ABI target, not private static storage.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0100 },
+    .abi = .{ .functions = .{ .moduleLeaf = .{ .frame = .stack } } },
+};
+pub const zeropage_module = .{ .id = "call_argument", .abi = 1, .flags = .{}, .exports = .{ .fold = moduleLeaf }, .deps = .{} };
+fn moduleLeaf(value: u16, mask: u16) u16 { var result: u16 = value + mask; return result; }
+fn moduleCase(location: *u16, mask: u16) u16 { return moduleLeaf(location.*, mask); }
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    test6502.expectEqualU16(1, 0xd4ef, moduleCase(location, 0x52f0));
+    test6502.pass();
+}

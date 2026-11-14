@@ -1,0 +1,12 @@
+// zeropage-emu-error: unsupported for range
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var limit: usize = 4;
+    var total: usize = 0;
+    for (0..limit) |i| {
+        total += i;
+    }
+    test6502.expectEqualU16(1, 6, total);
+    test6502.pass();
+}

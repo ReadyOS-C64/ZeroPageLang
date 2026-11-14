@@ -1,0 +1,8 @@
+const c64 = @import("c64");
+
+fn cleanup() void {}
+
+export fn main() void {
+    defer cleanup();
+}
+

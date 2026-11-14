@@ -1,0 +1,54 @@
+const test6502 = @import("test6502");
+
+fn choose(flag: bool, yes: u8, no: u8) u8 {
+    if (flag) {
+        return yes;
+    }
+    return no;
+}
+
+fn sideEffect(value: u8) u8 {
+    test6502.hit(10);
+    return value;
+}
+
+fn branchy(value: u8) u8 {
+    var result: u8 = 0;
+    if (value == 3) {
+        result = 7;
+    } else if (value > 3) {
+        result = 9;
+    } else {
+        result = 1;
+    }
+    return result;
+}
+
+export fn main() void {
+    const screen: [*]volatile u8 = @ptrFromInt(0x0400);
+    screen[0] = 3;
+    screen[1] = 5;
+
+    const a = screen[0];
+    const b = screen[1];
+    const ok = a == 3 and b == 5;
+    const picked = choose(ok, sideEffect(12), 99);
+
+    test6502.expectEqualU8(1, 12, picked);
+    test6502.expectHitCount(10, 1);
+    test6502.expectEqualU8(2, 7, branchy(a));
+    test6502.expectEqualU8(3, 9, branchy(b));
+    test6502.expectEqualU8(4, 1, branchy(1));
+    test6502.expectEqualBool(5, true, ok);
+
+    switch (picked) {
+        12 => {
+            test6502.hit(20);
+        },
+        else => {
+            test6502.fail(1);
+        },
+    }
+    test6502.expectHitCount(20, 1);
+    test6502.pass();
+}

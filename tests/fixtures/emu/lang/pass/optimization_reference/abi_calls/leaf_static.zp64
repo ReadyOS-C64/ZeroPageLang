@@ -1,0 +1,7 @@
+// zeropage-emu-benchmark-stack: none
+const test6502 = @import("test6502");
+const workload = @import("_leaf.zp64");
+
+export fn main() void {
+    test6502.expectEqualU16(1, 51617, workload.run());
+}

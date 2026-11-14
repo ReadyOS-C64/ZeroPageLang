@@ -1,0 +1,21 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+const prefix = "mutable ";
+const suffix = "buffer";
+
+export fn main() void {
+    var msg = c64.string.buffer(32);
+    msg = prefix ++ suffix;
+    c64.string.append(msg, " ok\n");
+
+    c64.console.clear();
+    c64.console.print("MUT STR\n", .{});
+    c64.console.puts(msg);
+
+    c64.string.clear(msg);
+    c64.string.append(msg, "after ");
+    c64.string.append(msg, "clear\n");
+    c64.console.puts(msg);
+    test6502.pass();
+}

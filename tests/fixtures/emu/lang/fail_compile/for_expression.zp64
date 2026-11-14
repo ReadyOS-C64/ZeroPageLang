@@ -1,0 +1,11 @@
+// zeropage-emu-error: valid Zig syntax
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const xs = [_]u8{ 1, 2 };
+    const found = for (xs) |item| {
+        if (item == 2) break item;
+    } else 0;
+    test6502.expectEqualU8(1, 2, found);
+    test6502.pass();
+}

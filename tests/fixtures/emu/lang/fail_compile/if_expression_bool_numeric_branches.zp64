@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported if expression branch types
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const value = if (true) true else 1;
+    test6502.expectEqualBool(1, true, value);
+}

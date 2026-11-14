@@ -1,0 +1,46 @@
+const test6502 = @import("test6502");
+
+fn noArg() u8 {
+    return 7;
+}
+
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn eq(a: u8, b: u8) bool {
+    return a == b;
+}
+
+fn choose(ok: bool, yes: u8, no: u8) u8 {
+    if (ok == true) {
+        return yes;
+    } else {
+        return no;
+    }
+}
+
+fn touch() void {
+    test6502.hit(1);
+}
+
+export fn main() void {
+    touch();
+    touch();
+    test6502.expectHitCount(1, 2);
+    test6502.expectEqualU8(2, 7, noArg());
+    test6502.expectEqualU8(3, 5, add(2, 3));
+    test6502.expectEqualBool(4, true, eq(5, 5));
+    test6502.expectEqualBool(5, false, eq(5, 6));
+    test6502.expectEqualU8(6, 9, choose(true, 9, 1));
+    test6502.expectEqualU8(7, 1, choose(false, 9, 1));
+    test6502.expectEqualU8(8, 6, add(add(1, 2), 3));
+    test6502.expectEqualU8(9, 6, add(1, add(2, 3)));
+    test6502.expectEqualU8(10, 10, add(add(1, 2), add(3, 4)));
+    test6502.expectEqualU8(11, 9, choose(eq(add(1, 2), 3), 9, 1));
+    var total: u8 = add(4, 5);
+    test6502.expectEqualU8(12, 9, total);
+    total = add(total, 1);
+    test6502.expectEqualU8(13, 10, total);
+    test6502.pass();
+}

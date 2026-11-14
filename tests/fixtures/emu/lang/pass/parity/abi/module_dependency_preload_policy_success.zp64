@@ -1,0 +1,55 @@
+// zeropage-emu-start: program_entry
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-module: filename=pathing source=tests/fixtures/emu/modules/pathing_dispatch.zp64
+// zeropage-emu-memory: $c000=$4c
+// zeropage-emu-reu: $030800=$4c
+// zeropage-emu-reu: $031000=$4c
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row1_refcount=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row2_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row2_refcount=$01
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$02
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001800 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 3 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{ .math_core = "mathcore", .pathing = "pathing" },
+        },
+        .policy = .{
+            .current = .{ .mode = .manual },
+            .deps = .{
+                .math_core = .{ .mode = .preload },
+                .pathing = .{ .mode = .preload },
+            },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_dep_preload",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, true, ZeroPage.module.isLoaded("math_core"));
+    test6502.expectEqualBool(2, true, ZeroPage.module.isLoaded("pathing"));
+    test6502.expectSomeU8(3, 5, ZeroPage.module.call("math_core", "add", .{3}));
+    test6502.expectSomeU8(4, 9, ZeroPage.module.call("pathing", "step", .{5}));
+    test6502.pass();
+}

@@ -1,0 +1,16 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fa, .size = 6 },
+    .abi = .{ .functions = .{ .subtract = .{ .frame = .stack } } },
+};
+
+fn subtract(left: u16, right: u16) u16 {
+    return left - right;
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0x7fff, subtract(0x8000, 1));
+    test6502.expectEqualU16(2, 0xffff, subtract(0, 1));
+    test6502.expectEqualU16(3, 0, subtract(0xffff, 0xffff));
+}

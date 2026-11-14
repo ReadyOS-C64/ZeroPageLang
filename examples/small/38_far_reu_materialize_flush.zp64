@@ -1,0 +1,47 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Enemy = struct {
+    hp: u8,
+    x: u8,
+    score: u16,
+};
+
+memory {
+    region main_ram: c64 at 0x9000 size 32;
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena near_heap in main_ram;
+    arena assets in assets_ram;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("FAR MATERIALIZE\n", .{});
+
+    const maybe_far = assets.allocBytes(@sizeOf(Enemy) * 2);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 2);
+        enemies.set(0, Enemy{ .hp = 3, .x = 4, .score = 0x1234 });
+        enemies.set(1, Enemy{ .hp = 5, .x = 6, .score = 0x3456 });
+
+        if (enemies.materialize(near_heap)) |local| {
+            const enemy = local.get(0);
+            local.set(0, Enemy{ .hp = enemy.hp + 2, .x = enemy.x + 2, .score = enemy.score + 1 });
+            enemies.flush(local);
+            near_heap.reset();
+        }
+
+        const loaded = enemies.get(0);
+        if (loaded.hp == 5 and loaded.x == 6 and loaded.score == 0x1235) {
+            c64.console.print("FLUSH OK\n", .{});
+            c64.vic.border = 5;
+        } else {
+            c64.console.print("FLUSH BAD\n", .{});
+            c64.vic.border = 2;
+        }
+    } else {
+        c64.console.print("FAR ALLOC BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

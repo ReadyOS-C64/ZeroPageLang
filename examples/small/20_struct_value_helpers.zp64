@@ -1,0 +1,69 @@
+const c64 = @import("c64");
+
+const Cell = enum(u8) { empty, x, o };
+const Board = struct { cells: [9]Cell };
+const Game = struct { board: Board, history: [9]u8, move_count: u8 };
+
+fn emptyBoard() Board {
+    return Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty } };
+}
+
+fn newGame() Game {
+    return Game{
+        .board = emptyBoard(),
+        .history = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        .move_count = 0,
+    };
+}
+
+fn tag(cell: Cell) u8 {
+    return switch (cell) {
+        Cell.empty => 0,
+        Cell.x => 1,
+        else => 2,
+    };
+}
+
+fn boardScore(board: Board) u8 {
+    var score: u8 = 0;
+    for (0..9) |i| {
+        score += tag(board.cells[i]);
+    }
+    return score;
+}
+
+fn applyMove(game: Game, index: u8, mark: Cell) Game {
+    game.board.cells[index] = mark;
+    game.history[game.move_count] = index;
+    game.move_count = game.move_count + 1;
+    return game;
+}
+
+fn cloneGame(game: Game) Game {
+    return game;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("struct values\n", .{});
+
+    var game = newGame();
+    const empty_snapshot = game;
+    game = applyMove(game, 0, .x);
+    game = applyMove(game, 4, .o);
+    game = applyMove(game, 8, .x);
+    const snapshot = cloneGame(game);
+
+    c64.console.print("cells {x} {x} {x}\n", .{ tag(snapshot.board.cells[0]), tag(snapshot.board.cells[4]), tag(snapshot.board.cells[8]) });
+    c64.console.print("hist {x} {x} {x}\n", .{ snapshot.history[0], snapshot.history[1], snapshot.history[2] });
+    c64.console.print("moves {x}\n", .{snapshot.move_count});
+    c64.console.print("score {x}\n", .{boardScore(snapshot.board)});
+
+    if (empty_snapshot.move_count == 0 and boardScore(snapshot.board) == 4 and snapshot.history[2] == 8) {
+        c64.console.print("struct value ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("struct value bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

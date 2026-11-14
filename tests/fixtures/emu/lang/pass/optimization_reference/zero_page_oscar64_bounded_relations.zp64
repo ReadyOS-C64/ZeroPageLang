@@ -1,0 +1,66 @@
+// Source-owned policy variant of the adjacent unchanged Oscar64-inspired workload.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scratch },
+};
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/cmprangeshortcuttest.c
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+const Counts = struct { lt: u16, le: u16, gt: u16, ge: u16, eq: u16, ne: u16 };
+fn countRelations(start: u16, end: u16, threshold: u16) Counts {
+    var result = Counts{ .lt = 0, .le = 0, .gt = 0, .ge = 0, .eq = 0, .ne = 0 };
+    var i: u16 = start;
+    while (i < end) {
+        if (i < threshold) { result.lt += 1; }
+        if (i <= threshold) { result.le += 1; }
+        if (i > threshold) { result.gt += 1; }
+        if (i >= threshold) { result.ge += 1; }
+        if (i == threshold) { result.eq += 1; }
+        if (i != threshold) { result.ne += 1; }
+        i += 1;
+    }
+    return result;
+}
+fn bounded() Counts {
+    var result = Counts{ .lt = 0, .le = 0, .gt = 0, .ge = 0, .eq = 0, .ne = 0 };
+    for (0..10) |offset| {
+        const i: u16 = offset + 5;
+        if (i < 5) { result.lt += 1; }
+        if (i <= 5) { result.le += 1; }
+        if (i > 10) { result.gt += 1; }
+        if (i >= 15) { result.ge += 1; }
+        if (i == 14) { result.eq += 1; }
+        if (i != 10) { result.ne += 1; }
+    }
+    return result;
+}
+export fn main() void {
+    const thresholds = [_]u16{ 4, 5, 10, 14, 15 };
+    const expected_lt = [_]u16{ 0, 0, 5, 9, 10 };
+    const expected_le = [_]u16{ 0, 1, 6, 10, 10 };
+    const expected_eq = [_]u16{ 0, 1, 1, 1, 0 };
+    for (thresholds, 0..) |threshold, index| {
+        const result = countRelations(5, 15, threshold);
+        test6502.expectEqualBool(1, true, result.lt == expected_lt[index]);
+        test6502.expectEqualBool(2, true, result.le == expected_le[index]);
+        test6502.expectEqualBool(3, true, result.gt == 10 - expected_le[index]);
+        test6502.expectEqualBool(4, true, result.ge == 10 - expected_lt[index]);
+        test6502.expectEqualBool(5, true, result.eq == expected_eq[index]);
+        test6502.expectEqualBool(6, true, result.ne == 10 - expected_eq[index]);
+    }
+    const wide = countRelations(250, 260, 256);
+    test6502.expectEqualU16(7, 6, wide.lt);
+    test6502.expectEqualU16(8, 7, wide.le);
+    test6502.expectEqualU16(9, 3, wide.gt);
+    test6502.expectEqualU16(10, 4, wide.ge);
+    test6502.expectEqualU16(11, 1, wide.eq);
+    test6502.expectEqualU16(12, 9, wide.ne);
+    const known = bounded();
+    test6502.expectEqualU16(13, 0, known.lt);
+    test6502.expectEqualU16(14, 1, known.le);
+    test6502.expectEqualU16(15, 4, known.gt);
+    test6502.expectEqualU16(16, 0, known.ge);
+    test6502.expectEqualU16(17, 1, known.eq);
+    test6502.expectEqualU16(18, 9, known.ne);
+    test6502.pass();
+}

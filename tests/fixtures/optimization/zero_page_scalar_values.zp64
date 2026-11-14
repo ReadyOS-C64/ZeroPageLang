@@ -1,0 +1,47 @@
+// Native paired proof for source-owned private-parameter placement.
+// Named parameter/local objects are checked independently of changing frame offsets.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+
+const State = enum(u8) { idle = 0, active = 2, done = 7 };
+fn byteMix(left: u8, right: u8) u8 {
+    const saved: u8 = left ^ 0x55;
+    return (saved | right) & 0xdf;
+}
+fn wordMix(left: u16, right: u16) u16 {
+    const saved: u16 = (left << 3) ^ 0x55aa;
+    return (saved & right) | 0x0100;
+}
+fn boolean(left: bool, right: bool) bool {
+    const saved: bool = !left;
+    return saved or right;
+}
+fn enumMask(state: State, value: u16) u16 {
+    var result: u16 = value;
+    if (state == .active) { result ^= 0x55aa; } else { result |= 0x0101; }
+    return result;
+}
+fn readPair(location: *u16, mask: u16) u16 {
+    const loaded: u16 = location.*;
+    return loaded ^ mask;
+}
+fn identityPointer(location: *u16) *u16 { return location; }
+fn nonleaf(value: u16, mask: u16) u16 {
+    const first: u16 = wordMix(value, mask);
+    const second: u16 = wordMix(mask, value);
+    return first ^ second;
+}
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    test6502.expectEqualU8(1, 214, byteMix(0x81, 0x42));
+    test6502.expectEqualU16(2, 0x5150, wordMix(0x81ff, 0xf0f0));
+    test6502.expectEqualBool(3, true, boolean(false, false));
+    test6502.expectEqualBool(4, false, boolean(true, false));
+    test6502.expectEqualU16(5, 0xd455, enumMask(.active, 0x81ff));
+    test6502.expectEqualU16(6, 0x8101, enumMask(.done, 0x8000));
+    test6502.expectEqualU16(7, 0xd455, readPair(location, 0x55aa));
+    test6502.expectEqualU16(8, 0xc1ff, @intFromPtr(identityPointer(location)));
+    test6502.expectEqualU16(9, 0xd07a, nonleaf(0x81ff, 0xf0f0));
+    test6502.pass();
+}

@@ -1,0 +1,26 @@
+// Native paired proof for source-owned private-parameter placement.
+// Named parameter/local objects are checked independently of changing frame offsets.
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn aliasByte(value: u8, location: *u8) u16 {
+    const before: u8 = value;
+    location.* = location.* ^ 0x55;
+    const reread: u8 = value;
+    return @as(u16, before) ^ @as(u16, reread);
+}
+fn aliasWord(value: u16, location: *u8) u16 {
+    const before: u16 = value;
+    location.* = location.* ^ 0x5a;
+    const reread: u16 = value;
+    return before ^ reread;
+}
+export fn main() void {
+    const location: *u8 = @ptrFromInt(0xc1ff);
+    location.* = 0x81;
+    test6502.expectEqualU16(1, 0, aliasByte(0x42, location));
+    test6502.expectEqualU8(2, 0xd4, location.*);
+    test6502.expectEqualU16(3, 0, aliasWord(0x81ff, location));
+    test6502.expectEqualU8(4, 0x8e, location.*);
+    test6502.pass();
+}

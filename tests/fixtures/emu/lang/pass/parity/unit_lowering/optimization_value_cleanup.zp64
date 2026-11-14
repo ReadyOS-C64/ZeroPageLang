@@ -1,0 +1,75 @@
+const test6502 = @import("test6502");
+const Single = struct { value: u8 };
+const Pair = struct { a: u8, b: u8 };
+
+fn copies(value: u8) u8 {
+    const first = value;
+    const second = first;
+    const third = second;
+    return third;
+}
+
+fn aggregate(value: u8) u8 {
+    var item = Pair{ .a = value, .b = 7 };
+    const first = item.a;
+    const second = first;
+    return second;
+}
+
+fn wordCopies(value: u16) u16 {
+    const first = value;
+    const second = first;
+    return second;
+}
+
+fn decimalFlags(value: u8) u8 {
+    var item = Single{ .value = value + 123 };
+    return item.value;
+}
+
+fn change(location: *u8) void { location.* = location.* + 1; }
+
+fn callBarrier(value: u8) u8 {
+    var local = value;
+    const first = local;
+    change(&local);
+    return first + local;
+}
+
+fn asmBarrier(value: u8) u8 {
+    var local = value;
+    const first = local;
+    asm {
+        lda #7
+        sta @local
+    }
+    return first + local;
+}
+
+fn volatileReads(location: *volatile u8) u8 {
+    const first = location.*;
+    const second = location.*;
+    return first + second;
+}
+
+export fn main() void {
+    var count: u16 = 0;
+    var value: u8 = 0;
+    while (count < 256) {
+        test6502.expectEqualBool(1, true, copies(value) == value);
+        test6502.expectEqualBool(2, true, aggregate(value) == value);
+        test6502.expectEqualBool(3, true, decimalFlags(value) == value + 123);
+        test6502.expectEqualBool(4, true, callBarrier(value) == value + value + 1);
+        test6502.expectEqualBool(5, true, asmBarrier(value) == value + 7);
+        count += 1;
+        value += 1;
+    }
+    const words = [_]u16{ 0, 1, 255, 256, 257, 32767, 32768, 65535 };
+    for (words) |word| {
+        test6502.expectEqualBool(6, true, wordCopies(word) == word);
+    }
+    const location: *volatile u8 = @ptrFromInt(0xc100);
+    location.* = 3;
+    test6502.expectEqualU8(7, 6, volatileReads(location));
+    test6502.pass();
+}

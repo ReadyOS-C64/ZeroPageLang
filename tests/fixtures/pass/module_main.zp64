@@ -1,0 +1,10 @@
+const c64 = @import("c64");
+const math = @import("module_math.zp64");
+
+export fn main() void {
+    var total: u8 = math.add8(2, 3);
+    var ok: bool = math.isEqual8(total, 5);
+    if (ok == true) {
+        c64.screen.putsAt(2, 2, "MODULE OK");
+    }
+}

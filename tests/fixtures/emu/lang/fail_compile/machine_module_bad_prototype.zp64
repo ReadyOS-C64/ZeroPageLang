@@ -1,0 +1,3 @@
+// zeropage-emu-error: Zig parser rejected source syntax
+extern module Math = math_core { fn add(value u8) u8; }
+export fn main() void {}

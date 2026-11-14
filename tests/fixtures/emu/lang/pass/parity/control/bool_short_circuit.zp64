@@ -1,0 +1,136 @@
+const test6502 = @import("test6502");
+
+fn rhsTrue1() bool {
+    test6502.hit(1);
+    return true;
+}
+
+fn rhsTrue2() bool {
+    test6502.hit(2);
+    return true;
+}
+
+fn rhsTrue3() bool {
+    test6502.hit(3);
+    return true;
+}
+
+fn rhsFalse4() bool {
+    test6502.hit(4);
+    return false;
+}
+
+fn rhsTrue5() bool {
+    test6502.hit(5);
+    return true;
+}
+
+fn rhsTrue6() bool {
+    test6502.hit(6);
+    return true;
+}
+
+fn rhsTrue7() bool {
+    test6502.hit(7);
+    return true;
+}
+
+fn rhsTrue8() bool {
+    test6502.hit(8);
+    return true;
+}
+
+fn rhsTrue9() bool {
+    test6502.hit(9);
+    return true;
+}
+
+fn rhsFalse10() bool {
+    test6502.hit(10);
+    return false;
+}
+
+fn rhsTrue11() bool {
+    test6502.hit(11);
+    return true;
+}
+
+fn both(a: bool, b: bool) bool {
+    return a and b;
+}
+
+fn either(a: bool, b: bool) bool {
+    return a or b;
+}
+
+fn choose(ok: bool, yes_value: u8, no_value: u8) u8 {
+    if (ok) {
+        return yes_value;
+    } else {
+        return no_value;
+    }
+}
+
+export fn main() void {
+    var value: bool = true or rhsTrue1();
+    test6502.expectEqualBool(20, true, value);
+    test6502.expectHitCount(1, 0);
+
+    value = false or rhsTrue2();
+    test6502.expectEqualBool(21, true, value);
+    test6502.expectHitCount(2, 1);
+
+    value = false and rhsTrue3();
+    test6502.expectEqualBool(22, false, value);
+    test6502.expectHitCount(3, 0);
+
+    value = true and rhsFalse4();
+    test6502.expectEqualBool(23, false, value);
+    test6502.expectHitCount(4, 1);
+
+    test6502.expectEqualBool(24, false, false or true and false);
+    test6502.expectEqualBool(25, true, true or rhsTrue5() and false);
+    test6502.expectHitCount(5, 0);
+
+    value = true and rhsTrue6();
+    test6502.expectEqualBool(26, true, value);
+    test6502.expectHitCount(6, 1);
+
+    test6502.expectEqualBool(27, true, both(true, true));
+    test6502.expectEqualBool(28, false, both(true, false));
+    test6502.expectEqualBool(29, true, either(false, true));
+    test6502.expectEqualBool(30, false, either(false, false));
+
+    test6502.expectEqualU8(31, 9, choose(false or rhsTrue7(), 9, 1));
+    test6502.expectHitCount(7, 1);
+
+    if (true or rhsTrue8()) {
+        test6502.hit(12);
+    } else {
+        test6502.fail(12);
+    }
+    test6502.expectHitCount(8, 0);
+    test6502.expectHitCount(12, 1);
+
+    var done: bool = false;
+    var count: u8 = 0;
+    while (!done and rhsTrue9()) {
+        count += 1;
+        if (count == 3) {
+            done = true;
+        }
+    }
+    test6502.expectEqualU8(32, 3, count);
+    test6502.expectHitCount(9, 3);
+
+    if (rhsFalse10() or rhsTrue11()) {
+        test6502.hit(13);
+    } else {
+        test6502.fail(13);
+    }
+    test6502.expectHitCount(10, 1);
+    test6502.expectHitCount(11, 1);
+    test6502.expectHitCount(13, 1);
+
+    test6502.pass();
+}

@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported array literal
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Turn = enum(u8) { x, o };
+
+export fn main() void {
+    var cells: [2]Cell = .{ .empty, Turn.x };
+    test6502.expectEqualU8(1, 0, cells[0]);
+}

@@ -1,0 +1,16 @@
+const c64 = @import("c64");
+
+const greeting = "hello, " ++ "world";
+const console_line = "console puts ok\n";
+const kernal_line = "kernal chrout ok\r";
+const file_name = "demo,s,w";
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("STRING DEMO\n", .{});
+    c64.console.print("{s}\n", .{greeting});
+    c64.console.puts(console_line);
+    c64.kernal.puts(kernal_line);
+    c64.kernal.setName(file_name);
+    c64.console.print("SETNAM OK\n", .{});
+}

@@ -1,0 +1,17 @@
+// zeropage-emu-error: invalid zeropage_options module state
+pub const zeropage_options = .{
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x020000 },
+        .state = .{
+            .current = .{
+                .mode = .persist_in_reu,
+                .ranges = .{
+                    .{ .offset = 0x0100, .size = 2 },
+                },
+            },
+        },
+    },
+};
+
+export fn main() void {}

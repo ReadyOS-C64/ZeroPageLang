@@ -1,0 +1,7 @@
+// zeropage-emu-error: invalid zeropage_options stack zero-page
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400, .zp = .{ .sp = 0xfa, .fp = 0xf7 } },
+    .abi = .{ .functions = .{ .main = .{ .frame = .stack } } },
+};
+
+export fn main() void {}

@@ -1,0 +1,15 @@
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0008 },
+    .abi = .{ .functions = .{
+        .main = .{ .frame = .stack },
+        .burn = .{ .frame = .stack },
+    } },
+};
+
+fn burn(value: u8) u8 {
+    return burn(value - 1);
+}
+
+export fn main() void {
+    _ = burn(99);
+}

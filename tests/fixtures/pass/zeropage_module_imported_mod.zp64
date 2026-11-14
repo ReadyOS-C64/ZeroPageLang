@@ -1,0 +1,2 @@
+pub const zeropage_module = .{ .id = "imported_mod", .abi = 1, .exports = .{ .tick = tick } };
+fn tick(value: u8) u8 { return value; }

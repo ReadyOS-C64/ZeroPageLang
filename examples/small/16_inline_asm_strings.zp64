@@ -1,0 +1,27 @@
+const c64 = @import("c64");
+
+const source = "asm string ok\n";
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("inline asm strings\n", .{});
+
+    var msg = c64.string.buffer(32);
+    asm {
+        ldy #0
+copy:
+        lda @source.data,y
+        sta @msg.data,y
+        iny
+        cpy #@source.len
+        bne copy
+        lda #@source.len
+        sta @msg.len
+        lda #33
+        sta @msg.data+12
+    }
+
+    c64.console.puts(msg);
+    c64.console.print("asm string done\n", .{});
+    c64.vic.border = 5;
+}

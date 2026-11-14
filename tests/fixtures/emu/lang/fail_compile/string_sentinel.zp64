@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported string type: sentinel
+const test6502 = @import("test6502");
+const msg: [:0]const u8 = "hello";
+export fn main() void {
+    test6502.expectString(1, msg, "HELLO");
+}

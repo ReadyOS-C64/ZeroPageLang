@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported zeropage_options metadata
+pub const zeropage_options = .{
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+        .registry = .{},
+    },
+};
+
+export fn main() void {}

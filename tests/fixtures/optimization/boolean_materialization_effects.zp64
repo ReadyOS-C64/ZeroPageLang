@@ -1,0 +1,27 @@
+// Short-circuit evaluation order is observable through independent XOR markers.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn touch(location: *u8, mask: u8, answer: bool) bool { location.* = location.* ^ mask; return answer; }
+fn sideEffects(left: u8, right: u8) u8 {
+    const marker: *u8 = @ptrFromInt(0xc200);
+    marker.* = 0;
+    const selected: u8 = if ((left < right and touch(marker, 1, true)) or touch(marker, 2, false)) 0xa5 else 0x5a;
+    return selected;
+}
+fn nestedEffects(left: u8, right: u8) bool {
+    const marker: *u8 = @ptrFromInt(0xc200);
+    marker.* = 0;
+    return (left == right or touch(marker, 1, false)) and (left != 0 or touch(marker, 2, true));
+}
+export fn main() void {
+    const marker: *u8 = @ptrFromInt(0xc200);
+    test6502.expectEqualU8(1, 0xa5, sideEffects(1, 2));
+    test6502.expectEqualU8(2, 1, marker.*);
+    test6502.expectEqualU8(3, 0x5a, sideEffects(2, 1));
+    test6502.expectEqualU8(4, 2, marker.*);
+    test6502.expectEqualBool(5, true, nestedEffects(0, 0));
+    test6502.expectEqualU8(6, 2, marker.*);
+    test6502.expectEqualBool(7, false, nestedEffects(1, 2));
+    test6502.expectEqualU8(8, 1, marker.*);
+    test6502.pass();
+}

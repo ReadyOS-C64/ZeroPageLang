@@ -1,0 +1,11 @@
+// zeropage-emu-error: unsupported duplicate switch selector
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var x: u8 = 1;
+    test6502.expectEqualU8(1, 2, switch (x) {
+        1 => 2,
+        1 => 3,
+        else => 4,
+    });
+}

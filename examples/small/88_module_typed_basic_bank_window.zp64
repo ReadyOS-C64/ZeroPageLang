@@ -1,0 +1,93 @@
+const c64 = @import("c64");
+
+extern module MathCore = math_core {
+    fn add(value: u8) u8;
+}
+
+extern module FixedMath = fixed_math {
+    fn bias(value: u8) u8;
+}
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x004000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+    region basic_window: c64 at 0xa000 size 0x0800 bank .ram_under_basic;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+    window basic in basic_window;
+    capacity = 4;
+    current {
+        file = "enemybb";
+        discard_on_unload;
+    }
+    dependency math_core {
+        file = "mathcore";
+        window = basic;
+        requires = .{.fixed_math};
+        persist_in_reu at 0x0400 size 2;
+    }
+    dependency pathing {
+        file = "pathing";
+        requires = .{};
+        discard_on_unload;
+    }
+    dependency fixed_math {
+        file = "fixedmath";
+        window = basic;
+        requires = .{};
+    }
+}
+
+module enemy_typed_basic_bank abi 1 {
+    export tick;
+    dependency math_core;
+    dependency pathing;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    c64.console.clear();
+    var ok = false;
+    const local_current = tick(2);
+
+    if (MathCore.acquireGraph()) {
+        if (MathCore.add(3)) |direct_first| {
+            const basic_state: [*]volatile u8 = @ptrFromInt(0xa400);
+            basic_state[0] = 0x2a;
+            basic_state[1] = 0x37;
+            if (FixedMath.bias(4)) |transitive| {
+                if (MathCore.add(4)) |direct_second| {
+                    MathCore.releaseGraph();
+                    if (MathCore.add(5) == null and MathCore.acquireGraph()) {
+                        if (MathCore.add(5)) |direct_reloaded| {
+                            const local_again = tick(6);
+                            if (local_current == 3 and direct_first == 5 and transitive == 7 and direct_second == 6 and direct_reloaded == 7 and local_again == 7) {
+                                ok = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    c64.console.print("MODULE TYPED BASIC BANK\n", .{});
+    if (ok) {
+        c64.console.print("BASIC BANK OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("BASIC BANK BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

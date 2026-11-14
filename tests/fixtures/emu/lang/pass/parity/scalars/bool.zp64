@@ -1,0 +1,28 @@
+const test6502 = @import("test6502");
+
+fn echo(value: bool) bool {
+    return value;
+}
+
+fn eq(a: bool, b: bool) bool {
+    return a == b;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, true, true);
+    test6502.expectEqualBool(2, false, false);
+    var t: bool = true;
+    var f: bool = false;
+    test6502.expectEqualBool(3, true, t);
+    test6502.expectEqualBool(4, false, f);
+    test6502.expectEqualBool(5, true, t == true);
+    test6502.expectEqualBool(6, true, f == false);
+    test6502.expectEqualBool(7, false, t == false);
+    test6502.expectEqualBool(8, true, echo(true));
+    test6502.expectEqualBool(9, false, echo(false));
+    test6502.expectEqualBool(10, true, eq(t, true));
+    test6502.expectEqualBool(11, true, eq(f, false));
+    test6502.expectEqualU8(12, 1, t);
+    test6502.expectEqualU8(13, 0, f);
+    test6502.pass();
+}

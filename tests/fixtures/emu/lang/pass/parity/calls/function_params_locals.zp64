@@ -1,0 +1,58 @@
+const test6502 = @import("test6502");
+
+fn addParams(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn localVariables(input: u8) u8 {
+    var base: u8 = 1;
+    var total: u8 = base + input;
+    total += 2;
+    return total;
+}
+
+fn mutateParam(value: u8) u8 {
+    value += 5;
+    return value;
+}
+
+fn callerIsolation(value: u8) u8 {
+    var local: u8 = value;
+    var changed: u8 = mutateParam(local);
+    if (local == value) {
+        return changed - local;
+    } else {
+        return 0;
+    }
+}
+
+fn ignoredReturnWithSideEffect() u8 {
+    test6502.hit(1);
+    return 99;
+}
+
+fn voidSideEffect() void {
+    test6502.hit(2);
+}
+
+fn nestedLocals(a: u8, b: u8) u8 {
+    var left: u8 = addParams(a, b);
+    var right: u8 = addParams(left, 1);
+    return right;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 33, addParams(22, 11));
+    test6502.expectEqualU8(2, 7, localVariables(4));
+    var original: u8 = 10;
+    test6502.expectEqualU8(3, 15, mutateParam(original));
+    test6502.expectEqualU8(4, 10, original);
+    test6502.expectEqualU8(5, 5, callerIsolation(8));
+    ignoredReturnWithSideEffect();
+    voidSideEffect();
+    voidSideEffect();
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(2, 2);
+    test6502.expectEqualU8(6, 8, nestedLocals(3, 4));
+    test6502.pass();
+}

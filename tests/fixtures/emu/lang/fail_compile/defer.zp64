@@ -1,0 +1,5 @@
+// zeropage-emu-error: unsupported feature: defer
+const test6502 = @import("test6502");
+export fn main() void {
+    defer test6502.pass();
+}

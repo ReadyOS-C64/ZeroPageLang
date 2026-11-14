@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported array type
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var xs: [2:0]u8 = .{ 1, 2 };
+    test6502.expectEqualU8(1, 1, xs[0]);
+    test6502.pass();
+}

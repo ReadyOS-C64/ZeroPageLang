@@ -1,0 +1,1 @@
+const H=struct{items:[2]u16};export fn api(value:u16,index:u8,other:u8)u16{var h=H{.items=[_]u16{0x1122,0x3344}};const ptr:*H=&h;ptr.items[index]=value;return h.items[index];}export fn main()void{}

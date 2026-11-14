@@ -1,0 +1,5 @@
+// zeropage-emu-error: invalid ZeroPage machine declaration
+memory {
+    region work: c64 at 0x9000 size 64
+}
+export fn main() void {}

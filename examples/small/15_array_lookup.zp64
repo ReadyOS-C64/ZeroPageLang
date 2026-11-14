@@ -1,0 +1,37 @@
+const c64 = @import("c64");
+
+const lookup_table = [_]u8{ 4, 9, 6, 15 };
+const color_table = [_]u8{ 2, 5, 6, 7 };
+
+fn lookup(index: u8) u8 {
+    return lookup_table[index];
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("array demo\n", .{});
+
+    var values: [4]u8 = .{ 1, 2, 3, 4 };
+    values[0] = lookup(0);
+    values[1] += color_table[1];
+    values[2] *= 3;
+    values[3] = color_table[2];
+
+    const first = values[0];
+    const second = values[1];
+    const third = values[2];
+    c64.console.print("lookup {x} {x} {x}\n", .{ first, second, third });
+
+    var words: [2]u16 = .{ 256, 511 };
+    words[0] += 1;
+    const word = words[0];
+    c64.console.print("word {x16}\n", .{word});
+
+    if (values.len == 4 and word == 257) {
+        c64.console.print("array ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("array bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

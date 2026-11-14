@@ -1,0 +1,43 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xe000 size 0x0800 bank .ram_under_kernal;
+    region module_cache: reu at 0x030000 size 0x010000;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+}
+
+module enemy_kernal_console abi 1 {
+    export banner;
+}
+
+fn banner() callconv(.stack) u8 {
+    c64.console.print("TRAMP EXPORT\n", .{});
+    return 5;
+}
+
+export fn main() void {
+    c64.console.clear();
+    var ok = false;
+    if (ZeroPage.module.load("enemy_kernal_console")) {
+        if (ZeroPage.module.call("enemy_kernal_console", "banner", .{})) |value| {
+            ok = value == 5;
+        }
+    }
+
+    c64.console.print("\nMODULE KERNAL TRAMP\n", .{});
+    if (ok) {
+        c64.console.print("TRAMP OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("TRAMP BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -1,0 +1,41 @@
+// zeropage-emu-memory: $e000=$4c
+// zeropage-emu-memory: $0001=$37
+// zeropage-emu-label-memory: zeropage_module_registry_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$00
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xe000, .size = 0x0800, .bank = .ram_under_kernal },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+    },
+    .abi = .{
+        .functions = .{
+            .banner = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_kernal_console",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .banner = banner },
+};
+
+fn banner() u8 {
+    c64.console.print("TRAMP EXPORT\n", .{});
+    return 5;
+}
+
+export fn main() void {
+    test6502.expectMemU8(1, 0x0001, 0x37);
+    test6502.expectEqualBool(2, true, ZeroPage.module.load("enemy_kernal_console"));
+    test6502.expectMemU8(3, 0x0001, 0x37);
+    test6502.expectSomeU8(4, 5, ZeroPage.module.call("enemy_kernal_console", "banner", .{}));
+    test6502.expectMemU8(5, 0x0001, 0x37);
+    test6502.pass();
+}

@@ -1,0 +1,3 @@
+// zeropage-emu-error: unknown zeropage_module export
+pub const zeropage_module = .{ .id = "enemy_ai", .abi = 1, .exports = .{ .tick = missing_tick } };
+export fn main() void {}

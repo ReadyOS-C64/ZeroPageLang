@@ -1,0 +1,48 @@
+const test6502 = @import("test6502");
+
+fn sideByte() u8 {
+    test6502.hit(1);
+    return 7;
+}
+
+fn sideWord() u16 {
+    test6502.hit(2);
+    return 1024;
+}
+
+fn sideBool() bool {
+    test6502.hit(3);
+    return true;
+}
+
+fn valuePlus(value: u8) u8 {
+    test6502.hit(4);
+    return value + 1;
+}
+
+export fn main() void {
+    _ = sideByte();
+    _ = sideWord();
+    _ = sideBool();
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(2, 1);
+    test6502.expectHitCount(3, 1);
+
+    _ = 1 + 2;
+    _ = if (true) 5 else 9;
+    _ = blk: {
+        const value = valuePlus(9);
+        break :blk value;
+    };
+    test6502.expectHitCount(4, 1);
+
+    var count: u8 = 0;
+    _ = blk: {
+        while (count < 3) {
+            count += 1;
+        }
+        break :blk count;
+    };
+    test6502.expectEqualU8(5, 3, count);
+    test6502.pass();
+}

@@ -1,0 +1,44 @@
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+fn poke(addr: u16, value: u8) void {
+    const ptr: *volatile u8 = @ptrFromInt(addr);
+    ptr.* = value;
+}
+
+export fn main() void {
+    poke(0x0400, 0x11);
+    poke(0x0401, 0x22);
+    poke(0x0402, 0x33);
+    ZeroPage.reu.copyC64ToReu(0x0400, 0x010000, 3);
+
+    poke(0x0420, 0);
+    poke(0x0421, 0);
+    poke(0x0422, 0);
+    ZeroPage.reu.copyReuToC64(0x010000, 0x0420, 3);
+    test6502.expectMemU8(1, 0x0420, 0x11);
+    test6502.expectMemU8(2, 0x0421, 0x22);
+    test6502.expectMemU8(3, 0x0422, 0x33);
+
+    ZeroPage.reu.fill(0x020000, 0x7e, 4);
+    ZeroPage.reu.copyReuToC64(0x020000, 0x0430, 4);
+    test6502.expectMemU8(4, 0x0430, 0x7e);
+    test6502.expectMemU8(5, 0x0433, 0x7e);
+
+    ZeroPage.reu.fill(0x030000, 0x55, 2);
+    poke(0x0440, 0xaa);
+    poke(0x0441, 0xbb);
+    ZeroPage.reu.swap(0x0440, 0x030000, 2);
+    test6502.expectMemU8(6, 0x0440, 0x55);
+    test6502.expectMemU8(7, 0x0441, 0x55);
+    ZeroPage.reu.copyReuToC64(0x030000, 0x0450, 2);
+    test6502.expectMemU8(8, 0x0450, 0xaa);
+    test6502.expectMemU8(9, 0x0451, 0xbb);
+
+    ZeroPage.reu.copyC64ToReu(0x0420, 0x040000, 3);
+    test6502.expectEqualBool(10, true, ZeroPage.reu.compare(0x0420, 0x040000, 3));
+    poke(0x0421, 0xee);
+    test6502.expectEqualBool(11, false, ZeroPage.reu.compare(0x0420, 0x040000, 3));
+    test6502.expectEqualBool(12, true, ZeroPage.reu.present());
+    test6502.pass();
+}

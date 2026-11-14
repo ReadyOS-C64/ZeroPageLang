@@ -1,0 +1,64 @@
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-module: filename=fixedmath source=tests/fixtures/emu/modules/fixed_math_runtime.zp64
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row3_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$ff
+// zeropage-emu-reu: $030800=$4c
+// zeropage-emu-reu: $031800=$4c
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x002000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 4 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{
+                .math_core = "mathcore",
+                .pathing = "pathing",
+                .fixed_math = "fixedmath",
+            },
+        },
+        .dependency_graph = .{
+            .math_core = .{ .deps = .{ .fixed_math } },
+            .pathing = .{ .deps = .{} },
+            .fixed_math = .{ .deps = .{} },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_graph_node_call",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    test6502.expectNull(1, ZeroPage.module.call("fixed_math", "bias", .{4}));
+    test6502.expectEqualBool(2, true, ZeroPage.module.acquireDependencyGraph("math_core"));
+    if (ZeroPage.module.call("math_core", "add", .{3})) |direct| {
+        test6502.expectEqualU8(3, 5, direct);
+    } else {
+        test6502.fail(4);
+    }
+    if (ZeroPage.module.call("fixed_math", "bias", .{4})) |transitive| {
+        test6502.expectEqualU8(5, 7, transitive);
+    } else {
+        test6502.fail(6);
+    }
+    test6502.expectMemU8(7, 0xc000, 0x4c);
+    ZeroPage.module.releaseDependencyGraph("math_core");
+    test6502.expectNull(8, ZeroPage.module.call("fixed_math", "bias", .{4}));
+    test6502.pass();
+}

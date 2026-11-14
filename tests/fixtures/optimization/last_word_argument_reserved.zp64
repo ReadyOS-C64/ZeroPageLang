@@ -1,0 +1,21 @@
+// Application-owned reserved bytes persist; compiler claims use the custom pool.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{
+    .profile = .kernal, .allocation = .scalars,
+    .ranges = .{ .{ .addr = 0x20, .size = 0x50 } },
+    .reserve = .{ .{ .addr = 0x20, .size = 4 } },
+} };
+fn reservedWord(value: u16) u16 {
+    const application: *u8 = @ptrFromInt(0x20);
+    application.* = 0xa5;
+    return value ^ 0x0101;
+}
+fn reservedCase(location: *u16) u16 { return reservedWord(location.*); }
+export fn main() void {
+    const word: *u16 = @ptrFromInt(0xc1ff);
+    const application: *u8 = @ptrFromInt(0x20);
+    word.* = 0x81ff;
+    test6502.expectEqualU16(1, 0x80fe, reservedCase(word));
+    test6502.expectEqualU8(2, 0xa5, application.*);
+    test6502.pass();
+}

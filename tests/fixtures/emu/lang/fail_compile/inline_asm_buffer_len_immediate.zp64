@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported inline asm runtime string length immediate
+const c64 = @import("c64");
+
+export fn main() void {
+    var msg = c64.string.buffer(8);
+    asm {
+        lda #@msg.len
+    }
+}

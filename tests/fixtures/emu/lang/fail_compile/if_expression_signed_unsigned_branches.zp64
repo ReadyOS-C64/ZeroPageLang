@@ -1,0 +1,11 @@
+// zeropage-emu-error: unsupported if expression branch types
+const test6502 = @import("test6502");
+
+fn signedValue() i8 {
+    return 255;
+}
+
+export fn main() void {
+    const value = if (true) signedValue() else 1;
+    test6502.expectEqualI8(1, 255, value);
+}

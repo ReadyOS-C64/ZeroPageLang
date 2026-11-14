@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported struct
+const ZeroPage = @import("ZeroPage");
+
+const Pair = struct { lo: u8, hi: u8 };
+
+export fn main() void {
+    ZeroPage.reu.copyC64ToReu(Pair{ .lo = 0, .hi = 4 }, 0x010000, 1);
+}

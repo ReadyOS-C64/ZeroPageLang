@@ -1,0 +1,30 @@
+const c64 = @import("c64");
+
+memory {
+    region main_ram: c64 at 0x9000 size 0x0100;
+
+    arena near_heap in main_ram;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("NEAR HEAP ARENA\n", .{});
+
+    const first = near_heap.allocBytes(8);
+    if (first) |first_buf| {
+        first_buf[0] = 0x48;
+        first_buf[1] = 0x50;
+        if (first_buf[0] == 0x48 and first_buf[1] == 0x50) {
+            c64.console.print("ALLOC OK\n", .{});
+        }
+    }
+
+    near_heap.reset();
+    const again = near_heap.allocBytes(1);
+    if (again) |again_buf| {
+        if (@intFromPtr(again_buf) == 0x9000) {
+            c64.console.print("RESET OK\n", .{});
+            c64.vic.border = 5;
+        }
+    }
+}

@@ -1,0 +1,28 @@
+const test6502 = @import("test6502");
+
+// normal comments should not affect lowering
+fn emptyFunctionWithComments() void {
+    // intentionally empty
+}
+
+fn returnsEarly(v: u8) u8 {
+    if (v == 1) {
+        return 9;
+    } else {
+        return 3;
+    }
+}
+
+export fn main() void {
+    emptyFunctionWithComments();
+    test6502.expectEqualU8(1, 1, 'A');
+    test6502.expectEqualU8(2, 9, returnsEarly(1));
+    test6502.expectEqualU8(3, 3, returnsEarly(0));
+    var x: u8 = 1;
+    test6502.expectEqualU8(4, 2, x + 1);
+    var y: u8 = 5;
+    test6502.expectEqualBool(5, true, y == 5);
+    test6502.expectEqualBool(6, false, y == 6);
+    test6502.expectEqualU8(7, 4, y - 1);
+    test6502.pass();
+}

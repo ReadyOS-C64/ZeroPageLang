@@ -1,0 +1,6 @@
+// zeropage-emu-error: unknown zeropage_options function override
+pub const zeropage_options = .{
+    .abi = .{ .functions = .{ .missing = .{ .frame = .static } } },
+};
+
+export fn main() void {}

@@ -1,0 +1,32 @@
+const test6502 = @import("test6502");
+
+fn reduce(count: u8, seed: u16) u16 {
+    var index: u16 = 0;
+    var total: u16 = seed;
+    while (index < count) {
+        total += index * 3 + 7;
+        index += 1;
+    }
+    return total;
+}
+
+fn reduce_wide(count: u8, seed: u16) u16 {
+    var index: u16 = 0;
+    var total: u16 = seed;
+    while (index < count) {
+        total += index * 7 + 509;
+        index += 1;
+    }
+    total += 1;
+    return total;
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0x8000, reduce(0, 0x8000));
+    test6502.expectEqualU16(2, 6, reduce(1, 0xffff));
+    test6502.expectEqualU16(3, 0x826c, reduce(255, 0xfff0));
+    test6502.expectEqualU16(4, 0x2f7a, reduce_wide(255, 0xbeef));
+    test6502.expectEqualU16(5, 0x500d, reduce_wide(33, 0xffff));
+    test6502.expectEqualU16(6, 0x81fd, reduce_wide(1, 0x7fff));
+    test6502.pass();
+}

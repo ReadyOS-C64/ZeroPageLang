@@ -1,0 +1,79 @@
+const test6502 = @import("test6502");
+
+fn returnFromLoop(limit: u8) u8 {
+    var i: u8 = 0;
+    while (i < limit) {
+        if (i == 3) {
+            return i;
+        } else {
+            i += 1;
+        }
+    }
+    return 9;
+}
+
+fn zeroIterations() u8 {
+    var i: u8 = 4;
+    while (i < 4) {
+        return 99;
+    }
+    return i;
+}
+
+fn breakInHelper(limit: u8) u8 {
+    var i: u8 = 0;
+    while (i < limit) {
+        if (i == 5) {
+            break;
+        }
+        i += 1;
+    }
+    return i;
+}
+
+fn continueInHelper(limit: u8) u8 {
+    var i: u8 = 0;
+    var kept: u8 = 0;
+    while (i < limit) {
+        i += 1;
+        if (i == 2) {
+            continue;
+        }
+        kept += 1;
+    }
+    return kept;
+}
+
+fn nestedIfShape(value: u8) u8 {
+    if (value == 0) {
+        return 10;
+    } else {
+        if (value == 1) {
+            return 11;
+        } else {
+            return 12;
+        }
+    }
+}
+
+fn branchReturn(value: u8) u8 {
+    if (value == 7) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 3, returnFromLoop(6));
+    test6502.expectEqualU8(2, 9, returnFromLoop(2));
+    test6502.expectEqualU8(3, 4, zeroIterations());
+    test6502.expectEqualU8(4, 5, breakInHelper(9));
+    test6502.expectEqualU8(5, 3, continueInHelper(4));
+    test6502.expectEqualU8(6, 10, nestedIfShape(0));
+    test6502.expectEqualU8(7, 11, nestedIfShape(1));
+    test6502.expectEqualU8(8, 12, nestedIfShape(2));
+    test6502.expectEqualU8(9, 1, branchReturn(7));
+    test6502.expectEqualU8(10, 2, branchReturn(8));
+    test6502.pass();
+}

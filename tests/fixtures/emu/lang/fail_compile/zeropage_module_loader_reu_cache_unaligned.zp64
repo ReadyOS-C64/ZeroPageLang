@@ -1,0 +1,9 @@
+// zeropage-emu-error: invalid zeropage_options module REU cache
+pub const zeropage_options = .{
+    .modules = .{
+        .load_window = .{ .addr = 0xa000, .size = 0x1000 },
+        .reu_cache = .{ .addr = 0x020001, .size = 0x010000 },
+    },
+};
+
+export fn main() void {}

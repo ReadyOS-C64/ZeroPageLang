@@ -1,0 +1,11 @@
+// zeropage-emu-error: unsafe banked memory placement reference
+memory {
+    region banked: c64 at 0xe000 size 0x100 bank .ram_under_kernal;
+    placement cold in banked load .startup_copy;
+}
+const table: [2]u8 linksection("cold") = .{ 5, 7 };
+export fn main() void {
+    const index: u8 = 1;
+    const border: *volatile u8 = @ptrFromInt(0xd020);
+    border.* = table[index];
+}

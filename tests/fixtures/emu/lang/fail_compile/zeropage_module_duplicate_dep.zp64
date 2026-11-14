@@ -1,0 +1,12 @@
+// zeropage-emu-error: duplicate zeropage_module dependency
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math", "math" },
+};
+
+fn tick(value: u8) u8 {
+    return value;
+}

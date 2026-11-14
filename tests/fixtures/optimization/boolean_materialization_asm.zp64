@@ -1,0 +1,16 @@
+// Retained opaque ASM with an extra label excludes the whole source program.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn asmPredicate(left: u8, right: u8) bool { return left < right or left == right; }
+fn asmBarrier(value: u8) u8 {
+    asm {
+boolean_qa_extra_label:
+        nop
+    }
+    return value;
+}
+export fn main() void {
+    test6502.expectEqualBool(1, true, asmPredicate(1, 2));
+    test6502.expectEqualU8(2, 0x81, asmBarrier(0x81));
+    test6502.pass();
+}

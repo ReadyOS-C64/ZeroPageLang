@@ -1,0 +1,29 @@
+const test6502 = @import("test6502");
+
+fn reference(value: u16, factor: u16) u16 {
+    return value * factor;
+}
+
+export fn main() void {
+    const values = [_]u16{ 0, 1, 255, 256, 32767, 32768, 65534, 65535 };
+    for (values) |value| {
+        test6502.expectEqualBool(1, true, reference(value, 0) == value * 0);
+        test6502.expectEqualBool(2, true, reference(value, 1) == value * 1);
+        test6502.expectEqualBool(3, true, reference(value, 2) == value * 2);
+        test6502.expectEqualBool(4, true, reference(value, 4) == value * 4);
+        test6502.expectEqualBool(5, true, reference(value, 8) == value * 8);
+        test6502.expectEqualBool(6, true, reference(value, 16) == value * 16);
+        test6502.expectEqualBool(7, true, reference(value, 128) == value * 128);
+        test6502.expectEqualBool(8, true, reference(value, 256) == value * 256);
+        test6502.expectEqualBool(9, true, reference(value, 512) == value * 512);
+        test6502.expectEqualBool(10, true, reference(value, 4096) == value * 4096);
+        test6502.expectEqualBool(11, true, reference(value, 32768) == value * 32768);
+    }
+    const pointer: *volatile u16 = @ptrFromInt(0x4000);
+    pointer.* = 0x80ff;
+    test6502.expectEqualU16(12, 0, pointer.* * 0);
+    test6502.expectEqualU16(13, 0x80ff, pointer.* * 1);
+    test6502.expectEqualU16(14, 0x01fe, pointer.* * 2);
+    test6502.expectEqualU16(15, 0xff00, pointer.* * 256);
+    test6502.pass();
+}

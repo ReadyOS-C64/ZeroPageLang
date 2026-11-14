@@ -1,0 +1,35 @@
+// zeropage-emu-error: unsupported stack frame runtime helper
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x002000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 2 },
+        .disk_manifest = .{ .current = "enemyrt", .deps = .{ .math_core = "mathcore" } },
+        .dependency_graph = .{ .math_core = .{ .deps = .{} } },
+    },
+    .abi = .{ .functions = .{ .helper = .{ .frame = .stack }, .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_graph",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+fn helper() bool {
+    return ZeroPage.module.acquireDependencyGraph("math_core");
+}
+
+export fn main() void {
+    _ = helper();
+}

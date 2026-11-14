@@ -1,0 +1,25 @@
+// The app owns $02/$03; compiler candidate ranges exclude these reservations.
+// An unreserved low literal is outside this placement contract, not a valid alias test.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{
+    .zero_page = .{
+        .profile = .kernal,
+        .allocation = .scalars,
+        .reserve = .{ .{ .addr = 2, .size = 2 } },
+    },
+};
+fn reservedStore(value: u8) u16 {
+    const saved: u8 = value;
+    const app: *u8 = @ptrFromInt(2);
+    app.* = value ^ 0x55;
+    const reread: u8 = value;
+    return (@as(u16, saved) << 8) | @as(u16, reread);
+}
+export fn main() void {
+    const app: *u8 = @ptrFromInt(2);
+    test6502.expectEqualU16(1, 0x8181, reservedStore(0x81));
+    test6502.expectEqualU8(2, 0xd4, app.*);
+    test6502.expectEqualU16(3, 0xffff, reservedStore(255));
+    test6502.expectEqualU8(4, 0xaa, app.*);
+    test6502.pass();
+}

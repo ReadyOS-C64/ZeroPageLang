@@ -1,0 +1,13 @@
+// zeropage-emu-error: unsafe banked memory placement reference
+const values = [_]u8{ 1, 2 };
+
+pub const zeropage_options = .{
+    .memory = .{
+        .regions = .{ .hidden_ram = .{ .addr = 0xe000, .size = 0x0100, .bank = .ram_under_kernal } },
+        .placements = .{ .cold = .{ .region = .hidden_ram, .load = .startup_copy, .constants = .{ values } } },
+    },
+};
+
+export fn main() void {
+    _ = values[0];
+}

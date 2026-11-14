@@ -1,0 +1,32 @@
+const test6502 = @import("test6502");
+
+fn poke(ptr: [*]volatile u8, index: u8, value: u8) void {
+    ptr[index] = value;
+}
+
+export fn main() void {
+    const screen: [*]volatile u8 = @ptrFromInt(0x0400);
+    const color: [*]volatile u8 = @ptrFromInt(0xd800);
+
+    screen[0] = 'P';
+    screen[1] = 'T';
+    screen[2] = 'R';
+    color[0] = 1;
+    color[1] = 2;
+    color[2] = 3;
+
+    poke(screen, 3, '!');
+    screen[4] = screen[0];
+    screen[4] += 1;
+    screen[5] = screen[4] & 0x7f;
+
+    test6502.expectMemU8(1, 0x0400, 16);
+    test6502.expectMemU8(2, 0x0401, 20);
+    test6502.expectMemU8(3, 0x0402, 18);
+    test6502.expectMemU8(4, 0x0403, 33);
+    test6502.expectMemU8(5, 0x0404, 17);
+    test6502.expectMemU8(6, 0x0405, 17);
+    test6502.expectMemU8(7, 0xd800, 1);
+    test6502.expectMemU8(8, 0xd801, 2);
+    test6502.expectMemU8(9, 0xd802, 3);
+}

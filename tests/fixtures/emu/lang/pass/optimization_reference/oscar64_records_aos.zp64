@@ -1,0 +1,34 @@
+// Fresh equal-input layout workload inspired by pinned Oscar64 striped arrays/particles.
+// https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/stripedarraytest.c
+// AoS and SoA variants have identical field values, rounds and assertion counts.
+const test6502 = @import("test6502");
+const Particle = struct { x: u16, y: u16, vx: u16, vy: u16, life: u8 };
+export fn main() void {
+    var records = [_]Particle{
+        Particle{ .x = 250, .y = 65500, .vx = 1, .vy = 7, .life = 2 },
+        Particle{ .x = 507, .y = 65439, .vx = 2, .vy = 10, .life = 3 },
+        Particle{ .x = 764, .y = 65378, .vx = 3, .vy = 13, .life = 4 },
+        Particle{ .x = 1021, .y = 65317, .vx = 4, .vy = 16, .life = 5 },
+        Particle{ .x = 1278, .y = 65256, .vx = 5, .vy = 19, .life = 6 },
+        Particle{ .x = 1535, .y = 65195, .vx = 6, .vy = 22, .life = 7 },
+        Particle{ .x = 1792, .y = 65134, .vx = 7, .vy = 25, .life = 8 },
+        Particle{ .x = 2049, .y = 65073, .vx = 8, .vy = 28, .life = 9 }
+    };
+    for (0..3) |_| {
+        for (0..8) |i| {
+            records[i].x = records[i].x + records[i].vx;
+            records[i].y = records[i].y + records[i].vy;
+            if (records[i].life != 0) { records[i].life = records[i].life - 1; }
+        }
+    }
+    const expected_x = [_]u16{ 253, 513, 773, 1033, 1293, 1553, 1813, 2073 };
+    const expected_y = [_]u16{ 65521, 65469, 65417, 65365, 65313, 65261, 65209, 65157 };
+    const expected_life = [_]u8{ 0, 0, 1, 2, 3, 4, 5, 6 };
+
+    for (0..8) |index| {
+        test6502.expectEqualBool(1, true, records[index].x == expected_x[index]);
+        test6502.expectEqualBool(2, true, records[index].y == expected_y[index]);
+        test6502.expectEqualBool(3, true, records[index].life == expected_life[index]);
+    }
+    test6502.pass();
+}

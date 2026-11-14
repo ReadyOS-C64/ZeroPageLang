@@ -1,0 +1,8 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const test6502 = @import("test6502");
+const Cell = enum(u8) { empty = 0, x = 1 };
+
+export fn main() void {
+    const raw: u8 = @intFromEnum(Cell.x);
+    test6502.expectEqualU8(1, 1, raw);
+}

@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported switch expression result types
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var x: u8 = 1;
+    test6502.expectEqualU8(1, 1, switch (x) {
+        1 => true,
+        else => 2,
+    });
+}

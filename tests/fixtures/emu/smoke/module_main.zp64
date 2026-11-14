@@ -1,0 +1,16 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+const math = @import("feature_module_math.zp64");
+
+export fn main() void {
+    var total: u8 = math.add8(2, 5);
+    test6502.expectA(1, 7);
+    var ok: bool = math.eq8(total, 7);
+    test6502.expectA(2, 1);
+
+    c64.screen.clear();
+    c64.screen.putsAt(0, 0, "MODULE");
+    c64.screen.hexAt(0, 1, total);
+    c64.screen.hexAt(3, 1, ok);
+    test6502.pass();
+}

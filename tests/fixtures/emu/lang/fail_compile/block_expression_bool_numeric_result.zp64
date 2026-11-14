@@ -1,0 +1,12 @@
+// zeropage-emu-error: unsupported block expression result types
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const value = blk: {
+        if (true) {
+            break :blk true;
+        }
+        break :blk 1;
+    };
+    test6502.expectEqualBool(1, true, value);
+}

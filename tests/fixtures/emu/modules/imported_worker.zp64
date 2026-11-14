@@ -1,0 +1,3 @@
+fn plusOne(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}

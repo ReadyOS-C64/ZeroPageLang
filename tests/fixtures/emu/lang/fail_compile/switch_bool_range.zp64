@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported switch range
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var x: bool = true;
+    test6502.expectEqualU8(1, 2, switch (x) {
+        false...true => 2,
+        else => 3,
+    });
+}

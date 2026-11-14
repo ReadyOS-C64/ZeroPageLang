@@ -1,0 +1,31 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var x: u8 = 0;
+    var kept: u8 = 0;
+    while (x < 8) {
+        x += 1;
+        if (x == 2) {
+            test6502.hit(1);
+            continue;
+        } else {
+            kept += 1;
+        }
+        if (x == 6) {
+            test6502.hit(2);
+            break;
+        } else {
+            test6502.hit(3);
+        }
+    }
+
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(2, 1);
+    test6502.expectHitCount(3, 4);
+    c64.screen.clear();
+    c64.screen.putsAt(0, 0, "CONTROL");
+    c64.screen.hexAt(0, 1, x);
+    c64.screen.hexAt(3, 1, kept);
+    test6502.pass();
+}

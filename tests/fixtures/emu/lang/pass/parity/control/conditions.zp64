@@ -1,0 +1,84 @@
+const test6502 = @import("test6502");
+
+fn yes() bool {
+    return true;
+}
+
+fn no() bool {
+    return false;
+}
+
+fn under(limit: u8, value: u8) bool {
+    return value < limit;
+}
+
+fn wordReady(value: u16) bool {
+    return value >= 256;
+}
+
+export fn main() void {
+    var flag: bool = true;
+    if (flag) {
+        test6502.hit(1);
+    } else {
+        test6502.fail(1);
+    }
+
+    if (!false) {
+        test6502.hit(2);
+    } else {
+        test6502.fail(2);
+    }
+
+    if (!no()) {
+        test6502.hit(3);
+    } else {
+        test6502.fail(3);
+    }
+
+    if (yes()) {
+        test6502.hit(4);
+    } else {
+        test6502.fail(4);
+    }
+
+    var done: bool = false;
+    var i: u8 = 0;
+    while (!done) {
+        i += 1;
+        if (i >= 3) {
+            done = true;
+        } else {
+            test6502.hit(5);
+        }
+    }
+    test6502.expectEqualU8(6, 3, i);
+    test6502.expectEqualBool(7, true, done);
+    test6502.expectHitCount(5, 2);
+
+    var word: u16 = 255;
+    while (word < 258) {
+        word += 1;
+    }
+    test6502.expectEqualU16(8, 258, word);
+
+    if (wordReady(word)) {
+        test6502.hit(9);
+    } else {
+        test6502.fail(9);
+    }
+
+    if (under(10, i)) {
+        test6502.hit(10);
+    } else {
+        test6502.fail(10);
+    }
+
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(2, 1);
+    test6502.expectHitCount(3, 1);
+    test6502.expectHitCount(4, 1);
+    test6502.expectHitCount(9, 1);
+    test6502.expectHitCount(10, 1);
+    test6502.pass();
+}

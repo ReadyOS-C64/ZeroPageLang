@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported pointer type
+const Pair = struct { value: u8 };
+
+export fn main() void {
+    const ptr: [*]Pair = @ptrFromInt(0x0400);
+    _ = ptr;
+}

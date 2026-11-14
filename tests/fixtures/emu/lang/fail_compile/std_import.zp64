@@ -1,0 +1,3 @@
+// zeropage-emu-error: full Zig standard library is not available
+const std = @import("std");
+export fn main() void {}

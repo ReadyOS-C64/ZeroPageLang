@@ -1,0 +1,30 @@
+const c64 = @import("c64");
+// The current console displays this in uppercase on the BASIC character set.
+const greeting = "Hello, World!";
+
+// Print on frame 9, then every ninth frame. Use the ninth raster bit so
+// lines 0 and 256 cannot be mistaken for two separate video frames.
+// This uses the visible console, without the reference's back screen/ring.
+export fn main() void {
+    const raster_control: *volatile u8 = @ptrFromInt(0xd011);
+    var frames_left: u8 = 10;
+    var first_line: bool = true;
+
+    c64.console.clear();
+    while (true) {
+        while ((raster_control.* & 0x80) != 0) {}
+        while ((raster_control.* & 0x80) == 0) {}
+
+        frames_left -= 1;
+        if (frames_left == 0) {
+            frames_left = 9;
+            // Defer the newline until another greeting is ready, keeping
+            // the last printed row visible throughout the nine-frame wait.
+            if (!first_line) {
+                c64.console.print("\n", .{});
+            }
+            c64.console.puts(greeting);
+            first_line = false;
+        }
+    }
+}

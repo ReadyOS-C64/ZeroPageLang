@@ -1,0 +1,19 @@
+const display = @import("micromodules/repeated_hello_display_highlevel.zp64");
+
+// Same ring/two-screen model, with ordinary ZeroPage handling display state.
+export fn main() void {
+    const state = display.init();
+    while (true) {
+        display.waitFrame();
+        if (display.frame(state)) {
+            display.printLine(state);
+            display.copyPage(state);
+        }
+        if (display.stopRequested()) {
+            while (display.stopRequested()) {}
+            asm {
+                jmp $fe66
+            }
+        }
+    }
+}

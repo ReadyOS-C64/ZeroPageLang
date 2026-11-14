@@ -1,0 +1,11 @@
+// zeropage-emu-error: unsupported enum literal
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Turn = enum(u8) { x, o };
+
+export fn main() void {
+    var cell: Cell = .x;
+    var turn: Turn = .x;
+    test6502.expectEqualBool(1, false, cell == turn);
+}

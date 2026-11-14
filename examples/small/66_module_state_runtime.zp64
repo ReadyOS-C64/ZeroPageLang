@@ -1,0 +1,51 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x020000;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    current {
+        persist_in_reu at 0x0100 size 2;
+    }
+}
+
+module enemy_state abi 1 {
+    export tick;
+}
+
+fn tick(state: u8) callconv(.stack) u8 {
+    return state + 1;
+}
+
+export fn main() void {
+    const state: [*]volatile u8 = @ptrFromInt(0xc100);
+
+    c64.console.clear();
+    c64.console.print("MODULE STATE RUNTIME\n", .{});
+
+    if (ZeroPage.module.load("enemy_state")) {
+        state[0] = 0x2a;
+        state[1] = 0x37;
+        ZeroPage.module.unload("enemy_state");
+        state[0] = 0x00;
+        state[1] = 0x00;
+        if (ZeroPage.module.load("enemy_state") and state[0] == 0x2a and state[1] == 0x37) {
+            c64.console.print("STATE RESTORE OK\n", .{});
+            c64.vic.border = 5;
+        } else {
+            c64.console.print("STATE RESTORE FAIL\n", .{});
+            c64.vic.border = 2;
+        }
+    } else {
+        c64.console.print("STATE LOAD FAIL\n", .{});
+        c64.vic.border = 2;
+    }
+}

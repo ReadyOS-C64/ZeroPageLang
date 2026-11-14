@@ -1,0 +1,37 @@
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/samples/particles/fireworks_stripe.c
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+const links = [_]u8{ 3, 5, 7, 6, 1, 255, 2, 4 };
+const weights = [_]u16{ 10, 20, 30, 40, 50, 60, 70, 80 };
+fn walk(start: u8, seed: u16) u16 {
+    var cursor: u8 = start;
+    var steps: u8 = 0;
+    var total: u16 = seed;
+    while (cursor != 255 and steps < 8) {
+        total += weights[cursor];
+        cursor = links[cursor];
+        steps += 1;
+    }
+    return total;
+}
+fn reverseSum(values: [*]u16, count: u8) u16 {
+    var total: u16 = 0;
+    var remaining: u8 = count;
+    while (remaining != 0) { remaining -= 1; total += values[remaining]; }
+    return total;
+}
+export fn main() void {
+    const starts = [_]u8{ 0, 1, 2, 3, 4, 5, 6, 7, 255 };
+    const expected = [_]u16{ 360, 80, 240, 350, 130, 60, 310, 210, 0 };
+    for (starts, 0..) |start, index| {
+        test6502.expectEqualBool(1, true, walk(start, 0) == expected[index]);
+        test6502.expectEqualBool(2, true, walk(start, 65535) == expected[index] - 1);
+    }
+    var values = [_]u16{ 1, 255, 256, 32768, 65535, 9, 10, 11 };
+    const pointer: [*]u16 = @ptrFromInt(@intFromPtr(&values[0]));
+    test6502.expectEqualU16(3, 33309, reverseSum(pointer, 8));
+    test6502.expectEqualU16(4, 0, reverseSum(pointer, 0));
+    test6502.expectEqualU16(5, 1, reverseSum(pointer, 1));
+    test6502.pass();
+}

@@ -1,0 +1,28 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "LOOP CONTROL DEMO");
+
+    var x: u8 = 0;
+    var drawn: u8 = 0;
+    while (x < 9) {
+        x += 1;
+        if (x == 3) {
+            continue;
+        }
+
+        c64.screen.putAt(2 + drawn, 5, '#');
+        drawn += 1;
+
+        if (x == 5) {
+            break;
+        }
+    }
+
+    c64.screen.putsAt(2, 7, "BREAK CONTINUE OK");
+    c64.screen.putsAt(2, 9, "X=");
+    c64.screen.hexAt(4, 9, x);
+    c64.screen.putsAt(8, 9, "DRAWN=");
+    c64.screen.hexAt(14, 9, drawn);
+}

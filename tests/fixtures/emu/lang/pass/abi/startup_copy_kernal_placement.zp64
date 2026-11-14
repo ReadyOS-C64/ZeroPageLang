@@ -1,0 +1,28 @@
+// zeropage-emu-start: program_entry
+const test6502 = @import("test6502");
+
+const values linksection("cold") = [_]u8{ 0x21, 0x42, 0x63 };
+
+memory {
+    region kernal_hidden: c64 at 0xe000 size 0x0100 bank .ram_under_kernal;
+
+    placement cold in kernal_hidden load .startup_copy;
+
+    image prg {
+        load_addr = 0x1000;
+        entry_addr = 0x1000;
+        basic_stub = false;
+        address_limit = 0xc600;
+    }
+}
+
+fn hiddenLookup(index: u8) linksection("cold") u8 {
+    return values[index];
+}
+
+export fn main() void {
+    test6502.expectMemU8(1, 0xe000, 0xad);
+    test6502.expectEqualU8(2, 0x42, hiddenLookup(1));
+    test6502.expectMemU8(3, 0x0001, 0x37);
+    test6502.pass();
+}

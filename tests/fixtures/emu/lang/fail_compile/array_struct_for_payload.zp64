@@ -1,0 +1,12 @@
+// zeropage-emu-error: unsupported struct
+const test6502 = @import("test6502");
+
+const Point = struct { x: u8, y: u8 };
+
+export fn main() void {
+    var points: [2]Point = .{ Point{ .x = 1, .y = 2 }, Point{ .x = 3, .y = 4 } };
+    for (points) |point| {
+        test6502.expectEqualU8(1, 1, point.x);
+    }
+    test6502.pass();
+}

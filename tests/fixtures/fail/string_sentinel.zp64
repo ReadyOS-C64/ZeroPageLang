@@ -1,0 +1,6 @@
+const c64 = @import("c64");
+const msg: [:0]const u8 = "hello";
+
+export fn main() void {
+    c64.console.print("{s}", .{msg});
+}

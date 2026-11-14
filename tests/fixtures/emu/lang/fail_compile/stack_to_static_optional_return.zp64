@@ -1,0 +1,14 @@
+// zeropage-emu-error: unsupported stack frame optional
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .main = .{ .frame = .stack } } },
+};
+
+fn maybeByte() ?u8 {
+    return 5;
+}
+
+export fn main() void {
+    var value = maybeByte();
+    _ = value;
+}

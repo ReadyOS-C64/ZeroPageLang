@@ -1,0 +1,65 @@
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var x: u8 = 0;
+    if (x == 0) {
+        x = 1;
+        test6502.hit(1);
+    } else {
+        x = 9;
+    }
+    test6502.expectEqualU8(2, 1, x);
+
+    if (x == 0) {
+        x = 9;
+    } else {
+        x = 2;
+        test6502.hit(3);
+    }
+    test6502.expectEqualU8(4, 2, x);
+
+    var count: u8 = 0;
+    while (count < 4) {
+        count += 1;
+        test6502.hit(5);
+    }
+    test6502.expectEqualU8(6, 4, count);
+    test6502.expectHitCount(5, 4);
+
+    var zero: u8 = 4;
+    while (zero < 4) {
+        test6502.fail(7);
+    }
+    test6502.expectEqualU8(8, 4, zero);
+
+    var i: u8 = 0;
+    var kept: u8 = 0;
+    while (i < 6) {
+        i += 1;
+        if (i == 2) {
+            continue;
+        }
+        if (i == 5) {
+            break;
+        }
+        kept += 1;
+    }
+    test6502.expectEqualU8(9, 5, i);
+    test6502.expectEqualU8(10, 3, kept);
+
+    var outer: u8 = 0;
+    var inner_hits: u8 = 0;
+    while (outer < 3) {
+        var inner: u8 = 0;
+        while (inner < 2) {
+            inner += 1;
+            inner_hits += 1;
+        }
+        outer += 1;
+    }
+    test6502.expectEqualU8(11, 3, outer);
+    test6502.expectEqualU8(12, 6, inner_hits);
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(3, 1);
+    test6502.pass();
+}

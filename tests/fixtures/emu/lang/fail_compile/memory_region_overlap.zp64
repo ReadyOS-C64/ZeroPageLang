@@ -1,0 +1,9 @@
+// zeropage-emu-error: invalid zeropage_options memory region
+pub const zeropage_options = .{
+    .memory = .{ .regions = .{
+        .first = .{ .addr = 0x8000, .size = 0x0200 },
+        .second = .{ .addr = 0x8100, .size = 0x0200 },
+    } },
+};
+
+export fn main() void {}

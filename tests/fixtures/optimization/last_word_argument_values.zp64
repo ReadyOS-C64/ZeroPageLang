@@ -1,0 +1,23 @@
+// Single final-word arguments preserve the old pre-JSR A=high, X=high state.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn singleWord(value: u16) u16 { return value ^ 0x55aa; }
+fn singleSize(value: usize) usize { return value ^ 0x0101; }
+fn singleSigned(value: i16) i16 { return value; }
+fn singlePointer(location: *u8) u8 { return location.*; }
+fn wordCase(location: *u16) u16 { return singleWord(location.*); }
+fn sizeCase(location: *usize) usize { return singleSize(location.*); }
+fn signedCase(location: *i16) i16 { return singleSigned(location.*); }
+fn pointerCase(location: *u8) u8 { return singlePointer(location); }
+export fn main() void {
+    const word: *u16 = @ptrFromInt(0xc1ff);
+    const size: *usize = @ptrFromInt(0xc1ff);
+    const signed: *i16 = @ptrFromInt(0xc1ff);
+    const byte: *u8 = @ptrFromInt(0xc1ff);
+    word.* = 0x81ff;
+    test6502.expectEqualU16(1, 0xd455, wordCase(word));
+    test6502.expectEqualU16(2, 0x80fe, sizeCase(size));
+    test6502.expectEqualI8(3, 255, pointerCase(byte));
+    test6502.expectEqualU16(4, 0x81ff, signedCase(signed));
+    test6502.pass();
+}

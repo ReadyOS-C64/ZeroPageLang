@@ -1,0 +1,34 @@
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x010000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+}
+
+module enemy_runtime abi 1 {
+    export tick;
+    export is_even = isEven;
+    export wide;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+fn isEven(value: u8) callconv(.stack) bool {
+    return value == 4;
+}
+
+fn wide(value: u16) callconv(.stack) u16 {
+    return value + 0x0101;
+}
+
+export fn main() void {}

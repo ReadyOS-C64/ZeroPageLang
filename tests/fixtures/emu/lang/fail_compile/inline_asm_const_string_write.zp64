@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported inline asm const string write
+const c64 = @import("c64");
+const source = "abc";
+
+export fn main() void {
+    asm {
+        lda #0
+        sta @source.data
+    }
+}

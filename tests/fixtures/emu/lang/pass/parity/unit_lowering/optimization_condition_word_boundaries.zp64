@@ -1,0 +1,36 @@
+const test6502 = @import("test6502");
+
+fn less(a: u16, b: u16) bool { return a < b; }
+fn greater(a: u16, b: u16) bool { return a > b; }
+
+export fn main() void {
+    const values = [_]u16{ 0, 1, 255, 256, 257, 32767, 32768, 65535 };
+    for (values) |a| {
+        for (values) |b| {
+            var lt: bool = false;
+            var le: bool = false;
+            var gt: bool = false;
+            var ge: bool = false;
+            var eq: bool = false;
+            var ne: bool = false;
+            if (a < b) { lt = true; }
+            if (a <= b) { le = true; }
+            if (a > b) { gt = true; }
+            if (a >= b) { ge = true; }
+            if (a == b) { eq = true; }
+            if (a != b) { ne = true; }
+            test6502.expectEqualBool(1, true, lt == less(a, b));
+            test6502.expectEqualBool(2, true, gt == greater(a, b));
+            test6502.expectEqualBool(3, true, le == !gt);
+            test6502.expectEqualBool(4, true, ge == !lt);
+            test6502.expectEqualBool(5, true, eq == !(lt or gt));
+            test6502.expectEqualBool(6, true, ne == !eq);
+        }
+    }
+    var branch: u8 = 0;
+    if (0x0100 > 0x00ff and 0x0100 != 0 and !(0xffff < 0x0100)) {
+        branch = 7;
+    }
+    test6502.expectEqualU8(7, 7, branch);
+    test6502.pass();
+}

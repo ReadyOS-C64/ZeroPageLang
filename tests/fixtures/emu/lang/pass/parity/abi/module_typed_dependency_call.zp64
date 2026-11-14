@@ -1,0 +1,71 @@
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-module: filename=pathing source=tests/fixtures/emu/modules/pathing_dispatch.zp64
+// zeropage-emu-memory: $c000=$4c
+// zeropage-emu-reu: $030800=$4c
+// zeropage-emu-reu: $031000=$4c
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_row2_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$01
+const test6502 = @import("test6502");
+const ZeroPage = @import("ZeroPage");
+
+const MathCore = ZeroPage.module.import(.math_core, .{
+    .add = fn (u8) u8,
+    .is_five = fn (u8) bool,
+    .wide = fn (u16) u16,
+    .table_ptr = fn () usize,
+});
+
+const Pathing = ZeroPage.module.import(.pathing, .{
+    .step = fn (u8) u8,
+});
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001800 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 3 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{
+                .math_core = "mathcore",
+                .pathing = "pathing",
+            },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_typed_dep_call",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, true, ZeroPage.module.loadDependency("math_core"));
+    test6502.expectSomeU8(2, 5, MathCore.add(3));
+    test6502.expectSomeBool(3, true, MathCore.is_five(5));
+    test6502.expectSomeU16(4, 0x0201, MathCore.wide(0x0100));
+    test6502.expectEqualBool(5, true, ZeroPage.module.loadDependency("pathing"));
+    test6502.expectSomeU8(6, 9, Pathing.step(5));
+    test6502.expectSomeU8(7, 6, MathCore.add(4));
+    if (MathCore.table_ptr()) |ptr| {
+        if (ptr >= 0xc000) {
+            test6502.hit(8);
+        } else {
+            test6502.fail(8);
+        }
+    } else {
+        test6502.fail(8);
+    }
+    test6502.pass();
+}

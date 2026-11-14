@@ -1,0 +1,25 @@
+// zeropage-emu-error: invalid zeropage_options module registry
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x002000 },
+        .registry = .{ .capacity = 3 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{ .math_core = "mathcore" },
+        },
+        .dependency_graph = .{
+            .math_core = .{ .deps = .{ .math_core } },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{ .id = "enemy_graph", .abi = 1, .exports = .{ .tick = tick }, .deps = .{ "math_core" } };
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {}

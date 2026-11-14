@@ -1,0 +1,5 @@
+// zeropage-emu-error: unsupported optional type
+export fn main() void {
+    var maybe: ?[3]u8 = null;
+    _ = maybe;
+}

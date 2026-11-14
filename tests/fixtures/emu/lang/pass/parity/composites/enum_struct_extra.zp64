@@ -1,0 +1,71 @@
+const test6502 = @import("test6502");
+
+const Flag = enum(u8) { off = 0, on, paused = 7, done };
+const Cell = enum(u8) { empty, x, o };
+const Row = struct { cells: [3]Cell, weight: u16 };
+const Board = struct { top: Row, bottom: Row, turn: Flag };
+
+fn chooseCell(flag: bool) Cell {
+    return if (flag) .x else .o;
+}
+
+fn rowScore(row: Row) u8 {
+    var total: u8 = 0;
+    for (0..3) |i| {
+        total += switch (row.cells[i]) {
+            Cell.empty => 0,
+            Cell.x => 1,
+            else => 2,
+        };
+    }
+    return total;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 0, Flag.off);
+    test6502.expectEqualU8(2, 1, Flag.on);
+    test6502.expectEqualU8(3, 7, Flag.paused);
+    test6502.expectEqualU8(4, 8, Flag.done);
+
+    var board = Board{
+        .top = Row{ .cells = [_]Cell{ .empty, .x, .o }, .weight = 258 },
+        .bottom = Row{ .cells = [_]Cell{ chooseCell(true), .empty, chooseCell(false) }, .weight = 513 },
+        .turn = .on,
+    };
+
+    test6502.expectEqualU8(5, 0, board.top.cells[0]);
+    test6502.expectEqualU8(6, 1, board.top.cells[1]);
+    test6502.expectEqualU8(7, 2, board.top.cells[2]);
+    test6502.expectEqualU16(8, 258, board.top.weight);
+    test6502.expectEqualU16(9, 513, board.bottom.weight);
+    test6502.expectEqualU16(10, 3, board.bottom.cells.len);
+
+    board.bottom.cells[1] = switch (board.turn) {
+        Flag.on => .x,
+        else => .empty,
+    };
+    board.turn = blk: {
+        if (rowScore(board.bottom) == 4) {
+            break :blk .done;
+        }
+        break :blk .paused;
+    };
+
+    test6502.expectEqualU8(11, 1, board.bottom.cells[0]);
+    test6502.expectEqualU8(12, 1, board.bottom.cells[1]);
+    test6502.expectEqualU8(13, 2, board.bottom.cells[2]);
+    test6502.expectEqualU8(14, 8, board.turn);
+    test6502.expectEqualU8(15, 3, rowScore(board.top));
+    test6502.expectEqualU8(16, 4, rowScore(board.bottom));
+
+    const immutable = Board{
+        .top = Row{ .cells = [_]Cell{ .o, .o, .x }, .weight = 1024 },
+        .bottom = Row{ .cells = [_]Cell{ .empty, .x, .empty }, .weight = 2048 },
+        .turn = .paused,
+    };
+    test6502.expectEqualU8(17, 2, immutable.top.cells[0]);
+    test6502.expectEqualU16(18, 1024, immutable.top.weight);
+    test6502.expectEqualU8(19, 7, immutable.turn);
+
+    test6502.pass();
+}

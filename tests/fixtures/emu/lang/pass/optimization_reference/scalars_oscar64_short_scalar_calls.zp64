@@ -1,0 +1,31 @@
+// Source-owned policy variant of the adjacent unchanged Oscar64-inspired workload.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+};
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/funcvaropt.c
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+// Direct calls deliberately use supported language semantics; no function pointers.
+fn byteStep(value: u8) u8 { return value + 3; }
+fn combine(left: u16, right: u16) u16 { return (left ^ 0x8100) + right; }
+fn caller(value: u8, other: u16) u16 { return combine(byteStep(value), combine(other, 257)); }
+fn choose(value: u8, other: u16) u16 {
+    if ((value & 1) == 0) { return caller(value, other); }
+    return combine(other, byteStep(value));
+}
+fn readThenChange(location: *u8, value: u8) u8 { location.* = value; return value + 1; }
+fn ordered(location: *u8) u16 { return combine(location.*, readThenChange(location, 29)); }
+export fn main() void {
+    test6502.expectEqualU16(1, 772, caller(0, 0));
+    test6502.expectEqualU16(2, 1028, caller(1, 255));
+    test6502.expectEqualU16(3, 513, caller(253, 256));
+    test6502.expectEqualU16(4, 258, caller(255, 65535));
+    test6502.expectEqualU16(5, 33668, caller(128, 32768));
+
+    test6502.expectEqualU16(10, 33575, choose(7, 541));
+    var value: u8 = 11;
+    test6502.expectEqualU16(11, 33065, ordered(&value));
+    test6502.expectEqualU8(12, 29, value);
+    test6502.pass();
+}

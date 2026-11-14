@@ -1,0 +1,28 @@
+// zeropage-emu-error: missing zeropage_options module loader metadata
+pub const zeropage_options = .{
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 2 },
+        .policy = .{
+            .current = .{ .mode = .manual },
+            .deps = .{ .math_core = .{ .mode = .on_demand } },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "bad_dep_policy",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core" },
+};
+
+fn tick(value: u8) u8 {
+    return value;
+}
+
+export fn main() void {}

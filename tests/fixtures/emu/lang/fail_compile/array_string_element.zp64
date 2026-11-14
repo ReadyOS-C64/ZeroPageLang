@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported string type
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var xs: [2][]const u8 = .{ "a", "b" };
+    test6502.expectString(1, xs[0], "a");
+    test6502.pass();
+}

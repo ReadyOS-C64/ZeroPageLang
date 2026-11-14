@@ -1,0 +1,10 @@
+// zeropage-emu-error: immutable local binding cannot be assigned
+const test6502 = @import("test6502");
+
+const Point = struct { x: u8, y: u8 };
+
+export fn main() void {
+    const points: [2]Point = .{ Point{ .x = 1, .y = 2 }, Point{ .x = 3, .y = 4 } };
+    points[0].x = 9;
+    test6502.pass();
+}

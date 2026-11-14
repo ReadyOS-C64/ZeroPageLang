@@ -1,0 +1,55 @@
+const test6502 = @import("test6502");
+
+fn byte(value: u8) u8 {
+    test6502.hit(40);
+    return value;
+}
+
+fn word(value: u16) u16 {
+    test6502.hit(41);
+    return value;
+}
+
+export fn main() void {
+    // Compare immediate selection with the general variable-operand path for
+    // every byte, including wrap, carry, and borrow boundaries.
+    var n: u16 = 0;
+    var value: u8 = 0;
+    var amount: u8 = 17;
+    while (n < 256) {
+        const expected_add: u8 = value + amount;
+        const expected_sub: u8 = value - amount;
+        const immediate_add: u8 = value + 17;
+        const immediate_sub: u8 = value - 17;
+        const left_add: u8 = 17 + value;
+        test6502.expectEqualBool(1, true, expected_add == immediate_add);
+        test6502.expectEqualBool(2, true, expected_sub == immediate_sub);
+        test6502.expectEqualBool(3, true, expected_add == left_add);
+        n += 1;
+        value += 1;
+    }
+
+    test6502.expectEqualU8(4, 0, byte(255) + 1);
+    test6502.expectEqualU8(5, 255, byte(0) - 1);
+    test6502.expectEqualU8(6, 12, 7 + byte(5));
+    test6502.expectEqualU8(7, 2, 7 - byte(5));
+    test6502.expectHitCount(40, 4);
+
+    test6502.expectEqualU16(8, 0x0100, word(0x00ff) + 1);
+    test6502.expectEqualU16(9, 0x00ff, word(0x0100) - 1);
+    test6502.expectEqualU16(10, 0, word(0xffff) + 1);
+    test6502.expectEqualU16(11, 0xffff, word(0) - 1);
+    test6502.expectEqualU16(12, 0x0200, word(0x00ff) + 0x0101);
+    test6502.expectEqualU16(13, 0x00ff, word(0x0200) - 0x0101);
+    test6502.expectEqualU16(14, 0x0200, 0x0101 + word(0x00ff));
+    test6502.expectEqualU16(15, 0x0100, 0x0101 - word(1));
+    test6502.expectEqualU16(16, 0x0301, (word(0x00ff) + 1) + (word(0x0100) + 0x0101));
+    test6502.expectHitCount(41, 10);
+
+    // A volatile read is still evaluated exactly where the expression uses it.
+    const location: *volatile u8 = @ptrFromInt(0x4000);
+    location.* = 254;
+    test6502.expectEqualU8(17, 255, location.* + 1);
+    test6502.expectEqualU8(18, 253, location.* - 1);
+    test6502.pass();
+}

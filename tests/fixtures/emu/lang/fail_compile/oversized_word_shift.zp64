@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported oversized literal shift
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var one: u16 = 1;
+    test6502.expectEqualU16(1, 0, one << 16);
+}

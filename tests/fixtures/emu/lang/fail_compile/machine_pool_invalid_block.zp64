@@ -1,0 +1,6 @@
+// zeropage-emu-error: invalid zeropage_options heap block
+memory {
+    region backing: c64 at 0x9000 size 64;
+    pool objects in backing block 3;
+}
+export fn main() void {}

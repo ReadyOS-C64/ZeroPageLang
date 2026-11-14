@@ -1,0 +1,7 @@
+const assets = @import("module_rodata_assets.zp64");
+
+const title = "MAIN";
+const table = [_]u8{ 1, 2, 3 };
+
+export fn main() void {}
+

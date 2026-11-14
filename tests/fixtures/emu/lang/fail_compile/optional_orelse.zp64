@@ -1,0 +1,6 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+export fn main() void {
+    var maybe: ?u8 = null;
+    var byte: u8 = maybe orelse 1;
+    _ = byte;
+}

@@ -1,0 +1,2 @@
+pub const zeropage_options=.{.zero_page=.{.profile=.kernal,.allocation=.scalars}};
+fn read(index:u16,tag:u8)u8{const p:[*]volatile u8=@ptrFromInt(0xfff0);_=p[index];return tag;}export fn api(index:u16)u8{return read(index,7);}export fn main()void{}

@@ -1,0 +1,29 @@
+const test6502 = @import("test6502");
+
+fn times7(value: u16) u16 { return value * 7; }
+fn times10(value: u16) u16 { return value * 10; }
+fn masked(value: u16) u16 {
+    return (value & 31) * 3 + (value & 63) * 7 + (value & 127) * 9;
+}
+
+fn publish() void {
+    const input: *volatile u16 = @ptrFromInt(0xc100);
+    const value: u16 = input.*;
+    const crossing: *volatile u16 = @ptrFromInt(0xc1ff);
+    crossing.* = times7(value);
+    const shifted: *volatile u16 = @ptrFromInt(0xc118);
+    shifted.* = times10(value);
+    const reduced: *volatile u16 = @ptrFromInt(0xc11a);
+    reduced.* = masked(value);
+}
+
+export fn main() void {
+    const input: *volatile u16 = @ptrFromInt(0xc100);
+    input.* = 0x80ff;
+    publish();
+    test6502.expectMemU16(1, 0xc1ff, 0x86f9);
+    test6502.expectMemU16(2, 0xc118, 0x09f6);
+    test6502.expectMemU16(3, 0xc11a, 1677);
+    test6502.expectMemU16(4, 0xc100, 0x80ff);
+    test6502.pass();
+}

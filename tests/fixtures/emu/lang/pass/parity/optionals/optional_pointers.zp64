@@ -1,0 +1,68 @@
+const test6502 = @import("test6502");
+
+const Board = struct {
+    cells: [3]u8,
+    score: u16,
+};
+
+fn maybeBoard(flag: bool, board: *Board) ?*Board {
+    if (flag) {
+        return board;
+    } else {
+        return null;
+    }
+}
+
+fn firstCell(board: ?*Board) u8 {
+    if (board) |ptr| {
+        return ptr.cells[0];
+    } else {
+        return 0;
+    }
+}
+
+fn bumpFirst(board: ?*Board) void {
+    if (board) |ptr| {
+        ptr.cells[0] += 1;
+        ptr.score += 2;
+    }
+}
+
+fn secondCellSwitch(board: ?*Board) u8 {
+    return switch (board) {
+        null => 0,
+        else => |ptr| ptr.cells[1],
+    };
+}
+
+export fn main() void {
+    var board = Board{
+        .cells = .{ 4, 5, 6 },
+        .score = 0x1200,
+    };
+    var maybe: ?*Board = &board;
+    var none: ?*Board = null;
+
+    test6502.expectEqualBool(1, true, maybe != null);
+    test6502.expectNull(2, none);
+    test6502.expectEqualBool(3, true, none == null);
+
+    test6502.expectEqualU8(5, 4, firstCell(maybe));
+    test6502.expectEqualU8(6, 0, firstCell(none));
+    bumpFirst(maybe);
+    bumpFirst(none);
+    test6502.expectEqualU8(7, 5, board.cells[0]);
+    test6502.expectEqualU16(8, 0x1202, board.score);
+
+    test6502.expectEqualBool(9, true, maybeBoard(true, &board) != null);
+    test6502.expectNull(10, maybeBoard(false, &board));
+
+    const value: u8 = if (maybeBoard(true, &board)) |payload| payload.cells[1] else 0;
+    const null_value: u8 = if (maybeBoard(false, &board)) |missing| missing.cells[1] else 9;
+    test6502.expectEqualU8(11, 5, value);
+    test6502.expectEqualU8(12, 9, null_value);
+    test6502.expectEqualU8(13, 5, secondCellSwitch(maybe));
+    test6502.expectEqualU8(14, 0, secondCellSwitch(none));
+
+    test6502.pass();
+}

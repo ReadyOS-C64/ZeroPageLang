@@ -1,0 +1,29 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars, .ranges = .{.{ .addr = 0x20, .size = 16 }} },
+};
+
+const Buffer = struct { bytes: [16]u8 };
+
+fn copyAndCheck(source: *Buffer) bool {
+    var dest = Buffer{ .bytes = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } };
+    for (0..16) |i| {
+        dest.bytes[i] = source.bytes[i];
+    }
+    for (0..16) |j| {
+        if (dest.bytes[j] != source.bytes[j]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+export fn main() void {
+    var source = Buffer{ .bytes = [_]u8{ 16, 89, 162, 235, 52, 125, 198, 15, 88, 161, 234, 51, 124, 197, 14, 87 } };
+    test6502.expectEqualBool(1, true, copyAndCheck(&source));
+    source.bytes[0] = 255;
+    source.bytes[15] = 0;
+    test6502.expectEqualBool(2, true, copyAndCheck(&source));
+    test6502.pass();
+}

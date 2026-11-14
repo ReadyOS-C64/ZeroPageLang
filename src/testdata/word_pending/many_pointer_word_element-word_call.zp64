@@ -1,0 +1,2 @@
+fn choose(a:u16,b:u16)u8{if(a==b+1){return 0;}return 1;}
+export fn api(value:u16,index:u8,other:u8)u16{const ptr:[*]u16=@ptrFromInt(0xc100);ptr[choose(2,1)]=value;return ptr[0];}export fn main()void{}

@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported struct
+const test6502 = @import("test6502");
+
+export fn main() void {
+    test6502.expectEqualU16(1, 1, @sizeOf(Missing));
+    test6502.pass();
+}

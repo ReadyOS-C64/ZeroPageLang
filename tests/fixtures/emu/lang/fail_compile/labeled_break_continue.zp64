@@ -1,0 +1,12 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const test6502 = @import("test6502");
+export fn main() void {
+    var i: u8 = 0;
+    outer: while (i < 4) {
+        i += 1;
+        while (true) {
+            continue :outer;
+        }
+    }
+    test6502.expectEqualU8(1, 4, i);
+}

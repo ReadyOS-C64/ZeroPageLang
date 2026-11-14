@@ -1,0 +1,6 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.vic.border = 6;
+}
+

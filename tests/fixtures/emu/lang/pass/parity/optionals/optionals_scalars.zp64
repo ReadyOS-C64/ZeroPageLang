@@ -1,0 +1,96 @@
+const test6502 = @import("test6502");
+
+fn maybeByte(flag: bool, value: u8) ?u8 {
+    if (flag) {
+        return value;
+    } else {
+        return null;
+    }
+}
+
+fn maybeWord(flag: bool, value: u16) ?u16 {
+    if (flag) {
+        return value;
+    } else {
+        return null;
+    }
+}
+
+fn maybeBool(flag: bool) ?bool {
+    if (flag) {
+        return true;
+    } else {
+        return null;
+    }
+}
+
+fn someFromPayload(input: ?u8) ?u8 {
+    if (input) |value| {
+        return value + 1;
+    } else {
+        return null;
+    }
+}
+
+fn countSome(input: ?u8) u8 {
+    if (input) |value| {
+        return value;
+    } else {
+        return 0;
+    }
+}
+
+fn countSomeSwitch(input: ?u8) u8 {
+    return switch (input) {
+        null => 0,
+        else => |value| value + 3,
+    };
+}
+
+fn wordSwitch(input: ?u16) u16 {
+    return switch (input) {
+        null => 0xeeee,
+        else => |value| value + 1,
+    };
+}
+
+export fn main() void {
+    var none_byte: ?u8 = null;
+    var some_byte: ?u8 = 7;
+    const some_word: ?u16 = 0x1234;
+    const none_word: ?u16 = null;
+    const some_bool: ?bool = true;
+
+    test6502.expectNull(1, none_byte);
+    test6502.expectSomeU8(2, 7, some_byte);
+    test6502.expectSomeU16(3, 0x1234, some_word);
+    test6502.expectNull(4, none_word);
+    test6502.expectSomeBool(5, true, some_bool);
+    test6502.expectEqualBool(6, true, none_byte == null);
+    test6502.expectEqualBool(7, true, some_byte != null);
+
+    some_byte = maybeByte(true, 9);
+    none_byte = maybeByte(false, 9);
+    test6502.expectSomeU8(8, 9, some_byte);
+    test6502.expectNull(9, none_byte);
+    test6502.expectSomeU16(10, 0xabcd, maybeWord(true, 0xabcd));
+    test6502.expectNull(11, maybeWord(false, 0xabcd));
+    test6502.expectSomeBool(12, true, maybeBool(true));
+    test6502.expectNull(13, maybeBool(false));
+
+    test6502.expectEqualU8(14, 9, countSome(some_byte));
+    test6502.expectEqualU8(15, 0, countSome(none_byte));
+    test6502.expectSomeU8(16, 10, someFromPayload(some_byte));
+    test6502.expectNull(17, someFromPayload(none_byte));
+
+    const from_if: u8 = if (maybeByte(true, 5)) |payload_a| payload_a + 2 else 1;
+    const from_null_if: u8 = if (maybeByte(false, 5)) |payload_b| payload_b + 2 else 1;
+    test6502.expectEqualU8(18, 7, from_if);
+    test6502.expectEqualU8(19, 1, from_null_if);
+    test6502.expectEqualU8(20, 12, countSomeSwitch(some_byte));
+    test6502.expectEqualU8(21, 0, countSomeSwitch(none_byte));
+    test6502.expectEqualU16(22, 0x1235, wordSwitch(some_word));
+    test6502.expectEqualU16(23, 0xeeee, wordSwitch(none_word));
+
+    test6502.pass();
+}

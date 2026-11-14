@@ -1,0 +1,113 @@
+const test6502 = @import("test6502");
+const Record = struct { bytes: [4]u8, words: [4]u16 };
+const order = [_]u8{ 3, 1, 0, 2 };
+
+fn scalar(value: u8) u8 { return value ^ 0x55; }
+
+fn sumBytes(record: *Record) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| { total += record.bytes[i]; }
+    return total;
+}
+
+fn sumWords(record: *Record) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| { total += record.words[i]; }
+    return total;
+}
+
+fn scalarCalls(record: *Record) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| { total += scalar(record.bytes[order[i]]); }
+    return total;
+}
+
+fn firstMatch(record: *Record, target: u8) u8 {
+    for (0..4) |i| { if (record.bytes[i] == target) { return i; } }
+    return 255;
+}
+
+fn nested(record: *Record) u16 {
+    var total: u16 = 0;
+    for (0..3) |_| {
+        for (0..4) |i| { total += record.bytes[i]; }
+    }
+    return total;
+}
+
+fn conditional(record: *Record, skip: bool) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        if (skip) { continue; }
+        total += record.bytes[i];
+    }
+    return total;
+}
+
+fn redirect(first: *Record, second: *Record) u16 {
+    var current: *Record = first;
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += current.bytes[i];
+        current = second;
+    }
+    return total;
+}
+
+fn aliasWrite(record: *Record, location: *u8) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += record.bytes[i];
+        location.* = 31;
+    }
+    return total;
+}
+
+fn touch(record: *Record) void { record.bytes[3] = 22; }
+fn clobberCall(record: *Record) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += record.bytes[i];
+        touch(record);
+    }
+    return total;
+}
+
+fn volatileCallee(location: *volatile u8) u8 { return location.*; }
+fn volatileScan(record: *Record, location: *volatile u8) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        const sample = record.bytes[i];
+        const other = volatileCallee(location);
+        total += sample;
+        total += other;
+    }
+    return total;
+}
+
+fn emptyLoop(record: *Record) u8 {
+    var result: u8 = 7;
+    for (0..0) |_| { result = record.bytes[0]; }
+    return result;
+}
+
+export fn main() void {
+    var record = Record{ .bytes = [_]u8{ 1, 2, 3, 4 }, .words = [_]u16{ 0xff, 0x100, 0x7fff, 0x8001 } };
+    var other = Record{ .bytes = [_]u8{ 5, 6, 7, 8 }, .words = [_]u16{ 0, 0, 0, 0 } };
+    test6502.expectEqualU16(1, 10, sumBytes(&record));
+    test6502.expectEqualU16(2, 511, sumWords(&record));
+    test6502.expectEqualU16(3, 338, scalarCalls(&record));
+    test6502.expectEqualU8(4, 2, firstMatch(&record, 3));
+    test6502.expectEqualU8(5, 255, firstMatch(&record, 9));
+    test6502.expectEqualU16(6, 30, nested(&record));
+    test6502.expectEqualU16(7, 0, conditional(&record, true));
+    test6502.expectEqualU16(8, 10, conditional(&record, false));
+    test6502.expectEqualU16(9, 22, redirect(&record, &other));
+    test6502.expectEqualU16(10, 37, aliasWrite(&record, &record.bytes[3]));
+    test6502.expectEqualU16(11, 28, clobberCall(&record));
+    const location: *volatile u8 = @ptrFromInt(0xc700);
+    location.* = 1;
+    test6502.expectEqualU16(12, 32, volatileScan(&record, location));
+    test6502.expectEqualU8(13, 7, emptyLoop(&record));
+    test6502.pass();
+}

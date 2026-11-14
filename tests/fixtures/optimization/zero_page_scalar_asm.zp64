@@ -1,0 +1,19 @@
+// Native paired proof for source-owned private-parameter placement.
+// Named parameter/local objects are checked independently of changing frame offsets.
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn otherwiseEligible(value: u16) u16 { return value ^ 0x55aa; }
+fn asmBarrier(value: u8) u8 {
+    asm {
+        lda @value
+        eor #$55
+        sta @value
+    }
+    return value;
+}
+export fn main() void {
+    test6502.expectEqualU16(1, 0xd455, otherwiseEligible(0x81ff));
+    test6502.expectEqualU8(2, 0xd4, asmBarrier(0x81));
+    test6502.pass();
+}

@@ -1,0 +1,44 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena assets in assets_ram;
+}
+
+fn poke(addr: u16, value: u8) void {
+    const ptr: *volatile u8 = @ptrFromInt(addr);
+    ptr.* = value;
+}
+
+fn peek(addr: u16) u8 {
+    const ptr: *volatile u8 = @ptrFromInt(addr);
+    return ptr.*;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("FAR REU ARENA\n", .{});
+
+    poke(0x0500, 'O');
+    poke(0x0501, 'K');
+    poke(0x0528, '.');
+    poke(0x0529, '.');
+
+    const maybe_far = assets.allocBytes(2);
+    if (maybe_far) |far| {
+        ZeroPage.reu.copyFromC64(far, 0x0500, 2);
+        ZeroPage.reu.copyToC64(far, 0x0528, 2);
+        if (peek(0x0528) == 'O' and peek(0x0529) == 'K') {
+            c64.console.print("FAR COPY OK\n", .{});
+            c64.vic.border = 5;
+        } else {
+            c64.console.print("FAR COPY BAD\n", .{});
+            c64.vic.border = 2;
+        }
+    } else {
+        c64.console.print("FAR ALLOC BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -1,0 +1,15 @@
+// zeropage-emu-benchmark-stack: 0xc800+0x0100
+const test6502 = @import("test6502");
+const workload = @import("_branch.zp64");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0100 },
+    .abi = .{ .default_frame = .stack, .functions = .{
+        .main = .{ .frame = .static },
+        .workload_run = .{ .frame = .static },
+    } },
+};
+
+export fn main() void {
+    test6502.expectEqualU16(1, 22335, workload.run());
+}

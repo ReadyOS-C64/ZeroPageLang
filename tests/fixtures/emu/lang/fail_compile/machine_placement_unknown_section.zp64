@@ -1,0 +1,3 @@
+// zeropage-emu-error: unknown ZeroPage placement section
+fn worker() linksection("unknown") void {}
+export fn main() void {}

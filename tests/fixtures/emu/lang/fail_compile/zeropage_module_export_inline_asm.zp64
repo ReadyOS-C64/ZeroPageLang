@@ -1,0 +1,21 @@
+// zeropage-emu-error: unsupported stack frame type
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn tick(value: u8) u8 {
+    asm {
+        nop
+    }
+    return value;
+}
+
+export fn main() void {}

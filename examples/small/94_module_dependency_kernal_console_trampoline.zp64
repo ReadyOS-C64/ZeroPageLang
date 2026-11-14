@@ -1,0 +1,59 @@
+const c64 = @import("c64");
+
+extern module MathCore = math_core {
+    fn banner() u8;
+}
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x002000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+    region kernal_window: c64 at 0xe000 size 0x0800 bank .ram_under_kernal;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+    window kernal in kernal_window;
+    capacity = 2;
+    current {
+        file = "enemykt";
+    }
+    dependency math_core {
+        file = "mathcore";
+        window = kernal;
+        requires = .{};
+    }
+}
+
+module enemy_dep_kernal_console abi 1 {
+    export tick;
+    dependency math_core;
+}
+
+fn tick() callconv(.stack) u8 {
+    return 3;
+}
+
+export fn main() void {
+    c64.console.clear();
+    var ok = false;
+    if (MathCore.load() and MathCore.acquire()) {
+        if (MathCore.banner()) |value| {
+            ok = value == 7 and tick() == 3;
+        }
+    }
+
+    c64.console.print("\nMODULE DEP KERNAL TRAMP\n", .{});
+    if (ok) {
+        c64.console.print("DEP TRAMP OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("DEP TRAMP BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported signed bitwise operation
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var a: i8 = 3;
+    var b: i8 = 1;
+    test6502.expectEqualI8(1, 1, a & b);
+}

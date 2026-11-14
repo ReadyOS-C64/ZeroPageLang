@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported REU transfer length
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    ZeroPage.reu.copyC64ToReu(0x0400, 0x010000, 0);
+}

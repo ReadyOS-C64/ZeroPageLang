@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported zeropage_module metadata
+const ZeroPage = @import("ZeroPage");
+
+fn clear(id: u8) void {
+    ZeroPage.module.unload(id);
+}
+
+export fn main() void {
+    clear(1);
+}

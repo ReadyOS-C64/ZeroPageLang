@@ -1,0 +1,23 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+export fn main() void {
+    c64.vic.border = 6;
+    c64.screen.putAt(0, 0, 'A');
+
+    var a: u8 = 7;
+    test6502.mark(1);
+    test6502.expectA(2, 7);
+    test6502.expectX(3, 0);
+    test6502.expectY(4, 0);
+    test6502.expectSP(5, 255);
+    test6502.expectP(6, 130, 0);
+    test6502.expectMemU8(7, 53280, 6);
+    test6502.expectMemU16(8, 1024, 1);
+    test6502.expectStackU8(9, 0, 0);
+    test6502.hit(10);
+    test6502.hit(10);
+    test6502.expectHitCount(10, 2);
+    test6502.snapshot(11);
+    test6502.pass();
+}

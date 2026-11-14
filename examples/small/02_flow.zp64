@@ -1,0 +1,20 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "FLOW DEMO");
+
+    var x: u8 = 0;
+    while (x < 6) {
+        c64.screen.putAt(2 + x, 5, '#');
+        x += 1;
+    }
+
+    if (x == 6) {
+        c64.screen.putsAt(2, 7, "IF WHILE OK");
+    } else {
+        c64.screen.putsAt(2, 7, "IF WHILE BAD");
+    }
+    c64.screen.putsAt(2, 9, "X=");
+    c64.screen.hexAt(4, 9, x);
+}

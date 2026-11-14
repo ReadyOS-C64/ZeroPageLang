@@ -1,0 +1,34 @@
+const test6502 = @import("test6502");
+
+fn reference(value: u8, factor: u8) u8 {
+    return value * factor;
+}
+
+fn side(value: u8) u8 {
+    test6502.hit(40);
+    return value;
+}
+
+export fn main() void {
+    var count: u16 = 0;
+    var value: u8 = 0;
+    while (count < 256) {
+        test6502.expectEqualBool(3, true, reference(value, 2) == value * 2);
+        test6502.expectEqualBool(4, true, reference(value, 3) == value * 3);
+        test6502.expectEqualBool(5, true, reference(value, 5) == value * 5);
+        test6502.expectEqualBool(6, true, reference(value, 17) == value * 17);
+        test6502.expectEqualBool(7, true, reference(value, 40) == value * 40);
+        test6502.expectEqualBool(8, true, reference(value, 128) == value * 128);
+        test6502.expectEqualBool(9, true, reference(value, 255) == value * 255);
+        count += 1;
+        value += 1;
+    }
+    test6502.expectEqualU8(10, 0, side(5) * 0);
+    test6502.expectEqualU8(11, 0, 0 * side(5));
+    test6502.expectEqualU8(12, 6, side(6) * 1);
+    test6502.expectEqualU8(13, 7, 1 * side(7));
+    test6502.expectEqualU8(14, 9, side(3) * 3);
+    test6502.expectEqualU8(15, 60, (side(4) * 3) * 5);
+    test6502.expectHitCount(40, 6);
+    test6502.pass();
+}

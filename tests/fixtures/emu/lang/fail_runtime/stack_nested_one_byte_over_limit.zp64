@@ -1,0 +1,16 @@
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fc, .size = 9 },
+    .abi = .{ .default_frame = .stack },
+};
+
+fn identity(value: u16) u16 {
+    return value;
+}
+
+fn relay(value: u16) u16 {
+    return identity(value);
+}
+
+export fn main() void {
+    _ = relay(0x805a);
+}

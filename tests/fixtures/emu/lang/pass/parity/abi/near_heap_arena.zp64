@@ -1,0 +1,48 @@
+const test6502 = @import("test6502");
+
+memory {
+    region main_ram: c64 at 0x9000 size 0x0010;
+    region scratch_ram: c64 at 0x9100 size 0x0010;
+
+    arena near_heap in main_ram;
+    arena scratch in scratch_ram;
+}
+
+export fn main() void {
+    const first = near_heap.allocBytes(4);
+    test6502.expectSomePtr(1, 0x9000, first);
+    if (first) |first_buf| {
+        first_buf[0] = 0x41;
+        first_buf[1] = 0x42;
+    } else {
+        test6502.fail(90);
+    }
+    test6502.expectMemU8(2, 0x9000, 0x41);
+    test6502.expectMemU8(3, 0x9001, 0x42);
+
+    var runtime_len: u8 = 3;
+    const second = near_heap.allocBytes(runtime_len);
+    test6502.expectSomePtr(4, 0x9004, second);
+
+    const scratch = scratch.allocBytes(2);
+    test6502.expectSomePtr(5, 0x9100, scratch);
+    if (scratch) |scratch_buf| {
+        scratch_buf[1] = 0x55;
+    } else {
+        test6502.fail(91);
+    }
+    test6502.expectMemU8(6, 0x9101, 0x55);
+
+    const too_big = near_heap.allocBytes(0x0100);
+    test6502.expectNull(7, too_big);
+
+    near_heap.reset();
+    const reused = near_heap.allocBytes(1);
+    test6502.expectSomePtr(8, 0x9000, reused);
+
+    var zero_len: u8 = 0;
+    const runtime_zero = scratch.allocBytes(zero_len);
+    test6502.expectNull(9, runtime_zero);
+
+    test6502.pass();
+}

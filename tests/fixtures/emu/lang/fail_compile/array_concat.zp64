@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported string expression
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const xs = [_]u8{1} ++ [_]u8{2};
+    test6502.expectEqualU8(1, 2, xs[1]);
+    test6502.pass();
+}

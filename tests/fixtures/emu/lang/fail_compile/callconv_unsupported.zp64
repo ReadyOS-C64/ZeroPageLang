@@ -1,0 +1,2 @@
+// zeropage-emu-error: unsupported ZeroPage calling convention
+export fn main() callconv(.c) void {}

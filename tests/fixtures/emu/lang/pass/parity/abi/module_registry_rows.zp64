@@ -1,0 +1,51 @@
+// zeropage-emu-label-memory: zeropage_module_registry_row0_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row0_refcount=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row1_refcount=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row2_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row2_refcount=$00
+// zeropage-emu-reu: $030000=$00
+// zeropage-emu-reu: $030800=$00
+// zeropage-emu-reu: $031000=$00
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001800 },
+        .registry = .{ .capacity = 3 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{
+                .math_core = "mathcore",
+                .pathing = "pathing",
+            },
+        },
+    },
+    .abi = .{
+        .functions = .{
+            .tick = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_rows",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(state: u8) u8 {
+    return state + 1;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, false, ZeroPage.module.isLoaded("enemy_rows"));
+    test6502.expectEqualBool(2, false, ZeroPage.module.isLoaded("math_core"));
+    test6502.expectEqualBool(3, false, ZeroPage.module.isLoaded("pathing"));
+    test6502.pass();
+}

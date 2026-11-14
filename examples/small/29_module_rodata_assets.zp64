@@ -1,0 +1,17 @@
+const c64 = @import("c64");
+const assets = @import("29_module_rodata_assets_data.zp64");
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("RODATA MODULE\n", .{});
+
+    var border: u8 = assets.values[2];
+    if (border == 5) {
+        c64.console.print("ASSET OK\n", .{});
+        c64.vic.border = border;
+    } else {
+        c64.console.print("ASSET BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}
+

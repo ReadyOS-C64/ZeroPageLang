@@ -1,0 +1,45 @@
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var zero: u8 = 0;
+    test6502.expectEqualU8(1, 0, zero);
+    var one: u8 = 1;
+    test6502.expectEqualU8(2, 1, one);
+    var max: u8 = 255;
+    test6502.expectEqualU8(3, 255, max);
+    var signed_zero: i8 = 0;
+    test6502.expectEqualI8(4, 0, signed_zero);
+    var signed_neg: i8 = 255;
+    test6502.expectEqualI8(5, 255, signed_neg);
+    var flag_true: bool = true;
+    test6502.expectEqualBool(6, true, flag_true);
+    var flag_false: bool = false;
+    test6502.expectEqualBool(7, false, flag_false);
+    var word: u16 = 1024;
+    test6502.expectEqualU16(8, 1024, word);
+    var signed_word: i16 = 2048;
+    test6502.expectEqualU16(9, 2048, signed_word);
+    var ptr: usize = 4096;
+    test6502.expectEqualU16(10, 4096, ptr);
+    test6502.expectEqualU8(11, 1, true);
+    test6502.expectEqualU8(12, 0, false);
+    test6502.expectEqualU8(13, 1, 'A');
+    test6502.expectEqualU8(14, 26, 'Z');
+    var word_zero: u16 = 0;
+    test6502.expectEqualU16(15, 0, word_zero);
+    var word_one: u16 = 1;
+    test6502.expectEqualU16(16, 1, word_one);
+    var word_byte_max: u16 = 255;
+    test6502.expectEqualU16(17, 255, word_byte_max);
+    var word_cross_byte: u16 = 256;
+    test6502.expectEqualU16(18, 256, word_cross_byte);
+    var word_max: u16 = 65535;
+    test6502.expectEqualU16(19, 65535, word_max);
+    var signed_word_neg_one: i16 = 65535;
+    test6502.expectEqualU16(20, 65535, signed_word_neg_one);
+    var ptr_max: usize = 65535;
+    test6502.expectEqualU16(21, 65535, ptr_max);
+    var byte_wrap_value: u8 = 255;
+    test6502.expectEqualU8(22, 255, byte_wrap_value);
+    test6502.pass();
+}

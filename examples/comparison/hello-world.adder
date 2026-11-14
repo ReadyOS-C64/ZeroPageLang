@@ -1,0 +1,3 @@
+when System.screen.frame.every(9)
+  System.screen.println("Hello, World!")
+end

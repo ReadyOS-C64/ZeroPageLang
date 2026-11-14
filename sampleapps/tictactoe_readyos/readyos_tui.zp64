@@ -1,0 +1,559 @@
+const c64 = @import("c64");
+
+// ReadyOS micro-module port. The three-row title window, light-blue border,
+// yellow title, blue background, gray command text, and centered help window
+// follow ../readyosprecog/src/lib/tui.c plus the Editor/Simple Files help
+// popups. This focused version draws only the fixed chrome used by the game.
+
+fn beginFrame() void {
+    c64.screen.clear();
+    asm {
+        lda #$06
+        sta $d020
+        sta $d021
+        lda #$01
+        sta $0286
+
+        ldx #$00
+readyos_tui_header_lines:
+        lda #$40
+        sta $0401,x
+        sta $0451,x
+        lda #$0e
+        sta $d801,x
+        sta $d851,x
+        inx
+        cpx #$26
+        bne readyos_tui_header_lines
+
+        lda #$5d
+        sta $0428
+        sta $044f
+        lda #$70
+        sta $0400
+        lda #$6e
+        sta $0427
+        lda #$6d
+        sta $0450
+        lda #$7d
+        sta $0477
+        lda #$0e
+        sta $d800
+        sta $d827
+        sta $d828
+        sta $d84f
+        sta $d850
+        sta $d877
+    }
+}
+
+fn drawBoardGrid() void {
+    asm {
+        ldx #$00
+readyos_tui_grid_horizontal:
+        lda #$40
+        sta $0573,x
+        sta $0613,x
+        lda #$0e
+        sta $d973,x
+        sta $da13,x
+        inx
+        cpx #$11
+        bne readyos_tui_grid_horizontal
+
+        lda #$5b
+        sta $0578
+        sta $057e
+        sta $0618
+        sta $061e
+
+        lda #$5d
+        sta $0500
+        sta $0506
+        sta $0528
+        sta $052e
+        sta $0550
+        sta $0556
+        sta $05a0
+        sta $05a6
+        sta $05c8
+        sta $05ce
+        sta $05f0
+        sta $05f6
+        sta $0640
+        sta $0646
+        sta $0668
+        sta $066e
+        sta $0690
+        sta $0696
+
+        lda #$0e
+        sta $d900
+        sta $d906
+        sta $d928
+        sta $d92e
+        sta $d950
+        sta $d956
+        sta $d9a0
+        sta $d9a6
+        sta $d9c8
+        sta $d9ce
+        sta $d9f0
+        sta $d9f6
+        sta $da40
+        sta $da46
+        sta $da68
+        sta $da6e
+        sta $da90
+        sta $da96
+    }
+}
+
+fn drawHelpWindow() void {
+    // Exact ReadyOS TuiRect {1, 4, 38, 16}. Keeping every row explicit makes
+    // the 40-column stride auditable and prevents 8-bit index wraparound from
+    // ever painting stray line glyphs elsewhere on screen.
+    asm {
+        ldx #$00
+readyos_tui_help_rows:
+        lda #$20
+        sta $04ca,x
+        sta $04f2,x
+        sta $051a,x
+        sta $0542,x
+        sta $056a,x
+        sta $0592,x
+        sta $05ba,x
+        sta $05e2,x
+        sta $060a,x
+        sta $0632,x
+        sta $065a,x
+        sta $0682,x
+        sta $06aa,x
+        sta $06d2,x
+        lda #$01
+        sta $d8ca,x
+        sta $d8f2,x
+        sta $d91a,x
+        sta $d942,x
+        sta $d96a,x
+        sta $d992,x
+        sta $d9ba,x
+        sta $d9e2,x
+        sta $da0a,x
+        sta $da32,x
+        sta $da5a,x
+        sta $da82,x
+        sta $daaa,x
+        sta $dad2,x
+        inx
+        cpx #$24
+        bne readyos_tui_help_rows
+
+        ldx #$00
+readyos_tui_help_horizontal:
+        lda #$40
+        sta $04a2,x
+        sta $06fa,x
+        lda #$0e
+        sta $d8a2,x
+        sta $dafa,x
+        inx
+        cpx #$24
+        bne readyos_tui_help_horizontal
+
+        lda #$5d
+        sta $04c9
+        sta $04f1
+        sta $0519
+        sta $0541
+        sta $0569
+        sta $0591
+        sta $05b9
+        sta $05e1
+        sta $0609
+        sta $0631
+        sta $0659
+        sta $0681
+        sta $06a9
+        sta $06d1
+        sta $04ee
+        sta $0516
+        sta $053e
+        sta $0566
+        sta $058e
+        sta $05b6
+        sta $05de
+        sta $0606
+        sta $062e
+        sta $0656
+        sta $067e
+        sta $06a6
+        sta $06ce
+        sta $06f6
+
+        lda #$0e
+        sta $d8c9
+        sta $d8f1
+        sta $d919
+        sta $d941
+        sta $d969
+        sta $d991
+        sta $d9b9
+        sta $d9e1
+        sta $da09
+        sta $da31
+        sta $da59
+        sta $da81
+        sta $daa9
+        sta $dad1
+        sta $d8ee
+        sta $d916
+        sta $d93e
+        sta $d966
+        sta $d98e
+        sta $d9b6
+        sta $d9de
+        sta $da06
+        sta $da2e
+        sta $da56
+        sta $da7e
+        sta $daa6
+        sta $dace
+        sta $daf6
+
+        lda #$70
+        sta $04a1
+        lda #$6e
+        sta $04c6
+        lda #$6d
+        sta $06f9
+        lda #$7d
+        sta $071e
+        lda #$0e
+        sta $d8a1
+        sta $d8c6
+        sta $daf9
+        sta $db1e
+    }
+}
+
+fn clearStatusLine() void {
+    asm {
+        ldx #$00
+readyos_tui_clear_status:
+        lda #$20
+        sta $0720,x
+        lda #$0f
+        sta $db20,x
+        inx
+        cpx #$28
+        bne readyos_tui_clear_status
+    }
+}
+
+fn clearGameHelp() void {
+    asm {
+        ldx #$00
+readyos_tui_clear_game_help:
+        lda #$20
+        sta $0720,x
+        sta $0770,x
+        sta $07c0,x
+        lda #$0f
+        sta $db20,x
+        sta $db70,x
+        sta $dbc0,x
+        inx
+        cpx #$28
+        bne readyos_tui_clear_game_help
+    }
+}
+
+fn drawResultWindow() void {
+    // Compact game-over TuiRect {6, 5, 28, 12}, following the persistent
+    // SideTris/2048 overlay pattern and covering the board without leaving
+    // clipped glyph fragments around it. It is painted once at game end.
+    asm {
+        ldx #$00
+readyos_tui_result_rows:
+        lda #$20
+        sta $04f7,x
+        sta $051f,x
+        sta $0547,x
+        sta $056f,x
+        sta $0597,x
+        sta $05bf,x
+        sta $05e7,x
+        sta $060f,x
+        sta $0637,x
+        sta $065f,x
+        lda #$01
+        sta $d8f7,x
+        sta $d91f,x
+        sta $d947,x
+        sta $d96f,x
+        sta $d997,x
+        sta $d9bf,x
+        sta $d9e7,x
+        sta $da0f,x
+        sta $da37,x
+        sta $da5f,x
+        inx
+        cpx #$1a
+        bne readyos_tui_result_rows
+
+        ldx #$00
+readyos_tui_result_horizontal:
+        lda #$40
+        sta $04cf,x
+        sta $0687,x
+        lda #$0e
+        sta $d8cf,x
+        sta $da87,x
+        inx
+        cpx #$1a
+        bne readyos_tui_result_horizontal
+
+        lda #$5d
+        sta $04f6
+        sta $051e
+        sta $0546
+        sta $056e
+        sta $0596
+        sta $05be
+        sta $05e6
+        sta $060e
+        sta $0636
+        sta $065e
+        sta $0511
+        sta $0539
+        sta $0561
+        sta $0589
+        sta $05b1
+        sta $05d9
+        sta $0601
+        sta $0629
+        sta $0651
+        sta $0679
+
+        lda #$0e
+        sta $d8f6
+        sta $d91e
+        sta $d946
+        sta $d96e
+        sta $d996
+        sta $d9be
+        sta $d9e6
+        sta $da0e
+        sta $da36
+        sta $da5e
+        sta $d911
+        sta $d939
+        sta $d961
+        sta $d989
+        sta $d9b1
+        sta $d9d9
+        sta $da01
+        sta $da29
+        sta $da51
+        sta $da79
+
+        lda #$70
+        sta $04ce
+        lda #$6e
+        sta $04e9
+        lda #$6d
+        sta $0686
+        lda #$7d
+        sta $06a1
+        lda #$0e
+        sta $d8ce
+        sta $d8e9
+        sta $da86
+        sta $daa1
+    }
+}
+
+fn colorResultChrome() void {
+    asm {
+        ldx #$00
+readyos_tui_result_title_color:
+        lda #$07
+        sta $d8d7,x
+        inx
+        cpx #$09
+        bne readyos_tui_result_title_color
+
+        ldx #$00
+readyos_tui_result_start_color:
+        lda #$0f
+        sta $d974,x
+        inx
+        cpx #$10
+        bne readyos_tui_result_start_color
+
+        ldx #$00
+readyos_tui_result_f1_color:
+        lda #$0f
+        sta $d9ed,x
+        inx
+        cpx #$0e
+        bne readyos_tui_result_f1_color
+
+        ldx #$00
+readyos_tui_result_f3_color:
+        lda #$0f
+        sta $da12,x
+        inx
+        cpx #$13
+        bne readyos_tui_result_f3_color
+    }
+}
+
+fn colorResultX() void {
+    asm {
+        ldx #$00
+readyos_tui_result_x_color:
+        lda #$07
+        sta $d928,x
+        inx
+        cpx #$07
+        bne readyos_tui_result_x_color
+    }
+}
+
+fn colorResultO() void {
+    asm {
+        ldx #$00
+readyos_tui_result_o_color:
+        lda #$03
+        sta $d928,x
+        inx
+        cpx #$07
+        bne readyos_tui_result_o_color
+    }
+}
+
+fn colorMainChrome() void {
+    asm {
+        ldx #$00
+readyos_tui_title_color:
+        lda #$07
+        sta $d80e,x
+        inx
+        cpx #$0b
+        bne readyos_tui_title_color
+
+        ldx #$00
+readyos_tui_help_one_color:
+        lda #$0f
+        sta $db23,x
+        inx
+        cpx #$21
+        bne readyos_tui_help_one_color
+
+        ldx #$00
+readyos_tui_help_two_color:
+        lda #$0f
+        sta $db72,x
+        inx
+        cpx #$24
+        bne readyos_tui_help_two_color
+
+        ldx #$00
+readyos_tui_help_three_color:
+        lda #$0f
+        sta $dbc1,x
+        inx
+        cpx #$25
+        bne readyos_tui_help_three_color
+    }
+}
+
+fn colorHeaderTwoPlayer() void {
+    asm {
+        ldx #$00
+readyos_tui_header_two_mode_value:
+        lda #$03
+        sta $d82f,x
+        inx
+        cpx #$08
+        bne readyos_tui_header_two_mode_value
+
+        lda #$03
+        sta $d84d
+        lda #$03
+        sta $d841
+        sta $d842
+        sta $d843
+    }
+}
+
+fn colorHeaderAi() void {
+    asm {
+        ldx #$00
+readyos_tui_header_ai_mode_value:
+        lda #$03
+        sta $d82f,x
+        inx
+        cpx #$08
+        bne readyos_tui_header_ai_mode_value
+
+        lda #$03
+        sta $d84d
+        lda #$03
+        sta $d83f
+        sta $d846
+    }
+}
+
+fn colorHelpChrome() void {
+    asm {
+        ldx #$00
+readyos_tui_help_header_color:
+        lda #$07
+        sta $d80e,x
+        inx
+        cpx #$0b
+        bne readyos_tui_help_header_color
+
+        ldx #$00
+readyos_tui_help_title_color:
+        lda #$07
+        sta $d8ac,x
+        inx
+        cpx #$10
+        bne readyos_tui_help_title_color
+
+        ldx #$00
+readyos_tui_help_play_text_color:
+        lda #$0f
+        sta $d91b,x
+        sta $d943,x
+        sta $d96b,x
+        sta $d993,x
+        sta $d9bb,x
+        inx
+        cpx #$22
+        bne readyos_tui_help_play_text_color
+
+        ldx #$00
+readyos_tui_help_readyos_text_color:
+        lda #$0f
+        sta $da33,x
+        sta $da5b,x
+        sta $da83,x
+        inx
+        cpx #$22
+        bne readyos_tui_help_readyos_text_color
+
+        ldx #$00
+readyos_tui_help_close_color:
+        lda #$03
+        sta $dad7,x
+        inx
+        cpx #$15
+        bne readyos_tui_help_close_color
+    }
+}

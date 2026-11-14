@@ -1,0 +1,80 @@
+const test6502 = @import("test6502");
+
+fn classify(value: u8) u8 {
+    if (value == 0) {
+        return 10;
+    } else if (value == 1) {
+        return 11;
+    } else if (value == 2 or value == 3) {
+        return 12;
+    } else {
+        return 13;
+    }
+}
+
+fn classifyWord(value: u16) u8 {
+    if (value < 256) {
+        return 1;
+    } else if (value == 256) {
+        return 2;
+    } else if (value > 512 and value <= 1024) {
+        return 3;
+    } else {
+        return 4;
+    }
+}
+
+fn classifyBool(a: bool, b: bool) u8 {
+    if (a and b) {
+        return 1;
+    } else if (a or b) {
+        return 2;
+    } else {
+        return 3;
+    }
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 10, classify(0));
+    test6502.expectEqualU8(2, 11, classify(1));
+    test6502.expectEqualU8(3, 12, classify(2));
+    test6502.expectEqualU8(4, 12, classify(3));
+    test6502.expectEqualU8(5, 13, classify(9));
+
+    test6502.expectEqualU8(6, 1, classifyWord(255));
+    test6502.expectEqualU8(7, 2, classifyWord(256));
+    test6502.expectEqualU8(8, 3, classifyWord(1024));
+    test6502.expectEqualU8(9, 4, classifyWord(2048));
+
+    test6502.expectEqualU8(10, 1, classifyBool(true, true));
+    test6502.expectEqualU8(11, 2, classifyBool(true, false));
+    test6502.expectEqualU8(12, 2, classifyBool(false, true));
+    test6502.expectEqualU8(13, 3, classifyBool(false, false));
+
+    var chosen: u8 = 0;
+    if (false) {
+        chosen = 1;
+    } else if (true) {
+        chosen = 2;
+    } else {
+        chosen = 3;
+    }
+    test6502.expectEqualU8(14, 2, chosen);
+
+    var i: u8 = 0;
+    var kept: u8 = 0;
+    while (i < 5) {
+        i += 1;
+        if (i == 1) {
+            continue;
+        } else if (i == 4) {
+            break;
+        } else {
+            kept += 1;
+        }
+    }
+    test6502.expectEqualU8(15, 4, i);
+    test6502.expectEqualU8(16, 2, kept);
+
+    test6502.pass();
+}

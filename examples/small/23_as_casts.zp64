@@ -1,0 +1,46 @@
+const c64 = @import("c64");
+
+const table = [_]u8{ 1, 2, 4, 8 };
+
+fn classify(value: u8) u8 {
+    return switch (@as(u8, value)) {
+        0...4 => @as(u8, 1),
+        5...9 => @as(u8, 2),
+        else => @as(u8, 3),
+    };
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("as casts\n", .{});
+
+    var values = [_]u8{ 0, 0, 0, 0 };
+    for (table, 0..) |value, i| {
+        values[i] = value + @as(u8, 1);
+    }
+
+    const word: u16 = @as(u16, values[3]) + @as(u16, 0x0100);
+    c64.console.print("byte {x} word {x16}\n", .{ values[3], word });
+
+    const screen: [*]volatile u8 = @as([*]volatile u8, @ptrFromInt(@as(usize, 0x04c0)));
+    const color: [*]volatile u8 = @as([*]volatile u8, @ptrFromInt(@as(usize, 0xd8c0)));
+    const glyph = switch (classify(values[2])) {
+        2 => @as(u8, 'O'),
+        else => @as(u8, 'B'),
+    };
+
+    screen[@as(u8, 0)] = @as(u8, 'A');
+    screen[@as(u8, 1)] = glyph;
+    screen[@as(u8, 2)] = @as(u8, '!');
+    color[@as(u8, 0)] = @as(u8, 5);
+    color[@as(u8, 1)] = @as(u8, 5);
+    color[@as(u8, 2)] = @as(u8, 5);
+
+    if (word == 0x0109 and screen[1] == 'O') {
+        c64.console.print("as ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("as bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

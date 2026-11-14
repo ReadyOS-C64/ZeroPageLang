@@ -1,0 +1,64 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{
+        .base = 0xc800,
+        .size = 0x0400,
+        .zp = .{ .sp = 0xf3, .fp = 0xf5 },
+    },
+    .abi = .{
+        .functions = .{
+            .main = .{ .frame = .stack },
+            .stackHelper = .{ .frame = .stack },
+        },
+    },
+};
+
+fn add8(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn add16(a: u16, b: u16) u16 {
+    return a + b;
+}
+
+fn same(a: u8, b: u8) bool {
+    return a == b;
+}
+
+fn wordShape(a: usize, b: usize) usize {
+    return a + b;
+}
+
+fn staticInner(a: u8) u8 {
+    return a + 1;
+}
+
+fn staticCallsStatic(a: u8) u8 {
+    return staticInner(a);
+}
+
+fn staticCallsStack(a: u8) u8 {
+    return stackHelper(a, 1);
+}
+
+fn stackHelper(a: u8, b: u8) u8 {
+    var total: u8 = add8(a, b);
+    return total;
+}
+
+export fn main() void {
+    var byte: u8 = add8(2, 3);
+    var word: u16 = add16(0x0100, 5);
+    var ok: bool = same(byte, 5);
+    var addr: usize = wordShape(0x0400, 5);
+    var nested_static: u8 = staticCallsStatic(4);
+    var nested_bridge: u8 = staticCallsStack(4);
+
+    test6502.expectEqualU8(1, 5, byte);
+    test6502.expectEqualU16(2, 0x0105, word);
+    test6502.expectEqualBool(3, true, ok);
+    test6502.expectEqualU16(4, 0x0405, addr);
+    test6502.expectEqualU8(5, 5, nested_static);
+    test6502.expectEqualU8(6, 5, nested_bridge);
+}

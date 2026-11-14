@@ -1,0 +1,76 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Board = struct { cells: [4]Cell, score: u16 };
+const Game = struct { board: Board, move_count: u8 };
+const Event = union(enum) { none, key: u8, cell: Cell, ptr: *Game, word: u16 };
+
+fn makeKey(code: u8) Event {
+    return Event{ .key = code };
+}
+
+fn makeCell(cell: Cell) Event {
+    return Event{ .cell = cell };
+}
+
+fn makePtr(game: *Game) Event {
+    return Event{ .ptr = game };
+}
+
+fn eventScore(event: Event) u8 {
+    return switch (event) {
+        .none => 0,
+        .key => |key| key + 1,
+        .cell => |cell| switch (cell) {
+            .x => 10,
+            .o => 20,
+            else => 1,
+        },
+        .ptr => |game| game.move_count,
+        .word => |value| if (value == 0x1234) 34 else 2,
+    };
+}
+
+fn eventWord(event: Event) u16 {
+    return switch (event) {
+        .word => |value| value + 1,
+        else => 0,
+    };
+}
+
+fn storeCopy(event: Event) u8 {
+    var copy: Event = event;
+    return eventScore(copy);
+}
+
+export fn main() void {
+    var game = Game{
+        .board = Board{ .cells = [_]Cell{ .empty, .x, .o, .empty }, .score = 0x1200 },
+        .move_count = 7,
+    };
+
+    var event: Event = Event{ .none = {} };
+    test6502.expectEqualU8(1, 0, eventScore(event));
+
+    event = makeKey(8);
+    test6502.expectEqualU8(2, 9, eventScore(event));
+
+    const cell_event: Event = Event{ .cell = .o };
+    test6502.expectEqualU8(3, 20, eventScore(cell_event));
+    test6502.expectEqualU8(4, 10, eventScore(makeCell(.x)));
+
+    var ptr_event: Event = makePtr(&game);
+    test6502.expectEqualU8(5, 7, eventScore(ptr_event));
+    game.move_count = 4;
+    test6502.expectEqualU8(6, 4, eventScore(ptr_event));
+
+    const word_event: Event = Event{ .word = 0x1234 };
+    test6502.expectEqualU8(7, 34, eventScore(word_event));
+    test6502.expectEqualU16(8, 0x1235, eventWord(word_event));
+    test6502.expectEqualU8(9, 21, storeCopy(Event{ .cell = .o }) + 1);
+
+    const inferred_context: Event = .{ .cell = .x };
+    test6502.expectEqualU8(10, 10, eventScore(inferred_context));
+
+    test6502.pass();
+}

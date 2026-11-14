@@ -1,0 +1,10 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const test6502 = @import("test6502");
+
+fn takesVoid(value: void) void {
+}
+
+export fn main() void {
+    takesVoid({});
+    test6502.pass();
+}

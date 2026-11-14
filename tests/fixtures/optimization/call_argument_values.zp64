@@ -1,0 +1,33 @@
+// Independent first expressions and later local/literal scalar arguments.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+const Mode = enum(u8) { idle = 0, active = 2, done = 7 };
+fn byteFold(value: u8, mask: u8, tail: u8) u8 { return value ^ mask ^ tail; }
+fn wordFold(value: u16, mask: u16, tail: u8) u16 { return value ^ mask ^ @as(u16, tail); }
+fn enumFold(value: u8, state: Mode, mask: u8) u8 {
+    if (state == .active) { return value ^ mask; }
+    return value | mask;
+}
+fn pointerFold(value: u8, location: *u8, mask: u8) u8 { return value ^ location.* ^ mask; }
+fn byteCase(location: *u8, mask: u8) u8 {
+    const saved: u8 = mask ^ 0x55;
+    return byteFold(location.*, saved, 0x81);
+}
+fn wordCase(location: *u16, mask: u16) u16 {
+    const saved: u16 = mask ^ 0xa55a;
+    return wordFold(location.*, saved, 0x81);
+}
+fn enumCase(location: *u8, state: Mode, mask: u8) u8 { return enumFold(location.*, state, mask); }
+fn pointerCase(location: *u8, other: *u8, mask: u8) u8 { return pointerFold(location.*, other, mask); }
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    const byte_location: *u8 = @ptrFromInt(0xc1ff);
+    const other: *u8 = @ptrFromInt(0xc400);
+    other.* = 0x42;
+    test6502.expectEqualU8(1, 0x69, byteCase(byte_location, 0x42));
+    test6502.expectEqualU16(2, 0x76d4, wordCase(location, 0x52f0));
+    test6502.expectEqualU8(3, 0xbd, enumCase(byte_location, .active, 0x42));
+    test6502.expectEqualU8(4, 0xe8, pointerCase(byte_location, other, 0x55));
+    test6502.pass();
+}

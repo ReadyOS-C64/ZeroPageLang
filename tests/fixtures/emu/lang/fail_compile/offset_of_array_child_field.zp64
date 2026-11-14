@@ -1,0 +1,10 @@
+// zeropage-emu-error: UnknownField
+const test6502 = @import("test6502");
+
+const Point = struct { x: u8, y: u8 };
+const Board = struct { points: [2]Point };
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0, @offsetOf(Board, "points.x"));
+    test6502.pass();
+}

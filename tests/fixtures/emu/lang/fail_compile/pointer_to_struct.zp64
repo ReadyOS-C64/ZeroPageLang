@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported pointer type
+const Board = struct { value: u8 };
+
+export fn main() void {
+    const ptr: *Board = @ptrFromInt(0x1000);
+    _ = ptr;
+}

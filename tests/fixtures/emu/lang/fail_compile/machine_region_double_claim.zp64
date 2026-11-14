@@ -1,0 +1,9 @@
+// zeropage-emu-error: invalid zeropage_options memory placement
+memory {
+    region code: c64 at 0x2000 size 0x0100;
+    placement first in code;
+    placement second in code;
+}
+fn a() linksection("first") u8 { return 1; }
+fn b() linksection("second") u8 { return 2; }
+export fn main() void {}

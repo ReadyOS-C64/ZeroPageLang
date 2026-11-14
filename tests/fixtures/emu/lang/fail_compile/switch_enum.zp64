@@ -1,0 +1,16 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const test6502 = @import("test6502");
+
+const Mode = enum { one, two };
+
+export fn main() void {
+    var mode = Mode.one;
+    switch (mode) {
+        .one => {
+            test6502.pass();
+        },
+        .two => {
+            test6502.fail(1);
+        },
+    }
+}

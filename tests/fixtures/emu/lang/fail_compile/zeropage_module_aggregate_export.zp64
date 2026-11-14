@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported stack frame aggregate
+const Enemy = struct { hp: u8 };
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+pub const zeropage_module = .{ .id = "enemy_ai", .abi = 1, .exports = .{ .tick = tick } };
+fn tick(enemy: Enemy) u8 { return enemy.hp; }
+export fn main() void {}

@@ -1,0 +1,62 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Board = struct { cells: [4]Cell, score: u16, turn: Cell, flags: u8 };
+const Game = struct { board: Board, history: [4]u8, move_count: u8 };
+
+fn setCell(board: *Board, index: u8, cell: Cell) void {
+    board.cells[index] = cell;
+}
+
+fn bumpScore(board: *Board, value: u16) void {
+    board.score += value;
+}
+
+fn setTurn(board: *Board, turn: Cell) void {
+    board.turn = turn;
+}
+
+fn mutateGame(game: *Game) void {
+    game.board.cells[0] = .x;
+    game.board.cells[1] = .o;
+    game.board.score = 0x1200;
+    game.board.score += 0x34;
+    game.board.flags |= 0x80;
+    game.history[game.move_count] = 7;
+    game.move_count += 1;
+}
+
+fn echoBoard(board: *Board) *Board {
+    return board;
+}
+
+export fn main() void {
+    var game = Game{
+        .board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty }, .score = 10, .turn = .x, .flags = 1 },
+        .history = [_]u8{ 0, 0, 0, 0 },
+        .move_count = 0,
+    };
+    const game_ptr: *Game = &game;
+    const board_ptr: *Board = &game.board;
+    const board_again = echoBoard(board_ptr);
+
+    setCell(board_ptr, 2, .o);
+    bumpScore(board_ptr, 5);
+    setTurn(board_ptr, .o);
+    mutateGame(game_ptr);
+
+    test6502.expectEqualU8(1, 1, game.board.cells[0]);
+    test6502.expectEqualU8(2, 2, game.board.cells[1]);
+    test6502.expectEqualU8(3, 2, game.board.cells[2]);
+    test6502.expectEqualU16(4, 0x1234, game.board.score);
+    test6502.expectEqualU8(5, 2, board_ptr.turn);
+    test6502.expectEqualU8(6, 0x81, board_again.flags);
+    test6502.expectEqualU8(7, 7, game.history[0]);
+    test6502.expectEqualU8(8, 1, game.move_count);
+    test6502.expectEqualU16(9, 0, @intFromPtr(board_ptr) - @intFromPtr(board_again));
+    test6502.expectEqualU16(10, 4, board_ptr.cells.len);
+
+    board_ptr.cells[3] = .x;
+    test6502.expectEqualU8(11, 1, board_ptr.cells[3]);
+    test6502.pass();
+}

@@ -1,0 +1,23 @@
+// The Peddle bridge increments CIA timer reads; native oracles observe order.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn orderedReads() bool {
+    const timer: *volatile u8 = @ptrFromInt(0xdc04);
+    const observed: *u8 = @ptrFromInt(0xc201);
+    const selected: bool = (timer.* == 1 and timer.* == 2) or timer.* == 3;
+    observed.* = timer.*;
+    return selected;
+}
+export fn guardedRead(gate: bool) u8 {
+    const timer: *volatile u8 = @ptrFromInt(0xdc04);
+    const observed: *u8 = @ptrFromInt(0xc201);
+    const selected: u8 = if ((gate and timer.* == 1) or timer.* == 2) 0xa5 else 0x5a;
+    observed.* = timer.*;
+    return selected;
+}
+export fn main() void {
+    const observed: *u8 = @ptrFromInt(0xc201);
+    test6502.expectEqualBool(1, true, orderedReads());
+    test6502.expectEqualU8(2, 3, observed.*);
+    test6502.pass();
+}

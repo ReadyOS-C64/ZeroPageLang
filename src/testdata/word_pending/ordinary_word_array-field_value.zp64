@@ -1,0 +1,1 @@
+const I=struct{index:u8};export fn api(value:u16,index:u8,other:u8)u16{var items=[_]u16{0x1122,0x3344};var ix=I{.index=index};const ip:*I=&ix;items[ip.index]=value;return items[index];}export fn main()void{}

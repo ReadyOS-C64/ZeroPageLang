@@ -1,0 +1,15 @@
+const math = @import("module_math.zp64");
+
+pub const zeropage_options = .{
+    .abi = .{
+        .default_frame = .static,
+        .functions = .{
+            .math_add8 = .{ .frame = .static },
+            .main = .{ .frame = .static },
+        },
+    },
+};
+
+export fn main() void {
+    _ = math.add8(2, 3);
+}

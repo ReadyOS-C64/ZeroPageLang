@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported array repetition
+const test6502 = @import("test6502");
+const msg = "ab" ** 2;
+export fn main() void {
+    test6502.expectString(1, msg, "ABAB");
+}

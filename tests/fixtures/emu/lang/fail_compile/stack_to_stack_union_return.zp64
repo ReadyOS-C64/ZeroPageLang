@@ -1,0 +1,19 @@
+// zeropage-emu-error: unsupported stack frame union
+const Event = union(enum) { key: u8, tick: u8 };
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{
+        .main = .{ .frame = .stack },
+        .next = .{ .frame = .stack },
+    } },
+};
+
+fn next() Event {
+    return Event{ .key = 5 };
+}
+
+export fn main() void {
+    var event: Event = next();
+    _ = event;
+}

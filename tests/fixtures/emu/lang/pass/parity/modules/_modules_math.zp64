@@ -1,0 +1,19 @@
+fn add8(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn sub8(a: u8, b: u8) u8 {
+    return a - b;
+}
+
+fn eq8(a: u8, b: u8) bool {
+    return a == b;
+}
+
+fn choose(ok: bool, yes: u8, no: u8) u8 {
+    if (ok == true) {
+        return yes;
+    } else {
+        return no;
+    }
+}

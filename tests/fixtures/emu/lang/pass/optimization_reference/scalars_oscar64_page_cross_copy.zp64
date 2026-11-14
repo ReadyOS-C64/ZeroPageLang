@@ -1,0 +1,35 @@
+// Source-owned policy variant of the adjacent unchanged Oscar64-inspired workload.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+};
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/looppointerrangetest.c
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+fn copyWindow(source: [*]u8, target: [*]u8, count: u16) usize {
+    var i: u16 = 0;
+    while (i < count) { target[i] = source[i]; i += 1; }
+    return @intFromPtr(target) + i;
+}
+export fn main() void {
+    const source: [*]u8 = @ptrFromInt(0x60fd);
+    const target: [*]u8 = @ptrFromInt(0x68fe);
+    const before: *u8 = @ptrFromInt(0x68fd);
+    const counts = [_]u16{ 0, 1, 2, 255, 256, 257 };
+    for (counts) |count| {
+        var i: u16 = 0;
+        var value: u8 = 9;
+        while (i < 258) { source[i] = value; target[i] = 0x73; value += 17; i += 1; }
+        before.* = 0x4b;
+        const end: usize = copyWindow(source, target, count);
+        test6502.expectEqualBool(1, true, end == 0x68fe + count);
+        i = 0;
+        while (i < 258) {
+            const expected: u8 = if (i < count) source[i] else 0x73;
+            test6502.expectEqualBool(2, true, target[i] == expected);
+            i += 1;
+        }
+        test6502.expectEqualU8(3, 0x4b, before.*);
+    }
+    test6502.pass();
+}

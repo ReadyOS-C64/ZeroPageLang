@@ -1,0 +1,10 @@
+// zeropage-emu-error: labeled break values must target an active scalar block expression
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const value = blk: {
+        break :wrong 1;
+        break :blk 2;
+    };
+    test6502.expectEqualU8(1, 2, value);
+}

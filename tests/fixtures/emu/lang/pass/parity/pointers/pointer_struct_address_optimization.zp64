@@ -1,0 +1,43 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Board = struct { cells: [4]Cell, score: u16, flags: u8 };
+const Game = struct { prefix: u8, board: Board, history: [4]u8, total: u16 };
+
+fn touchBoard(board: *Board, index: u8, value: Cell) void {
+    board.cells[index] = value;
+    board.score += 0x0102;
+    board.flags ^= 0x55;
+}
+
+fn touchGame(game: *Game, index: u8) void {
+    game.prefix = 9;
+    game.board.cells[index] = .x;
+    game.board.score = 0x2000;
+    game.board.score += 0x0034;
+    game.board.flags = 0xa0;
+    game.history[index] = game.board.flags | index;
+    game.total = game.board.score + game.history[index];
+}
+
+export fn main() void {
+    var game = Game{
+        .prefix = 1,
+        .board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty }, .score = 0x0010, .flags = 0x0f },
+        .history = [_]u8{ 0, 0, 0, 0 },
+        .total = 0,
+    };
+
+    touchBoard(&game.board, 2, .o);
+    test6502.expectEqualU8(1, 2, game.board.cells[2]);
+    test6502.expectEqualU16(2, 0x0112, game.board.score);
+    test6502.expectEqualU8(3, 0x5a, game.board.flags);
+
+    touchGame(&game, 1);
+    test6502.expectEqualU8(4, 9, game.prefix);
+    test6502.expectEqualU8(5, 1, game.board.cells[1]);
+    test6502.expectEqualU16(6, 0x2034, game.board.score);
+    test6502.expectEqualU8(7, 0xa1, game.history[1]);
+    test6502.expectEqualU16(8, 0x20d5, game.total);
+    test6502.pass();
+}

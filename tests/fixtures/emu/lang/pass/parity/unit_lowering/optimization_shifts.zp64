@@ -1,0 +1,146 @@
+const test6502 = @import("test6502");
+const Record = struct { byte: u8, word: u16, words: [2]u16 };
+fn left0(value: u16) u16 { return value << 0; }
+fn left1(value: u16) u16 { return value << 1; }
+fn left2(value: u16) u16 { return value << 2; }
+fn left3(value: u16) u16 { return value << 3; }
+fn left4(value: u16) u16 { return value << 4; }
+fn left5(value: u16) u16 { return value << 5; }
+fn left6(value: u16) u16 { return value << 6; }
+fn left7(value: u16) u16 { return value << 7; }
+fn left8(value: u16) u16 { return value << 8; }
+fn left9(value: u16) u16 { return value << 9; }
+fn left10(value: u16) u16 { return value << 10; }
+fn left11(value: u16) u16 { return value << 11; }
+fn left12(value: u16) u16 { return value << 12; }
+fn left13(value: u16) u16 { return value << 13; }
+fn left14(value: u16) u16 { return value << 14; }
+fn left15(value: u16) u16 { return value << 15; }
+fn leftByte0(value: u8) u8 { return value << 0; }
+fn leftByte1(value: u8) u8 { return value << 1; }
+fn leftByte2(value: u8) u8 { return value << 2; }
+fn leftByte3(value: u8) u8 { return value << 3; }
+fn leftByte4(value: u8) u8 { return value << 4; }
+fn leftByte5(value: u8) u8 { return value << 5; }
+fn leftByte6(value: u8) u8 { return value << 6; }
+fn leftByte7(value: u8) u8 { return value << 7; }
+fn right0(value: u16) u16 { return value >> 0; }
+fn right1(value: u16) u16 { return value >> 1; }
+fn right2(value: u16) u16 { return value >> 2; }
+fn right3(value: u16) u16 { return value >> 3; }
+fn right4(value: u16) u16 { return value >> 4; }
+fn right5(value: u16) u16 { return value >> 5; }
+fn right6(value: u16) u16 { return value >> 6; }
+fn right7(value: u16) u16 { return value >> 7; }
+fn right8(value: u16) u16 { return value >> 8; }
+fn right9(value: u16) u16 { return value >> 9; }
+fn right10(value: u16) u16 { return value >> 10; }
+fn right11(value: u16) u16 { return value >> 11; }
+fn right12(value: u16) u16 { return value >> 12; }
+fn right13(value: u16) u16 { return value >> 13; }
+fn right14(value: u16) u16 { return value >> 14; }
+fn right15(value: u16) u16 { return value >> 15; }
+fn rightByte0(value: u8) u8 { return value >> 0; }
+fn rightByte1(value: u8) u8 { return value >> 1; }
+fn rightByte2(value: u8) u8 { return value >> 2; }
+fn rightByte3(value: u8) u8 { return value >> 3; }
+fn rightByte4(value: u8) u8 { return value >> 4; }
+fn rightByte5(value: u8) u8 { return value >> 5; }
+fn rightByte6(value: u8) u8 { return value >> 6; }
+fn rightByte7(value: u8) u8 { return value >> 7; }
+fn dynamicLeft(value: u16, count: u8) u16 { return value << count; }
+fn dynamicRight(value: u16, count: u8) u16 { return value >> count; }
+fn dynamicByteLeft(value: u8, count: u8) u8 { return value << count; }
+fn dynamicByteRight(value: u8, count: u8) u8 { return value >> count; }
+fn wideCount(value: u16, count: u16) u16 { return value >> count; }
+fn nestedLeft(value: u16) u16 { return (value << 9) << 3; }
+fn nestedRight(value: u16) u16 { return (value << 3) >> 9; }
+fn countExpression(value: u16, count: u8) u16 { return value >> (count >> 1); }
+fn arithmeticZero(value: u16) u16 { return (value + 257) << 0; }
+fn compoundLeft(value: u16) u16 { var result: u16 = value; result <<= 8; return result; }
+fn compoundRight(value: u16) u16 { var result: u16 = value; result >>= 9; return result; }
+fn compoundDynamic(value: u16, count: u8) u16 { var result: u16 = value; result <<= count; return result; }
+fn localArray(value: u16) u16 { var array = [_]u16{ value, 257 }; array[0] >>= 8; return array[0]; }
+fn pointerWord(record: *Record) u16 { record.word <<= 8; return record.word; }
+fn pointerArray(record: *Record, i: u8) u16 { record.words[i] >>= 9; return record.words[i]; }
+fn manyArray(values: [*]u16, i: u8) u16 { values[i] <<= 1; return values[i]; }
+fn touch(record: *Record) u16 { record.byte += 1; return record.word; }
+fn sideEffect(record: *Record) u16 { return touch(record) << 0; }
+fn volatileZero(location: *volatile u16) u16 { return location.* << 0; }
+fn volatileRight(location: *volatile u16) u16 { return location.* >> 8; }
+export fn main() void {
+    test6502.expectEqualU16(1, 33279, left0(0x81ff));
+    test6502.expectEqualU16(2, 1022, left1(0x81ff));
+    test6502.expectEqualU16(3, 2044, left2(0x81ff));
+    test6502.expectEqualU16(4, 4088, left3(0x81ff));
+    test6502.expectEqualU16(5, 8176, left4(0x81ff));
+    test6502.expectEqualU16(6, 16352, left5(0x81ff));
+    test6502.expectEqualU16(7, 32704, left6(0x81ff));
+    test6502.expectEqualU16(8, 65408, left7(0x81ff));
+    test6502.expectEqualU16(9, 65280, left8(0x81ff));
+    test6502.expectEqualU16(10, 65024, left9(0x81ff));
+    test6502.expectEqualU16(11, 64512, left10(0x81ff));
+    test6502.expectEqualU16(12, 63488, left11(0x81ff));
+    test6502.expectEqualU16(13, 61440, left12(0x81ff));
+    test6502.expectEqualU16(14, 57344, left13(0x81ff));
+    test6502.expectEqualU16(15, 49152, left14(0x81ff));
+    test6502.expectEqualU16(16, 32768, left15(0x81ff));
+    test6502.expectEqualU8(17, 129, leftByte0(0x81));
+    test6502.expectEqualU8(18, 2, leftByte1(0x81));
+    test6502.expectEqualU8(19, 4, leftByte2(0x81));
+    test6502.expectEqualU8(20, 8, leftByte3(0x81));
+    test6502.expectEqualU8(21, 16, leftByte4(0x81));
+    test6502.expectEqualU8(22, 32, leftByte5(0x81));
+    test6502.expectEqualU8(23, 64, leftByte6(0x81));
+    test6502.expectEqualU8(24, 128, leftByte7(0x81));
+    test6502.expectEqualU16(25, 33279, right0(0x81ff));
+    test6502.expectEqualU16(26, 16639, right1(0x81ff));
+    test6502.expectEqualU16(27, 8319, right2(0x81ff));
+    test6502.expectEqualU16(28, 4159, right3(0x81ff));
+    test6502.expectEqualU16(29, 2079, right4(0x81ff));
+    test6502.expectEqualU16(30, 1039, right5(0x81ff));
+    test6502.expectEqualU16(31, 519, right6(0x81ff));
+    test6502.expectEqualU16(32, 259, right7(0x81ff));
+    test6502.expectEqualU16(33, 129, right8(0x81ff));
+    test6502.expectEqualU16(34, 64, right9(0x81ff));
+    test6502.expectEqualU16(35, 32, right10(0x81ff));
+    test6502.expectEqualU16(36, 16, right11(0x81ff));
+    test6502.expectEqualU16(37, 8, right12(0x81ff));
+    test6502.expectEqualU16(38, 4, right13(0x81ff));
+    test6502.expectEqualU16(39, 2, right14(0x81ff));
+    test6502.expectEqualU16(40, 1, right15(0x81ff));
+    test6502.expectEqualU8(41, 129, rightByte0(0x81));
+    test6502.expectEqualU8(42, 64, rightByte1(0x81));
+    test6502.expectEqualU8(43, 32, rightByte2(0x81));
+    test6502.expectEqualU8(44, 16, rightByte3(0x81));
+    test6502.expectEqualU8(45, 8, rightByte4(0x81));
+    test6502.expectEqualU8(46, 4, rightByte5(0x81));
+    test6502.expectEqualU8(47, 2, rightByte6(0x81));
+    test6502.expectEqualU8(48, 1, rightByte7(0x81));
+    test6502.expectEqualU16(49, 0, dynamicLeft(0xffff, 16));
+    test6502.expectEqualU16(50, 0, dynamicRight(0xffff, 255));
+    test6502.expectEqualU8(51, 0, dynamicByteLeft(255, 8));
+    test6502.expectEqualU8(52, 0, dynamicByteRight(255, 9));
+    test6502.expectEqualU16(53, 16384, wideCount(0x8001, 257));
+    test6502.expectEqualU16(54, 16384, nestedLeft(0x1234));
+    test6502.expectEqualU16(55, 7, nestedRight(0x81ff));
+    test6502.expectEqualU16(56, 32767, countExpression(0xffff, 3));
+    test6502.expectEqualU16(57, 256, arithmeticZero(0xffff));
+    test6502.expectEqualU16(58, 65280, compoundLeft(0x81ff));
+    test6502.expectEqualU16(59, 64, compoundRight(0x81ff));
+    test6502.expectEqualU16(60, 2, compoundDynamic(0x8001, 1));
+    test6502.expectEqualU16(61, 129, localArray(0x81ff));
+    var record = Record{ .byte = 3, .word = 0x81ff, .words = [_]u16{ 0xffff, 0x81ff } };
+    test6502.expectEqualU16(62, 65280, pointerWord(&record));
+    test6502.expectEqualU16(63, 64, pointerArray(&record, 1));
+    test6502.expectEqualU16(64, 65280, sideEffect(&record));
+    test6502.expectEqualU8(65, 4, record.byte);
+    const values: [*]u16 = @ptrFromInt(0xc500);
+    values[0] = 0x8001;
+    test6502.expectEqualU16(66, 2, manyArray(values, 0));
+    const location: *volatile u16 = @ptrFromInt(0xc700);
+    location.* = 0x81ff;
+    test6502.expectEqualU16(67, 33279, volatileZero(location));
+    test6502.expectEqualU16(68, 129, volatileRight(location));
+    test6502.pass();
+}

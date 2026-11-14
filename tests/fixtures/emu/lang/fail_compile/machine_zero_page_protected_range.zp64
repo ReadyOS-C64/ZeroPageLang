@@ -1,0 +1,8 @@
+// zeropage-emu-error: invalid zeropage_options zero-page policy
+memory {
+    zero_page {
+        profile = .kernal;
+        range at 0 size 32;
+    }
+}
+export fn main() void {}

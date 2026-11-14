@@ -1,0 +1,19 @@
+// zeropage-emu-error: unsupported runtime string variable
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn tick() u8 {
+    var msg: [8]u8 = "BAD";
+    return msg.len;
+}
+
+export fn main() void {}

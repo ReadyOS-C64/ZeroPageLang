@@ -1,0 +1,186 @@
+const test6502 = @import("test6502");
+
+const Pair = struct { left: u8, right: u8, ok: bool, ch: u8 };
+
+const prefix = "zig";
+const suffix = "64";
+const joined = prefix ++ "-" ++ suffix ++ "!";
+const multiline_edges =
+    \\top
+    \\middle
+    \\bottom
+;
+
+fn boolIdentity(value: bool) bool {
+    return value;
+}
+
+fn boolEq(a: bool, b: bool) bool {
+    return a == b;
+}
+
+fn byteEq(a: u8, b: u8) bool {
+    return a == b;
+}
+
+fn wordEq(a: u16, b: u16) bool {
+    return a == b;
+}
+
+fn choose(ok: bool, yes_value: u8, no_value: u8) u8 {
+    if (ok) {
+        return yes_value;
+    } else {
+        return no_value;
+    }
+}
+
+fn add3(a: u8, b: u8, c: u8) u8 {
+    var total: u8 = a;
+    total += b;
+    total += c;
+    return total;
+}
+
+fn sum6(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8) u8 {
+    var total: u8 = a;
+    total += b;
+    total += c;
+    total += d;
+    total += e;
+    total += f;
+    return total;
+}
+
+fn callAsReturn(value: u8) u8 {
+    return add3(value, 1, 2);
+}
+
+fn returnFromWhile() u8 {
+    while (true) {
+        return 9;
+    }
+    return 0;
+}
+
+fn sideByte() u8 {
+    test6502.hit(100);
+    return 7;
+}
+
+fn sideWord() u16 {
+    test6502.hit(101);
+    return 513;
+}
+
+fn sideVoid() void {
+    test6502.hit(102);
+}
+
+export fn main() void {
+    var t: bool = true;
+    var f: bool = false;
+    test6502.expectEqualBool(1, true, boolIdentity(t));
+    test6502.expectEqualBool(2, false, boolIdentity(f));
+    test6502.expectEqualBool(3, true, boolEq(t, true));
+    test6502.expectEqualBool(4, true, boolEq(f, false));
+    test6502.expectEqualBool(5, true, byteEq(255, 255));
+    test6502.expectEqualBool(6, true, wordEq(65535, 65535));
+
+    var comparison_result: bool = sum6(1, 2, 3, 4, 5, 6) == 21;
+    test6502.expectEqualBool(7, true, comparison_result);
+    test6502.expectEqualU8(8, 9, choose(comparison_result, 9, 1));
+    comparison_result = callAsReturn(4) != 7;
+    test6502.expectEqualBool(9, false, comparison_result);
+
+    sideByte();
+    sideWord();
+    sideVoid();
+    test6502.expectHitCount(100, 1);
+    test6502.expectHitCount(101, 1);
+    test6502.expectHitCount(102, 1);
+
+    test6502.expectEqualU8(10, 10, add3(add3(1, 2, 3), 1, 3));
+    test6502.expectEqualU8(11, 21, sum6(1, 2, 3, 4, 5, 6));
+    test6502.expectEqualU8(12, 7, callAsReturn(4));
+    test6502.expectEqualU8(13, 9, returnFromWhile());
+
+    var only_then: u8 = 0;
+    if (true) {
+        only_then = 4;
+    }
+    test6502.expectEqualU8(14, 4, only_then);
+
+    var nested_choice: u8 = 0;
+    if (nested_choice == 1) {
+        nested_choice = 9;
+    } else {
+        if (nested_choice == 0) {
+            nested_choice = 5;
+        } else {
+            nested_choice = 7;
+        }
+    }
+    test6502.expectEqualU8(15, 5, nested_choice);
+
+    var forever_count: u8 = 0;
+    while (true) {
+        forever_count += 1;
+        if (forever_count == 4) {
+            break;
+        }
+    }
+    test6502.expectEqualU8(16, 4, forever_count);
+
+    var outer: u8 = 0;
+    var kept: u8 = 0;
+    while (outer < 3) {
+        outer += 1;
+        var inner: u8 = 0;
+        while (true) {
+            inner += 1;
+            if (inner == 1) {
+                continue;
+            }
+            if (inner == 3) {
+                break;
+            }
+            kept += 1;
+        }
+    }
+    test6502.expectEqualU8(17, 3, outer);
+    test6502.expectEqualU8(18, 3, kept);
+
+    var signed_byte: i8 = 128;
+    test6502.expectEqualI8(19, 128, signed_byte);
+    signed_byte = signed_byte + 127;
+    test6502.expectEqualI8(20, 255, signed_byte);
+    test6502.expectEqualBool(21, true, signed_byte == 255);
+
+    var signed_word: i16 = 32768;
+    test6502.expectEqualU16(22, 32768, signed_word);
+    signed_word = signed_word + 32767;
+    test6502.expectEqualU16(23, 65535, signed_word);
+    test6502.expectEqualBool(24, true, signed_word == 65535);
+
+    var page: u16 = 255;
+    page += 1;
+    test6502.expectEqualU16(25, 256, page);
+    page -= 257;
+    test6502.expectEqualU16(26, 65535, page);
+
+    var first = Pair{ .left = add3(1, 2, 3), .right = callAsReturn(4), .ok = byteEq(1, 1), .ch = 'K' };
+    var second = Pair{ .left = 1, .right = sum6(1, 1, 1, 1, 1, 1), .ok = wordEq(1, 2), .ch = 'L' };
+    test6502.expectEqualU8(27, 6, first.left);
+    test6502.expectEqualU8(28, 7, first.right);
+    test6502.expectEqualBool(29, true, first.ok);
+    test6502.expectEqualU8(30, 11, first.ch);
+    test6502.expectEqualU8(31, 1, second.left);
+    test6502.expectEqualU8(32, 6, second.right);
+    test6502.expectEqualBool(33, false, second.ok);
+    test6502.expectEqualU8(34, 12, second.ch);
+
+    test6502.expectString(35, joined, "ZIG-64!");
+    test6502.expectString(36, multiline_edges, "TOP\rMIDDLE\rBOTTOM");
+    test6502.pass();
+}

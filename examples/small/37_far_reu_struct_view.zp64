@@ -1,0 +1,39 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Enemy = struct {
+    hp: u8,
+    x: u8,
+    score: u16,
+};
+
+memory {
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena assets in assets_ram;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("FAR STRUCT VIEW\n", .{});
+
+    const maybe_far = assets.allocBytes(@sizeOf(Enemy) * 2);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 2);
+        enemies.set(0, Enemy{ .hp = 3, .x = 4, .score = 0x1234 });
+        enemies.set(1, Enemy{ .hp = 5, .x = 6, .score = 0x3456 });
+
+        var index: u8 = 1;
+        const loaded = enemies.get(index);
+        if (loaded.hp == 5 and loaded.x == 6 and loaded.score == 0x3456 and enemies.len == 2) {
+            c64.console.print("ENEMY OK\n", .{});
+            c64.vic.border = 5;
+        } else {
+            c64.console.print("ENEMY BAD\n", .{});
+            c64.vic.border = 2;
+        }
+    } else {
+        c64.console.print("FAR ALLOC BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

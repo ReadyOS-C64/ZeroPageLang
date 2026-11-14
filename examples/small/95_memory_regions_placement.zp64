@@ -1,0 +1,53 @@
+const c64 = @import("c64");
+
+const hidden_values linksection("hidden") = [_]u8{ 0x21, 0x42, 0x63 };
+
+memory {
+    region direct_code: c64 at 0x2000 size 0x0100;
+    region near_arena: c64 at 0x9000 size 0x0100;
+    region hidden_code: c64 at 0xe000 size 0x0100 bank .ram_under_kernal;
+
+    placement direct in direct_code;
+    placement hidden in hidden_code load .startup_copy;
+    arena near_heap in near_arena;
+
+    image prg {
+        load_addr = 0x0801;
+        entry_addr = 0x1000;
+        basic_stub = true;
+        address_limit = 0xc600;
+    }
+}
+
+fn directAdd(value: u8) linksection("direct") u8 {
+    return value + 1;
+}
+
+fn hiddenLookup(index: u8) linksection("hidden") u8 {
+    return hidden_values[index];
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("MEMORY REGIONS\n", .{});
+
+    const direct_value = directAdd(4);
+    const hidden_value = hiddenLookup(1);
+    var ok = direct_value == 5 and hidden_value == 0x42;
+
+    const allocation = near_heap.allocBytes(2);
+    if (allocation) |bytes| {
+        bytes[0] = 0x55;
+        bytes[1] = 0xaa;
+    } else {
+        ok = false;
+    }
+
+    if (ok) {
+        c64.console.print("PLACEMENT ARENA OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("REGIONS FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

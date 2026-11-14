@@ -1,0 +1,12 @@
+// zeropage-emu-error: invalid zeropage_options module load window
+memory {
+    region run: c64 at 0xc000 size 0x0800;
+    region cache: reu at 0x030000 size 0x0800;
+    region staging: c64 at 0xa000 size 0x0800 bank .ram_under_basic;
+}
+module_loader {
+    window main in run;
+    reu_cache in cache;
+    disk_staging in staging;
+}
+export fn main() void {}

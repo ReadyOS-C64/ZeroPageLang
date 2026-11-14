@@ -1,0 +1,17 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("HUMAN SCROLL DEMO\n", .{});
+    c64.time.sleepFrames(45);
+
+    var line: u8 = 0;
+    while (line < 30) {
+        c64.console.print("SLOW LINE {x}\n", .{line});
+        line += 1;
+        c64.time.sleepFrames(30);
+    }
+
+    c64.console.print("SLOW DONE {x}", .{line});
+    c64.time.sleepFrames(90);
+}

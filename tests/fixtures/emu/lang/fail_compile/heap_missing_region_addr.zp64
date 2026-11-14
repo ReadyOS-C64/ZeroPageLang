@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported zeropage_options metadata
+pub const zeropage_options = .{
+    .heaps = .{
+        .main = .{ .region = .{ .size = 0x0100 }, .kind = .arena },
+    },
+};
+
+export fn main() void {}

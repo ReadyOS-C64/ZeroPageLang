@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported enum
+const test6502 = @import("test6502");
+
+const Mode = enum(u16) { one = 1 };
+
+export fn main() void {
+    var mode = Mode.one;
+    test6502.expectEqualU8(1, 1, mode);
+}

@@ -1,0 +1,10 @@
+// zeropage-emu-error: scalar block expressions require a matching break value
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const value = blk: {
+        const tmp = 1;
+        _ = tmp;
+    };
+    test6502.expectEqualU8(1, 1, value);
+}

@@ -1,0 +1,15 @@
+// zeropage-emu-error: unsupported runtime string variable
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .reu = .{
+        .heaps = .{
+            .assets = .{ .region = .{ .addr = 0x010000, .size = 0x0010 }, .kind = .arena },
+        },
+    },
+};
+
+export fn main() void {
+    const name = "assets";
+    _ = ZeroPage.reu.heap(name).allocBytes(1);
+}

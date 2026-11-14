@@ -1,0 +1,61 @@
+// zeropage-emu-memory: $c100=$2a
+// zeropage-emu-memory: $c101=$37
+// zeropage-emu-label-memory: zeropage_module_registry_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_refcount=$01
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$00
+// zeropage-emu-label-memory: zeropage_module_state_current_saved=$01
+// zeropage-emu-reu: $030000=$4c
+// zeropage-emu-reu: $030900=$2a
+// zeropage-emu-reu: $030901=$37
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x020000 },
+        .state = .{
+            .current = .{
+                .mode = .persist_in_reu,
+                .ranges = .{
+                    .{ .offset = 0x0100, .size = 2 },
+                },
+            },
+        },
+    },
+    .abi = .{
+        .functions = .{
+            .tick = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_state",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{},
+};
+
+fn tick(state: u8) u8 {
+    return state + 1;
+}
+
+export fn main() void {
+    const state: [*]volatile u8 = @ptrFromInt(0xc100);
+
+    test6502.expectEqualBool(1, true, ZeroPage.module.load("enemy_state"));
+    state[0] = 0x2a;
+    state[1] = 0x37;
+    ZeroPage.module.unload("enemy_state");
+    test6502.expectEqualBool(2, false, ZeroPage.module.isLoaded("enemy_state"));
+    state[0] = 0x00;
+    state[1] = 0x00;
+    test6502.expectMemU8(3, 0xc100, 0x00);
+    test6502.expectEqualBool(4, true, ZeroPage.module.load("enemy_state"));
+    test6502.expectMemU8(5, 0xc100, 0x2a);
+    test6502.expectMemU8(6, 0xc101, 0x37);
+    test6502.pass();
+}

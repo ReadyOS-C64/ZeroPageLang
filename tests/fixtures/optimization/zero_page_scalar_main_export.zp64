@@ -1,0 +1,3 @@
+// Direct native ABI probe: main is exported and its input slot must stay resident.
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+export fn main(value: u8) u8 { return value ^ 0x55; }

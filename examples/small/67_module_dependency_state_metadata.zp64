@@ -1,0 +1,44 @@
+const c64 = @import("c64");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x010000;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    capacity = 3;
+    current {
+        file = "enemyrt";
+        discard_on_unload;
+    }
+    dependency math_core {
+        file = "mathcore";
+        persist_in_reu at 0x0020 size 4;
+    }
+    dependency pathing {
+        file = "pathing";
+        persist_in_reu at 0x0040 size 2;
+    }
+}
+
+module enemy_state_deps abi 1 {
+    export tick;
+    dependency math_core;
+    dependency pathing;
+}
+
+fn tick(state: u8) callconv(.stack) u8 {
+    return state + 1;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("MODULE DEP STATE\n", .{});
+    c64.console.print("DEP STATE META OK\n", .{});
+    c64.vic.border = 5;
+}

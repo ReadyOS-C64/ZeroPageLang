@@ -1,0 +1,4 @@
+// zeropage-emu-error: invalid zeropage_options zero-page policy
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .reserve = .{ .{ .addr = 2, .size = 4 }, .{ .addr = 4, .size = 4 } } } };
+
+export fn main() void {}

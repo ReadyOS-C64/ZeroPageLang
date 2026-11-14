@@ -1,0 +1,69 @@
+const c64 = @import("c64");
+
+const Cell = enum(u8) { empty, x, o };
+const Event = union(enum) { none, key: u8, cell: Cell };
+
+fn eventFromKey(key: u8) Event {
+    if (key == '1') {
+        return Event{ .cell = .x };
+    }
+    if (key == '2') {
+        return Event{ .cell = .o };
+    }
+    if (key == c64.key.return_) {
+        return Event{ .key = key };
+    }
+    return Event{ .none = {} };
+}
+
+fn cellFromEvent(event: Event) ?Cell {
+    switch (event) {
+        .cell => |cell| {
+            return cell;
+        },
+        else => {
+            return null;
+        },
+    }
+}
+
+fn eventCode(event: Event) u8 {
+    return switch (event) {
+        .none => 0,
+        .key => |key| key,
+        .cell => |cell| switch (cell) {
+            .x => 1,
+            .o => 2,
+            else => 9,
+        },
+    };
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("optional union event\n", .{});
+
+    const first = eventFromKey(c64.keyboard.waitPetscii());
+    const second = eventFromKey(c64.keyboard.waitPetscii());
+    const maybe_cell = cellFromEvent(first);
+    var result: u8 = eventCode(first) + eventCode(second);
+
+    if (maybe_cell) |cell| {
+        result += switch (cell) {
+            .x => 20,
+            .o => 30,
+            else => 0,
+        };
+    } else {
+        result += 40;
+    }
+
+    c64.console.print("result {x}\n", .{result});
+    if (result == 23) {
+        c64.console.print("union optional ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("union optional bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

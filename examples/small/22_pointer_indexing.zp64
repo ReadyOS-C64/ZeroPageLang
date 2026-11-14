@@ -1,0 +1,40 @@
+const c64 = @import("c64");
+
+const message = [_]u8{ 'I', 'N', 'D', 'E', 'X', '!' };
+
+fn put(ptr: [*]volatile u8, index: u8, value: u8) void {
+    ptr[index] = value;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("pointer indexing\n", .{});
+
+    var values = [_]u8{ 1, 2, 3, 4 };
+    const value_ptr: [*]u8 = @ptrFromInt(@intFromPtr(&values[0]));
+    value_ptr[1] = 0x20;
+    value_ptr[1] += 0x0a;
+    value_ptr[2] = value_ptr[1] + 1;
+
+    c64.console.print("local {x} {x}\n", .{ value_ptr[1], values[2] });
+
+    const screen: [*]volatile u8 = @ptrFromInt(0x04a0);
+    const color: [*]volatile u8 = @ptrFromInt(0xd8a0);
+
+    for (0..message.len) |i| {
+        screen[i] = message[i];
+        color[i] = 1;
+    }
+
+    put(screen, 6, ' ');
+    screen[7] = 'O';
+    screen[8] = 'K';
+
+    if (value_ptr[1] == 0x2a and screen[0] == 'I' and screen[8] == 'K') {
+        c64.console.print("index ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("index bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -1,0 +1,483 @@
+const c64 = @import("c64");
+const tui = @import("readyos_tui.zp64");
+const input = @import("readyos_input.zp64");
+const readyos = @import("readyos_shim.zp64");
+
+memory {
+    // ReadyOS owns this resident region and the application snapshot cache.
+    region readyos_shim: c64 at 0xc600 size 0x0400;
+
+    image prg {
+        load_addr = 0x1000;
+        entry_addr = 0x1000;
+        basic_stub = false;
+        address_limit = 0xc600;
+    }
+}
+
+const Cell = enum(u8) { empty = 0, x = 1, o = 2 };
+const Mode = enum(u8) { two_player = 0, ai = 1 };
+const Outcome = enum(u8) { playing = 0, x_win = 1, o_win = 2, draw = 3, dead_draw = 4 };
+
+const Board = struct { cells: [9]Cell };
+const Game = struct {
+    board: Board,
+    move_count: u8,
+    turn: Cell,
+    cursor: u8,
+    mode: Mode,
+    outcome: Outcome,
+    message: u8,
+};
+
+const win_a = [_]u8{ 0, 3, 6, 0, 1, 2, 0, 2 };
+const win_b = [_]u8{ 1, 4, 7, 3, 4, 5, 4, 4 };
+const win_c = [_]u8{ 2, 5, 8, 6, 7, 8, 8, 6 };
+const ai_order = [_]u8{ 4, 0, 2, 6, 8, 1, 3, 5, 7 };
+
+fn initGame(game: *Game, mode: Mode) void {
+    for (0..9) |i| {
+        game.board.cells[i] = .empty;
+    }
+    game.move_count = 0;
+    game.turn = .x;
+    game.cursor = 0;
+    game.mode = mode;
+    game.outcome = .playing;
+    game.message = 0;
+}
+
+fn nextTurn(turn: Cell) Cell {
+    return switch (turn) {
+        .x => .o,
+        else => .x,
+    };
+}
+
+fn winner(board: *Board) Cell {
+    for (0..win_a.len) |i| {
+        const a = board.cells[win_a[i]];
+        const b = board.cells[win_b[i]];
+        const c = board.cells[win_c[i]];
+        if (a != .empty and a == b and a == c) {
+            return a;
+        }
+    }
+    return .empty;
+}
+
+fn blocksLine(cell: Cell, mark: Cell) bool {
+    return cell != .empty and cell != mark;
+}
+
+fn hasPotentialWin(board: *Board, mark: Cell) bool {
+    for (0..win_a.len) |i| {
+        const a_clear = !blocksLine(board.cells[win_a[i]], mark);
+        const b_clear = !blocksLine(board.cells[win_b[i]], mark);
+        const c_clear = !blocksLine(board.cells[win_c[i]], mark);
+        if (a_clear and b_clear and c_clear) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn boardFull(board: *Board) bool {
+    for (0..9) |i| {
+        if (board.cells[i] == .empty) {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn classifyOutcome(game: *Game) Outcome {
+    const board: *Board = &game.board;
+    const won = winner(board);
+    const full = boardFull(board);
+    const x_possible = hasPotentialWin(board, .x);
+    const o_possible = hasPotentialWin(board, .o);
+    if (won == .x) {
+        return .x_win;
+    } else if (won == .o) {
+        return .o_win;
+    } else if (full) {
+        return .draw;
+    } else if (!x_possible and !o_possible) {
+        return .dead_draw;
+    } else {
+        return .playing;
+    }
+}
+
+fn applyMove(game: *Game, index: u8) void {
+    var valid = true;
+    if (index >= 9) {
+        valid = false;
+    }
+    if (game.outcome != .playing) {
+        valid = false;
+    }
+    if (valid) {
+        if (game.board.cells[index] != .empty) {
+            valid = false;
+        }
+    }
+    if (valid) {
+        game.board.cells[index] = game.turn;
+        game.move_count += 1;
+        game.outcome = classifyOutcome(game);
+        if (game.outcome == .playing) {
+            game.turn = nextTurn(game.turn);
+        }
+        game.message = 0;
+    } else {
+        if (game.outcome == .playing) {
+            game.message = 1;
+        } else {
+            // Ignore queued mark keys after a result; keep the restart prompt.
+            game.message = 0;
+        }
+    }
+}
+
+fn findWinningMove(board: *Board, mark: Cell) u8 {
+    for (0..9) |i| {
+        if (board.cells[i] == .empty) {
+            board.cells[i] = mark;
+            const won = winner(board);
+            board.cells[i] = .empty;
+            if (won == mark) {
+                return i;
+            }
+        }
+    }
+    return 255;
+}
+
+fn chooseAiMove(game: *Game) u8 {
+    const board: *Board = &game.board;
+    var move = findWinningMove(board, .o);
+    if (move < 9) {
+        return move;
+    }
+    move = findWinningMove(board, .x);
+    if (move < 9) {
+        return move;
+    }
+    for (0..ai_order.len) |i| {
+        const candidate = ai_order[i];
+        if (game.board.cells[candidate] == .empty) {
+            return candidate;
+        }
+    }
+    return 255;
+}
+
+fn applyAiIfNeeded(game: *Game) void {
+    if (game.mode == .ai and game.outcome == .playing and game.turn == .o) {
+        const move = chooseAiMove(game);
+        if (move < 9) {
+            applyMove(game, move);
+        }
+    }
+}
+
+fn moveCursor(cursor: u8, key: u8) u8 {
+    if (key == c64.key.cursor_down) {
+        if (cursor >= 6) {
+            return cursor - 6;
+        } else {
+            return cursor + 3;
+        }
+    } else if (key == c64.key.cursor_up) {
+        if (cursor < 3) {
+            return cursor + 6;
+        } else {
+            return cursor - 3;
+        }
+    } else if (key == c64.key.cursor_right) {
+        if (cursor == 2 or cursor == 5 or cursor == 8) {
+            return cursor - 2;
+        } else {
+            return cursor + 1;
+        }
+    } else if (key == c64.key.cursor_left) {
+        if (cursor == 0 or cursor == 3 or cursor == 6) {
+            return cursor + 2;
+        } else {
+            return cursor - 1;
+        }
+    } else {
+        return cursor;
+    }
+}
+
+fn cellOffset(index: u8) u16 {
+    return switch (index) {
+        0 => 252, 1 => 258, 2 => 264,
+        3 => 412, 4 => 418, 5 => 424,
+        6 => 572, 7 => 578, 8 => 584,
+        else => 252,
+    };
+}
+
+fn pixelOffset(base: u16, pixel: u8) u16 {
+    var offset = base;
+    if (pixel >= 3) {
+        offset += 40;
+    }
+    if (pixel >= 6) {
+        offset += 40;
+    }
+    if (pixel == 1 or pixel == 4 or pixel == 7) {
+        offset += 1;
+    } else if (pixel == 2 or pixel == 5 or pixel == 8) {
+        offset += 2;
+    }
+    return offset;
+}
+
+fn glyphFilled(cell: Cell, selected: bool, pixel: u8) bool {
+    if (cell == .empty) {
+        return selected;
+    } else if (cell == .x) {
+        return pixel == 0 or pixel == 2 or pixel == 4 or pixel == 6 or pixel == 8;
+    } else {
+        return pixel != 4;
+    }
+}
+
+fn glyphColor(cell: Cell, selected: bool) u8 {
+    if (selected) {
+        return 1;
+    } else if (cell == .x) {
+        return 7;
+    } else if (cell == .o) {
+        return 3;
+    } else {
+        return 14;
+    }
+}
+
+fn drawCell(board: *Board, index: u8, cursor: u8) void {
+    const screen: [*]volatile u8 = @ptrFromInt(0x0400);
+    const color: [*]volatile u8 = @ptrFromInt(0xd800);
+    const selected = index == cursor;
+    const base = cellOffset(index);
+    for (0..9) |pixel| {
+        const offset = pixelOffset(base, pixel);
+        if (glyphFilled(board.cells[index], selected, pixel)) {
+            screen[offset] = 0xa0;
+            color[offset] = glyphColor(board.cells[index], selected);
+        } else {
+            screen[offset] = ' ';
+            color[offset] = 1;
+        }
+    }
+}
+
+fn drawBoard(board: *Board, cursor: u8) void {
+    for (0..9) |i| {
+        drawCell(board, i, cursor);
+    }
+}
+
+fn renderSubheader(game: *Game) void {
+    if (game.mode == .ai) {
+        c64.screen.putsAt(2, 1, "MODE:1 PLAYER  HUMAN:X  CPU:O");
+    } else {
+        c64.screen.putsAt(2, 1, "MODE:2 PLAYER  PLAYERS:X/O");
+    }
+    if (game.turn == .x) {
+        c64.screen.putsAt(32, 1, "TURN:X");
+    } else {
+        c64.screen.putsAt(32, 1, "TURN:O");
+    }
+    if (game.mode == .ai) {
+        tui.colorHeaderAi();
+    } else {
+        tui.colorHeaderTwoPlayer();
+    }
+}
+
+fn renderStatus(game: *Game) void {
+    tui.clearStatusLine();
+    if (game.message == 1) {
+        c64.screen.putsAt(5, 20, "THAT SQUARE IS ALREADY TAKEN");
+    } else {
+        c64.screen.putsAt(3, 20, "SELECT A SQUARE AND PLACE YOUR MARK");
+    }
+}
+
+fn renderGameHelp() void {
+    c64.screen.putsAt(3, 22, "ARROWS:MOVE   SPACE/RETURN:MARK");
+    c64.screen.putsAt(2, 24, "F1:2 PLAYER  F3:1 PLAYER  F8:HELP");
+}
+
+fn renderResult(game: *Game) void {
+    tui.drawResultWindow();
+    c64.screen.putsAt(15, 5, "GAME OVER");
+    if (game.outcome == .x_win) {
+        c64.screen.putsAt(16, 7, "X WINS!");
+        tui.colorResultX();
+    } else if (game.outcome == .o_win) {
+        c64.screen.putsAt(16, 7, "O WINS!");
+        tui.colorResultO();
+    } else if (game.outcome == .draw) {
+        c64.screen.putsAt(15, 7, "DRAW GAME");
+    } else {
+        c64.screen.putsAt(12, 7, "NO WINNING LINES");
+    }
+    c64.screen.putsAt(12, 9, "START A NEW GAME");
+    c64.screen.putsAt(13, 12, "F1  TWO PLAYER");
+    c64.screen.putsAt(10, 13, "F3  ONE PLAYER / AI");
+    tui.colorResultChrome();
+}
+
+fn showHelp() void {
+    // Canonical ReadyOS help is an overlay: retain the app header and bottom
+    // navigation while the centered window replaces only its own interior.
+    tui.drawHelpWindow();
+    c64.screen.putsAt(12, 4, "TIC TAC TOE HELP");
+    c64.screen.putsAt(3, 6, "PLAY");
+    c64.screen.putsAt(3, 7, "ARROWS        MOVE SELECTION");
+    c64.screen.putsAt(3, 8, "SPACE/RETURN  PLACE MARK");
+    c64.screen.putsAt(3, 9, "F1            TWO PLAYERS");
+    c64.screen.putsAt(3, 10, "F3            ONE PLAYER / AI");
+    c64.screen.putsAt(3, 11, "F8            OPEN/CLOSE HELP");
+    c64.screen.putsAt(3, 13, "READYOS");
+    c64.screen.putsAt(3, 14, "F2            NEXT APP");
+    c64.screen.putsAt(3, 15, "F4            PREVIOUS APP");
+    c64.screen.putsAt(3, 16, "CTRL-B        RETURN HOME");
+    c64.screen.putsAt(7, 18, "F8 OR RETURN TO CLOSE");
+    tui.colorHelpChrome();
+
+    var key: u8 = 0;
+    while (key != c64.key.f8 and key != c64.key.return_ and key != 3 and key != 95) {
+        key = c64.keyboard.readPetscii();
+    }
+}
+
+fn render(game: *Game) void {
+    const board: *Board = &game.board;
+    tui.beginFrame();
+    c64.screen.putsAt(14, 0, "TIC TAC TOE");
+    tui.colorMainChrome();
+    renderSubheader(game);
+    tui.drawBoardGrid();
+    drawBoard(board, game.cursor);
+    if (game.outcome == .playing) {
+        renderStatus(game);
+        renderGameHelp();
+    } else {
+        renderResult(game);
+    }
+}
+
+fn copyBoard(destination: *Board, source: *Board) void {
+    for (0..9) |i| {
+        destination.cells[i] = source.cells[i];
+    }
+}
+
+fn renderDelta(game: *Game, previous_board: *Board, previous_cursor: u8, previous_turn: Cell, previous_outcome: Outcome, previous_message: u8) void {
+    const board: *Board = &game.board;
+    if (previous_outcome == .playing) {
+        for (0..9) |i| {
+            if (previous_board.cells[i] != board.cells[i] or i == previous_cursor or i == game.cursor) {
+                drawCell(board, i, game.cursor);
+            }
+        }
+    }
+
+    if (previous_turn != game.turn) {
+        if (game.turn == .x) {
+            c64.screen.putsAt(37, 1, "X");
+        } else {
+            c64.screen.putsAt(37, 1, "O");
+        }
+    }
+
+    if (previous_outcome == .playing and game.outcome != .playing) {
+        tui.clearGameHelp();
+        renderResult(game);
+    } else if (game.outcome == .playing and previous_message != game.message) {
+        renderStatus(game);
+    }
+}
+
+fn handleKey(game: *Game, key: u8) u8 {
+    var redraw_all: u8 = 0;
+    if (key == 2) {
+        // Terminal transfer is inline so no ZeroPage call return address is
+        // left on the hardware stack inherited by the next ReadyOS app.
+        asm {
+            jmp $c80c
+        }
+    } else if (key == 137) {
+        const next_found = readyos.selectNextApp();
+        if (next_found != 0) {
+            asm {
+                jmp $c80f
+            }
+        }
+    } else if (key == 138) {
+        const previous_found = readyos.selectPreviousApp();
+        if (previous_found != 0) {
+            asm {
+                jmp $c80f
+            }
+        }
+    } else if (key == c64.key.f1) {
+        initGame(game, .two_player);
+        redraw_all = 1;
+    } else if (key == c64.key.f3) {
+        initGame(game, .ai);
+        redraw_all = 1;
+    } else if (key == c64.key.f8) {
+        showHelp();
+        redraw_all = 1;
+    } else if (game.outcome != .playing) {
+        // Keep the result window stable until a mode key starts another game.
+    } else if (key == c64.key.cursor_down or key == c64.key.cursor_up or key == c64.key.cursor_right or key == c64.key.cursor_left) {
+        game.cursor = moveCursor(game.cursor, key);
+        game.message = 0;
+    } else if (key == c64.key.space or key == c64.key.return_) {
+        applyMove(game, game.cursor);
+        applyAiIfNeeded(game);
+    }
+    return redraw_all;
+}
+
+export fn main() void {
+    var game = Game{
+        .board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty } },
+        .move_count = 0,
+        .turn = .x,
+        .cursor = 0,
+        .mode = .two_player,
+        .outcome = .playing,
+        .message = 0,
+    };
+    initGame(&game, .two_player);
+    input.init();
+    render(&game);
+    while (true) {
+        const key = c64.keyboard.readPetscii();
+        if (key != 0) {
+            var previous_board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty } };
+            copyBoard(&previous_board, &game.board);
+            const previous_cursor = game.cursor;
+            const previous_turn = game.turn;
+            const previous_outcome = game.outcome;
+            const previous_message = game.message;
+            const redraw_all = handleKey(&game, key);
+            if (redraw_all != 0) {
+                render(&game);
+            } else {
+                renderDelta(&game, &previous_board, previous_cursor, previous_turn, previous_outcome, previous_message);
+            }
+        }
+    }
+}

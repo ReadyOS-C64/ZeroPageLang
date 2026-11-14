@@ -1,0 +1,45 @@
+// zeropage-emu-module: filename=mathcore source=tests/fixtures/emu/modules/math_core_dispatch.zp64
+// zeropage-emu-reu: $030800=$4c
+// zeropage-emu-label-memory: zeropage_module_registry_row1_loaded=$00
+// zeropage-emu-label-memory: zeropage_module_registry_row1_refcount=$00
+// zeropage-emu-label-memory: zeropage_module_registry_active_row=$ff
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001800 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 2 },
+        .disk_manifest = .{
+            .current = "enemyrt",
+            .deps = .{
+                .math_core = "mathcore",
+            },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_dep_unload_callability",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, true, ZeroPage.module.loadDependency("math_core"));
+    test6502.expectSomeU8(2, 5, ZeroPage.module.call("math_core", "add", .{3}));
+    ZeroPage.module.unloadDependency("math_core");
+    test6502.expectEqualBool(3, false, ZeroPage.module.isLoaded("math_core"));
+    test6502.expectNull(4, ZeroPage.module.call("math_core", "add", .{3}));
+    test6502.pass();
+}

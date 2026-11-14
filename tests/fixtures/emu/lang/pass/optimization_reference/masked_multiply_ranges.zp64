@@ -1,0 +1,20 @@
+const test6502 = @import("test6502");
+
+fn masked(value: u16) u16 {
+    return (value & 31) * 3 + (value & 63) * 7 + (value & 127) * 9;
+}
+
+fn boundaries(value: u16) u16 {
+    return (value & 40) * 3 + (value & 41) * 3 + (value & 191) * 3 + (value & 511) * 3;
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0, masked(0));
+    test6502.expectEqualU16(2, 0x02ab, masked(0x0029));
+    test6502.expectEqualU16(3, 0x068d, masked(0x80ff));
+    test6502.expectEqualU16(4, 0x03cf, masked(0x9055));
+    test6502.expectEqualU16(5, 0x01e9, boundaries(0x0029));
+    test6502.expectEqualU16(6, 0x04e9, boundaries(0xf129));
+    test6502.expectEqualU16(7, 0x092d, boundaries(0xffff));
+    test6502.pass();
+}

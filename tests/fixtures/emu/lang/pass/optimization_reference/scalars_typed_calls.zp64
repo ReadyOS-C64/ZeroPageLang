@@ -1,0 +1,50 @@
+// Typed acyclic scalar calls exercise word/byte/enum/bool parameter placement.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+};
+const test6502 = @import("test6502");
+const Mode = enum(u8) { hold = 0, add = 1, mix = 2 };
+fn adjust(value: u16, delta: u8, mode: Mode, enabled: bool) u16 {
+    if (!enabled) {
+        return value;
+    }
+    if (mode == .add) {
+        return value + delta;
+    }
+    if (mode == .mix) {
+        return value ^ delta;
+    }
+    return value;
+}
+fn relay(value: u16, delta: u8, mode: Mode) u16 {
+    const first: u16 = adjust(value, delta, mode, true);
+    return adjust(first, delta ^ 0x5a, .mix, delta != 0);
+}
+fn chooseMode(add: bool) Mode {
+    if (add) {
+        return .add;
+    }
+    return .mix;
+}
+fn signedByte(value: i8) i8 {
+    return value;
+}
+const expected = [_]u16{ 32842, 33099, 33356, 33577, 33838, 34119, 34384, 34661, 34898, 35155, 35396, 35665, 35750, 36191, 36440, 36701 };
+export fn main() void {
+    var index: u8 = 0;
+    while (index < 16) {
+        const value: u16 = @as(u16, index) * 257 + 0x7ff0;
+        const delta: u8 = (index * 7) ^ 0x55;
+        test6502.expectEqualBool(1, true, relay(value, delta, .add) == expected[index]);
+        index += 1;
+    }
+    test6502.expectEqualU16(2, 65535, adjust(65535, 17, .add, false));
+    test6502.expectEqualU16(3, 16, adjust(65535, 17, .add, true));
+    test6502.expectEqualU16(4, 33025, adjust(33024, 1, .mix, true));
+    test6502.expectEqualU16(5, 4660, adjust(4660, 99, .hold, true));
+    test6502.expectEqualU16(6, 33113, relay(33025, 1, chooseMode(true)));
+    test6502.expectEqualU16(7, 33115, relay(33025, 1, chooseMode(false)));
+    test6502.expectEqualU16(8, 33024, relay(33024, 0, .add));
+    test6502.expectEqualBool(9, true, signedByte(7) == 7);
+    test6502.pass();
+}

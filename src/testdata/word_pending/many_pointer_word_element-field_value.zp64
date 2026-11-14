@@ -1,0 +1,1 @@
+const I=struct{index:u8};export fn api(value:u16,index:u8,other:u8)u16{const ptr:[*]u16=@ptrFromInt(0xc100);var ix=I{.index=index};const ip:*I=&ix;ptr[ip.index]=value;return ptr[index];}export fn main()void{}

@@ -1,0 +1,2 @@
+// zeropage-emu-error: missing zeropage_options stack region
+export fn main() callconv(.stack) void {}

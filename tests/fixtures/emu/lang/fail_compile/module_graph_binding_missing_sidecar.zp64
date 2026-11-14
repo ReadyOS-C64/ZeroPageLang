@@ -1,0 +1,41 @@
+// zeropage-emu-error: missing dependency module sidecar
+const ZeroPage = @import("ZeroPage");
+
+const FixedMath = ZeroPage.module.import(.fixed_math, .{
+    .bias = fn (u8) u8,
+});
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x002000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 4 },
+        .disk_manifest = .{ .current = "enemyrt", .deps = .{ .math_core = "mathcore", .pathing = "pathing", .fixed_math = "fixedmath" } },
+        .dependency_graph = .{
+            .math_core = .{ .deps = .{ .fixed_math } },
+            .pathing = .{ .deps = .{} },
+            .fixed_math = .{ .deps = .{} },
+        },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_graph_binding_missing_sidecar",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{ "math_core", "pathing" },
+};
+
+fn tick(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    if (FixedMath.bias(4)) |value| {
+        _ = value;
+    }
+}

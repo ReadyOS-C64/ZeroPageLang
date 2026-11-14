@@ -1,0 +1,2 @@
+const H=struct{items:[2]u16};fn choose(a:u16,b:u16)u8{if(a==b+1){return 0;}return 1;}
+export fn api(value:u16,index:u8,other:u8)u16{var h=H{.items=[_]u16{0x1122,0x3344}};const ptr:*H=&h;ptr.items[choose(2,1)]=value;return h.items[0];}export fn main()void{}

@@ -1,0 +1,120 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Outcome = enum(u8) { playing, x_win, o_win, draw };
+
+const Board = struct { cells: [9]Cell };
+const Game = struct {
+    board: Board,
+    history: [9]u8,
+    move_count: u8,
+    turn: Cell,
+    outcome: Outcome,
+    message: u8,
+};
+
+fn initGame(game: *Game) void {
+    for (0..9) |i| {
+        game.board.cells[i] = Cell.empty;
+        game.history[i] = 255;
+    }
+    game.move_count = 0;
+    game.turn = Cell.x;
+    game.outcome = Outcome.playing;
+    game.message = 0;
+}
+
+fn winner(board: *Board) Cell {
+    if (board.cells[0] != Cell.empty and board.cells[0] == board.cells[1] and board.cells[0] == board.cells[2]) {
+        return board.cells[0];
+    }
+    if (board.cells[3] != Cell.empty and board.cells[3] == board.cells[4] and board.cells[3] == board.cells[5]) {
+        return board.cells[3];
+    }
+    if (board.cells[6] != Cell.empty and board.cells[6] == board.cells[7] and board.cells[6] == board.cells[8]) {
+        return board.cells[6];
+    }
+    return Cell.empty;
+}
+
+fn nextTurn(turn: Cell) Cell {
+    return switch (turn) {
+        Cell.x => Cell.o,
+        else => Cell.x,
+    };
+}
+
+fn classify(game: *Game) Outcome {
+    const won = winner(&game.board);
+    if (won == Cell.x) {
+        return Outcome.x_win;
+    } else if (won == Cell.o) {
+        return Outcome.o_win;
+    } else if (game.move_count == 9) {
+        return Outcome.draw;
+    } else {
+        return Outcome.playing;
+    }
+}
+
+fn validMove(game: *Game, index: u8) bool {
+    return index < game.board.cells.len and game.outcome == Outcome.playing and game.board.cells[index] == Cell.empty;
+}
+
+fn applyMove(game: *Game, index: u8) void {
+    game.board.cells[index] = game.turn;
+    game.history[game.move_count] = index;
+    game.move_count += 1;
+    game.outcome = classify(game);
+    if (game.outcome == Outcome.playing) {
+        game.turn = nextTurn(game.turn);
+    }
+    game.message = 0;
+}
+
+fn trialMoveWins(board: *Board, index: u8, mark: Cell) bool {
+    const old = board.cells[index];
+    board.cells[index] = mark;
+    const won = winner(board);
+    board.cells[index] = old;
+    return won == mark;
+}
+
+export fn main() void {
+    var game = Game{
+        .board = Board{ .cells = [_]Cell{ .x, .x, .empty, .empty, .empty, .empty, .empty, .empty, .empty } },
+        .history = [_]u8{ 0, 1, 255, 255, 255, 255, 255, 255, 255 },
+        .move_count = 2,
+        .turn = .x,
+        .outcome = .playing,
+        .message = 0,
+    };
+    const game_ptr: *Game = &game;
+
+    test6502.expectEqualBool(1, true, trialMoveWins(&game.board, 2, .x));
+    test6502.expectEqualU8(2, 0, game.board.cells[2]);
+
+    applyMove(game_ptr, 2);
+    test6502.expectEqualU8(3, 1, game.board.cells[2]);
+    test6502.expectEqualU8(4, 3, game.move_count);
+    test6502.expectEqualU8(5, 1, game.outcome);
+    test6502.expectEqualU8(6, 2, game.history[2]);
+
+    game.message = if (validMove(game_ptr, 2)) 0 else 1;
+    test6502.expectEqualU8(7, 1, game.message);
+    test6502.expectEqualU8(8, 3, game.move_count);
+
+    var other = Game{
+        .board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty } },
+        .history = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        .move_count = 0,
+        .turn = .x,
+        .outcome = .playing,
+        .message = 0,
+    };
+    initGame(&other);
+    applyMove(&other, 4);
+    test6502.expectEqualU8(9, 1, other.board.cells[4]);
+    test6502.expectEqualU8(10, 0, game.board.cells[4]);
+    test6502.pass();
+}

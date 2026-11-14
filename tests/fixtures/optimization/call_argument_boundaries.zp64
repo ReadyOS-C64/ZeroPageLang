@@ -1,0 +1,18 @@
+// Exported and configured software-stack targets retain their ABI boundary.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+    .stack = .{ .base = 0xc800, .size = 0x0100, .zp = .{ .sp = 0x70, .fp = 0x72 } },
+    .abi = .{ .functions = .{ .stackLeaf = .{ .frame = .stack } } },
+};
+export fn publicLeaf(value: u16, mask: u16) u16 { return value ^ mask; }
+fn stackLeaf(value: u16, mask: u16) u16 { var result: u16 = value + mask; return result; }
+fn publicCase(location: *u16, mask: u16) u16 { return publicLeaf(location.*, mask); }
+fn stackCase(location: *u16, mask: u16) u16 { return stackLeaf(location.*, mask); }
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    test6502.expectEqualU16(1, 0xd30f, publicCase(location, 0x52f0));
+    test6502.expectEqualU16(2, 0xd4ef, stackCase(location, 0x52f0));
+    test6502.pass();
+}

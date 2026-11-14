@@ -1,0 +1,52 @@
+const c64 = @import("c64");
+
+const Cell = enum(u8) { empty = 0, x = 1, o = 2 };
+const Entry = struct { cell: Cell, value: u8, weight: u16 };
+
+const table = [_]Entry{
+    Entry{ .cell = .x, .value = 3, .weight = 100 },
+    Entry{ .cell = .o, .value = 5, .weight = 200 },
+    Entry{ .cell = .empty, .value = 7, .weight = 300 },
+};
+
+fn cellScore(cell: Cell) u8 {
+    return switch (cell) {
+        .x => 10,
+        .o => 20,
+        else => 0,
+    };
+}
+
+fn tableValue(index: u8) u8 {
+    return table[index].value + cellScore(table[index].cell);
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("struct array table\n", .{});
+
+    var rows: [3]Entry = .{
+        Entry{ .cell = .empty, .value = 1, .weight = 10 },
+        Entry{ .cell = .empty, .value = 2, .weight = 20 },
+        Entry{ .cell = .empty, .value = 3, .weight = 30 },
+    };
+
+    var sum: u8 = 0;
+    for (rows, 0..) |_, i| {
+        rows[i].cell = table[i].cell;
+        rows[i].value = tableValue(i);
+        rows[i].weight = table[i].weight + rows[i].value;
+        sum += rows[i].value;
+    }
+
+    c64.console.print("sum {x}\n", .{sum});
+    c64.console.print("mut {x} {x}\n", .{ rows[1].value, rows[2].weight });
+
+    if (sum == 45 and rows[1].value == 25 and rows[2].weight == 307) {
+        c64.console.print("struct array ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("struct array bad\n", .{});
+        c64.vic.border = 2;
+    }
+}

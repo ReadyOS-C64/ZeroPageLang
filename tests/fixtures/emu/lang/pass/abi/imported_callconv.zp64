@@ -1,0 +1,12 @@
+const test6502 = @import("test6502");
+const worker = @import("../../../modules/imported_worker.zp64");
+
+memory {
+    region stack_ram: c64 at 0xc800 size 256;
+    stack in stack_ram;
+}
+
+export fn main() void {
+    const result = worker.plusOne(6);
+    test6502.expectEqualU8(1, 7, result);
+}

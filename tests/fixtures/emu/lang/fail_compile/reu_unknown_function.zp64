@@ -1,0 +1,6 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const ZeroPage = @import("ZeroPage");
+
+export fn main() void {
+    ZeroPage.reu.readByte(0x010000);
+}

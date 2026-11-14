@@ -1,0 +1,9 @@
+// zeropage-emu-error: valid Zig syntax
+fn value() u8 {
+    return 1;
+}
+
+export fn main() void {
+    const ptr = &value();
+    _ = ptr;
+}

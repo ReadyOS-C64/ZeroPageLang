@@ -1,0 +1,27 @@
+// zeropage-emu-error: unsupported zeropage_module relocation
+const Enemy = struct {
+    hp: u8,
+    x: u8,
+};
+
+const enemies = [_]Enemy{
+    Enemy{ .hp = 1, .x = 2 },
+};
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn tick() usize {
+    return @intFromPtr(&enemies[0]);
+}
+
+export fn main() void {}

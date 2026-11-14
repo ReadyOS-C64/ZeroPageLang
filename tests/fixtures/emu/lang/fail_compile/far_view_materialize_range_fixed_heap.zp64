@@ -1,0 +1,25 @@
+// zeropage-emu-error: unsupported heap function
+const ZeroPage = @import("ZeroPage");
+
+const Enemy = struct { hp: u8 };
+
+pub const zeropage_options = .{
+    .heaps = .{
+        .blocks = .{ .region = .{ .addr = 0x9000, .size = 16 }, .kind = .fixed, .block = 8 },
+    },
+    .reu = .{
+        .heaps = .{
+            .assets = .{ .region = .{ .addr = 0x010000, .size = 0x0100 }, .kind = .arena },
+        },
+    },
+};
+
+export fn main() void {
+    const maybe_far = ZeroPage.reu.heap("assets").allocBytes(4);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 4);
+        if (enemies.materializeRange("blocks", 0, 2)) |local| {
+            _ = local.len;
+        }
+    }
+}

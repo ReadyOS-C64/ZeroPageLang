@@ -1,0 +1,9 @@
+// zeropage-emu-error: invalid zeropage_options memory placement
+pub const zeropage_options = .{
+    .memory = .{
+        .regions = .{ .cold_ram = .{ .addr = 0x8000, .size = 0x0100 } },
+        .placements = .{ .cold = .{ .region = .cold_ram, .functions = .{ missing } } },
+    },
+};
+
+export fn main() void {}

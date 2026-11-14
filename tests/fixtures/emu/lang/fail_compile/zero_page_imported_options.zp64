@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported imported zeropage_options metadata
+const imported = @import("zero_page_unknown_profile.zp64");
+
+export fn main() void {
+    _ = imported;
+}

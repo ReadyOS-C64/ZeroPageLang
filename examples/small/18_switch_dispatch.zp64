@@ -1,0 +1,45 @@
+const c64 = @import("c64");
+
+const commands = [_]u8{ c64.key.return_, c64.key.cursor_down, c64.key.space, 99 };
+
+fn dispatch(code: u8) u8 {
+    return switch (code) {
+        c64.key.return_ => 1,
+        c64.key.cursor_down, c64.key.cursor_up => 2,
+        c64.key.space => 32,
+        else => 4,
+    };
+}
+
+fn wordDispatch(value: u8) u16 {
+    return switch (value) {
+        39 => 512,
+        0...10 => 16,
+        else => 1,
+    };
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("switch dispatch\n", .{});
+
+    var sum: u8 = 0;
+    for (commands) |command| {
+        sum += dispatch(command);
+    }
+
+    const word = wordDispatch(sum);
+    c64.console.print("dispatch {x}\n", .{sum});
+    c64.console.print("word {x16}\n", .{word});
+
+    switch (sum) {
+        39 => {
+            c64.console.print("switch ok\n", .{});
+            c64.vic.border = 5;
+        },
+        else => {
+            c64.console.print("switch bad\n", .{});
+            c64.vic.border = 2;
+        },
+    }
+}

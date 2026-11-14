@@ -1,0 +1,19 @@
+// zeropage-emu-error: unsupported zeropage_module relocation
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_ai",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn tick() usize {
+    var local: u8 = 1;
+    return @intFromPtr(&local);
+}
+
+export fn main() void {}

@@ -1,0 +1,30 @@
+const c64 = @import("c64");
+
+fn add8(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn isEqual8(value: u8, expected: u8) bool {
+    return value == expected;
+}
+
+fn paintStatus(ok: bool) void {
+    if (ok == true) {
+        c64.screen.putsAt(2, 6, "FUNCTION OK");
+    } else {
+        c64.screen.putsAt(2, 6, "FUNCTION BAD");
+    }
+}
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "FUNCTION DEMO");
+
+    var total: u8 = add8(4, 2);
+    var ok: bool = isEqual8(total, 6);
+    paintStatus(ok);
+    c64.screen.putsAt(2, 10, "TOTAL=");
+    c64.screen.hexAt(8, 10, total);
+    c64.screen.putsAt(12, 10, "OK=");
+    c64.screen.hexAt(15, 10, ok);
+}

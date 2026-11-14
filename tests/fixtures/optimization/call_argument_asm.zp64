@@ -1,0 +1,16 @@
+// Opaque ASM is an argument-staging barrier even for private scalar callees.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn opaqueLeaf(value: u16, mask: u16) u16 {
+    asm {
+        nop
+    }
+    return value ^ mask;
+}
+fn asmCase(location: *u16, mask: u16) u16 { return opaqueLeaf(location.*, mask); }
+export fn main() void {
+    const location: *u16 = @ptrFromInt(0xc1ff);
+    location.* = 0x81ff;
+    test6502.expectEqualU16(1, 0xd30f, asmCase(location, 0x52f0));
+    test6502.pass();
+}

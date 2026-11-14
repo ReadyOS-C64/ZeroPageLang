@@ -1,0 +1,6 @@
+const c64 = @import("c64");
+const math = @import("module_math_zp64.zp64");
+
+export fn main() void {
+    c64.vic.border = math.add8(2, 3);
+}

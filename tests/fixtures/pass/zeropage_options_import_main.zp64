@@ -1,0 +1,5 @@
+const imported = @import("zeropage_options_imported.zp64");
+
+export fn main() void {
+    imported.touch();
+}

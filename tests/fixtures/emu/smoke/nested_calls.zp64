@@ -1,0 +1,48 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn eq(value: u8, expected: u8) bool {
+    return value == expected;
+}
+
+fn choose(ok: bool, yes: u8, no: u8) u8 {
+    if (ok == true) {
+        return yes;
+    } else {
+        return no;
+    }
+}
+
+fn nestedReturn(a: u8, b: u8, c: u8) u8 {
+    return add(add(a, b), c);
+}
+
+export fn main() void {
+    var left: u8 = add(add(1, 2), 3);
+    test6502.expectA(1, 6);
+    var right: u8 = add(1, add(2, 3));
+    test6502.expectA(2, 6);
+    var same: u8 = add(add(1, 2), add(3, 4));
+    test6502.expectA(3, 10);
+    var picked: u8 = choose(eq(add(1, 2), 3), 9, 1);
+    test6502.expectA(4, 9);
+    var assigned: u8 = 0;
+    assigned = add(add(2, 2), add(1, 1));
+    test6502.expectA(5, 6);
+    var returned: u8 = nestedReturn(1, 2, 3);
+    test6502.expectA(6, 6);
+
+    c64.screen.clear();
+    c64.screen.putsAt(0, 0, "NESTED");
+    c64.screen.hexAt(0, 1, left);
+    c64.screen.hexAt(3, 1, right);
+    c64.screen.hexAt(6, 1, same);
+    c64.screen.hexAt(9, 1, picked);
+    c64.screen.hexAt(12, 1, assigned);
+    c64.screen.hexAt(15, 1, returned);
+    test6502.pass();
+}

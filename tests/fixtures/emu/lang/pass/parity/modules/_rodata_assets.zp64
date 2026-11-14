@@ -1,0 +1,8 @@
+const title = "asset ok";
+const numbers = [_]u8{ 5, 8, 13 };
+
+const Point = struct { x: u8, y: u8 };
+const points = [_]Point{
+    Point{ .x = 1, .y = 2 },
+    Point{ .x = 4, .y = 5 },
+};

@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported pointer builtin
+export fn main() void {
+    const a: [*]u8 = @ptrFromInt(0x0400);
+    const b: [*]u8 = @ptrFromInt(0x0500);
+    const same = a == b;
+    _ = same;
+}

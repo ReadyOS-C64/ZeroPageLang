@@ -1,0 +1,18 @@
+// An early arbitrary byte stays staged while the final indirect word is captured.
+const test6502 = @import("test6502");
+pub const zeropage_options = .{ .zero_page = .{ .profile = .kernal, .allocation = .scalars } };
+fn mixed(byte: u8, word: u16) u16 { return word ^ (@as(u16, byte) << 8); }
+fn identity(value: u16) u16 { return value; }
+fn mixedCase(location: *u16, byte: u8) u16 { return mixed(byte ^ 0x55, location.*); }
+fn twoPointers(first: *u8, second: *u16) u16 { return mixed(first.*, second.*); }
+fn nestedCase(location: *u16, byte: u8) u16 { return mixed(byte ^ 0x55, identity(location.*)); }
+export fn main() void {
+    const word: *u16 = @ptrFromInt(0xc1ff);
+    const byte: *u8 = @ptrFromInt(0xc400);
+    word.* = 0x81ff;
+    byte.* = 0x42;
+    test6502.expectEqualU16(1, 0x96ff, mixedCase(word, 0x42));
+    test6502.expectEqualU16(2, 0xc3ff, twoPointers(byte, word));
+    test6502.expectEqualU16(3, 0x96ff, nestedCase(word, 0x42));
+    test6502.pass();
+}

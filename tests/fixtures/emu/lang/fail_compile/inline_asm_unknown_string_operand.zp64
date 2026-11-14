@@ -1,0 +1,8 @@
+// zeropage-emu-error: unknown inline asm string operand
+const c64 = @import("c64");
+
+export fn main() void {
+    asm {
+        lda @missing.data
+    }
+}

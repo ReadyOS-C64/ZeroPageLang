@@ -1,0 +1,14 @@
+// ReadyOS micro-module port. This intentionally matches the common TUI input
+// path in ../readyosprecog/src/lib/tui_core.c: disable KERNAL repeat, then let
+// the application's blocking key read consume one PETSCII event. The stronger
+// physical-release loop in game2048.c is reserved for modal pause/restart
+// transitions; applying it to every key would make global app keys sluggish.
+
+fn init() void {
+    asm {
+        lda #$40
+        sta $028a
+        lda #$00
+        sta $00c6
+    }
+}

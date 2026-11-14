@@ -1,0 +1,5 @@
+// zeropage-emu-error: unsupported pointer target
+export fn main() void {
+    var value: u8 = 1;
+    value.* = 2;
+}

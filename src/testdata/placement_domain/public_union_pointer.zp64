@@ -1,0 +1,2 @@
+pub const zeropage_options=.{.zero_page=.{.profile=.kernal,.allocation=.scalars}};
+const Holder=union(enum){none,ptr:*u8};fn read(p:*u8,tag:u8)u8{return p.*+tag;}export fn api(h:Holder)u8{return switch(h){.none=>0,.ptr=>|p|read(p,1)};}export fn main()void{}

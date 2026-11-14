@@ -1,0 +1,13 @@
+// zeropage-emu-error: unsupported heap name
+const ZeroPage = @import("ZeroPage");
+const Record = struct { value: u8 };
+memory {
+    region backing: reu at 0x010000 size 0x0100;
+    arena assets in backing;
+}
+export fn main() void {
+    if (assets.allocBytes(1)) |far| {
+        var data = ZeroPage.reu.view(Record, far, 1);
+        _ = data.materialize(assets);
+    }
+}

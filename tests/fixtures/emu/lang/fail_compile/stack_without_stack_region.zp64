@@ -1,0 +1,12 @@
+// zeropage-emu-error: missing zeropage_options stack region
+pub const zeropage_options = .{
+    .abi = .{ .functions = .{ .worker = .{ .frame = .stack } } },
+};
+
+fn worker(value: u8) u8 {
+    return value;
+}
+
+export fn main() void {
+    _ = worker(1);
+}

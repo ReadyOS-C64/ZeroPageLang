@@ -1,0 +1,6 @@
+// zeropage-emu-error: integer value out of range
+const test6502 = @import("test6502");
+
+export fn main() void {
+    test6502.expectEqualU8(1, 0, @as(u8, 256));
+}

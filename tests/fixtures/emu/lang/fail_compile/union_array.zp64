@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported array type
+const Event = union(enum) { none, key: u8 };
+
+export fn main() void {
+    var events = [_]Event{ Event{ .none = {} }, Event{ .key = 1 } };
+    _ = events[0];
+}

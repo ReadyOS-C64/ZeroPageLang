@@ -1,0 +1,35 @@
+// Source-owned policy variant of the adjacent unchanged Oscar64-inspired workload.
+pub const zeropage_options = .{
+    .zero_page = .{ .profile = .kernal, .allocation = .scalars },
+};
+// Fresh equal-input layout workload inspired by pinned Oscar64 striped arrays/particles.
+// https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/stripedarraytest.c
+// AoS and SoA variants have identical field values, rounds and assertion counts.
+const test6502 = @import("test6502");
+const Fields = struct { x: [8]u16, y: [8]u16, vx: [8]u16, vy: [8]u16, life: [8]u8 };
+export fn main() void {
+    var fields = Fields{
+        .x = [_]u16{ 250, 507, 764, 1021, 1278, 1535, 1792, 2049 },
+        .y = [_]u16{ 65500, 65439, 65378, 65317, 65256, 65195, 65134, 65073 },
+        .vx = [_]u16{ 1, 2, 3, 4, 5, 6, 7, 8 },
+        .vy = [_]u16{ 7, 10, 13, 16, 19, 22, 25, 28 },
+        .life = [_]u8{ 2, 3, 4, 5, 6, 7, 8, 9 }
+    };
+    for (0..3) |_| {
+        for (0..8) |i| {
+            fields.x[i] += fields.vx[i];
+            fields.y[i] += fields.vy[i];
+            if (fields.life[i] != 0) { fields.life[i] -= 1; }
+        }
+    }
+    const expected_x = [_]u16{ 253, 513, 773, 1033, 1293, 1553, 1813, 2073 };
+    const expected_y = [_]u16{ 65521, 65469, 65417, 65365, 65313, 65261, 65209, 65157 };
+    const expected_life = [_]u8{ 0, 0, 1, 2, 3, 4, 5, 6 };
+
+    for (0..8) |index| {
+        test6502.expectEqualBool(1, true, fields.x[index] == expected_x[index]);
+        test6502.expectEqualBool(2, true, fields.y[index] == expected_y[index]);
+        test6502.expectEqualBool(3, true, fields.life[index] == expected_life[index]);
+    }
+    test6502.pass();
+}

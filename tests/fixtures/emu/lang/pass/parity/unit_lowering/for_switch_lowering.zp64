@@ -1,0 +1,78 @@
+const test6502 = @import("test6502");
+
+const values = [_]u8{ 1, 2, 3 };
+
+fn forUnitSnippetSum() u8 {
+    var sum: u8 = 0;
+    for (values) |item| {
+        sum += item;
+    }
+    for (values, 0..) |value, index| {
+        sum += value + index;
+        continue;
+    }
+    for (0..values.len) |i| {
+        if (i == 2) {
+            break;
+        }
+        sum += values[i];
+    }
+    return sum;
+}
+
+fn observedByte(value: u8) u8 {
+    test6502.hit(10);
+    return value;
+}
+
+fn observedWord(value: u16) u16 {
+    test6502.hit(11);
+    return value;
+}
+
+fn switchUnitSnippet(key: u8) u8 {
+    return switch (key) {
+        13 => 1,
+        17, 145 => 2,
+        else => 3,
+    };
+}
+
+fn switchWordSnippet(value: u16) u16 {
+    return switch (value) {
+        0...255 => 1,
+        256...511 => 2,
+        else => value + 1,
+    };
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 18, forUnitSnippetSum());
+
+    const byte_result = switch (observedByte(2)) {
+        1 => 10,
+        2 => 20,
+        else => 30,
+    };
+    test6502.expectEqualU8(2, 20, byte_result);
+    test6502.expectHitCount(10, 1);
+
+    const word_result = switch (observedWord(512)) {
+        0...255 => 1,
+        256...511 => 2,
+        512 => 3,
+        else => 4,
+    };
+    test6502.expectEqualU16(3, 3, word_result);
+    test6502.expectHitCount(11, 1);
+
+    test6502.expectEqualU8(4, 1, switchUnitSnippet(13));
+    test6502.expectEqualU8(5, 2, switchUnitSnippet(17));
+    test6502.expectEqualU8(6, 2, switchUnitSnippet(145));
+    test6502.expectEqualU8(7, 3, switchUnitSnippet(99));
+    test6502.expectEqualU16(8, 1, switchWordSnippet(200));
+    test6502.expectEqualU16(9, 2, switchWordSnippet(300));
+    test6502.expectEqualU16(10, 1025, switchWordSnippet(1024));
+
+    test6502.pass();
+}

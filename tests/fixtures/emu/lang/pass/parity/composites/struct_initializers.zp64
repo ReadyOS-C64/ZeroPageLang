@@ -1,0 +1,38 @@
+const test6502 = @import("test6502");
+
+const Pair = struct { left: u8, right: u8, ch: u8, ok: bool };
+
+fn makeRight(seed: u8) u8 {
+    return seed + 4;
+}
+
+export fn main() void {
+    var first = Pair{ .left = 2, .right = 3, .ch = 'P', .ok = true };
+    var second = Pair{ .left = 9, .right = 1, .ch = 'Q', .ok = false };
+    test6502.expectEqualU8(1, 2, first.left);
+    test6502.expectEqualU8(2, 3, first.right);
+    test6502.expectEqualU8(3, 16, first.ch);
+    test6502.expectEqualBool(4, true, first.ok);
+    test6502.expectEqualU8(5, 9, second.left);
+    test6502.expectEqualU8(6, 1, second.right);
+    test6502.expectEqualU8(7, 17, second.ch);
+    test6502.expectEqualBool(8, false, second.ok);
+    test6502.expectEqualU8(9, 5, first.left + first.right);
+    test6502.expectEqualU8(10, 10, second.left + second.right);
+
+    var seed: u8 = 6;
+    var from_locals = Pair{ .left = seed, .right = makeRight(seed), .ch = 'r', .ok = first.ok };
+    test6502.expectEqualU8(11, 6, from_locals.left);
+    test6502.expectEqualU8(12, 10, from_locals.right);
+    test6502.expectEqualU8(13, 18, from_locals.ch);
+    test6502.expectEqualBool(14, true, from_locals.ok);
+    test6502.expectEqualU8(15, 2, first.left);
+    test6502.expectEqualU8(16, 9, second.left);
+
+    if (from_locals.ok == true) {
+        test6502.expectEqualU8(17, 16, first.ch);
+    } else {
+        test6502.fail(18);
+    }
+    test6502.pass();
+}

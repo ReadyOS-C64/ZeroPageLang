@@ -1,0 +1,1 @@
+const H=struct{pad:u8,value:u16};const I=struct{index:u8};export fn api(value:u16,index:u8,other:u8)u16{var items=[_]H{H{.pad=1,.value=0x1122},H{.pad=2,.value=0x3344}};var ix=I{.index=index};const ip:*I=&ix;items[ip.index].value=value;return items[index].value;}export fn main()void{}

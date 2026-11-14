@@ -1,0 +1,65 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Header = struct { tag: u8, word: u16, cell: Cell, ok: bool };
+const Nested = struct { a: u8, header: Header, tail: u16 };
+const Board = struct { cells: [3]Cell, checksum: u16 };
+const Maybe = struct { maybe_byte: ?u8, maybe_word: ?u16, maybe_ptr: ?*Header };
+const Event = union(enum) { none, key: u8, word: u16, ptr: *Header };
+
+fn headerSize() usize {
+    return @sizeOf(Header);
+}
+
+fn wordOffset() usize {
+    return @offsetOf(Header, "word");
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 1, @sizeOf(bool));
+    test6502.expectEqualU16(2, 1, @sizeOf(u8));
+    test6502.expectEqualU16(3, 1, @sizeOf(i8));
+    test6502.expectEqualU16(4, 2, @sizeOf(u16));
+    test6502.expectEqualU16(5, 2, @sizeOf(i16));
+    test6502.expectEqualU16(6, 2, @sizeOf(usize));
+
+    test6502.expectEqualU16(7, 1, @sizeOf(Cell));
+    test6502.expectEqualU16(8, 5, @sizeOf(Header));
+    test6502.expectEqualU16(9, 8, @sizeOf(Nested));
+    test6502.expectEqualU16(10, 5, @sizeOf(Board));
+    test6502.expectEqualU16(11, 7, @sizeOf(Maybe));
+    test6502.expectEqualU16(12, 3, @sizeOf(Event));
+
+    test6502.expectEqualU16(13, 1, @alignOf(Header));
+    test6502.expectEqualU16(14, 1, @alignOf(Event));
+    test6502.expectEqualU16(15, 2, @sizeOf(*Header));
+    test6502.expectEqualU16(16, 3, @sizeOf([3]u8));
+    test6502.expectEqualU16(17, 10, @sizeOf([2]Header));
+    test6502.expectEqualU16(18, 1, @alignOf(*Header));
+
+    test6502.expectEqualU16(19, 0, @offsetOf(Header, "tag"));
+    test6502.expectEqualU16(20, 1, @offsetOf(Header, "word"));
+    test6502.expectEqualU16(21, 3, @offsetOf(Header, "cell"));
+    test6502.expectEqualU16(22, 4, @offsetOf(Header, "ok"));
+    test6502.expectEqualU16(23, 0, @offsetOf(Board, "cells"));
+    test6502.expectEqualU16(24, 3, @offsetOf(Board, "checksum"));
+    test6502.expectEqualU16(25, 2, @offsetOf(Nested, "header.word"));
+    test6502.expectEqualU16(26, 5, @offsetOf(Nested, "header.ok"));
+    test6502.expectEqualU16(27, 6, @offsetOf(Nested, "tail"));
+
+    var bytes: [@sizeOf(Header) + @alignOf(Header)]u8 = .{ 0, 1, 2, 3, 4, 5 };
+    test6502.expectEqualU16(28, 6, bytes.len);
+    test6502.expectEqualU8(29, 4, bytes[@offsetOf(Header, "ok")]);
+
+    var table: [(@offsetOf(Board, "checksum") + 1) * 2]u8 = .{ 9, 8, 7, 6, 5, 4, 3, 2 };
+    test6502.expectEqualU16(30, 8, table.len);
+    test6502.expectEqualU8(31, 6, table[@offsetOf(Board, "checksum")]);
+
+    const size = headerSize();
+    const off = wordOffset();
+    test6502.expectEqualU16(32, 5, size);
+    test6502.expectEqualU16(33, 1, off);
+    test6502.expectEqualBool(34, true, @sizeOf(Header) == 5 and @offsetOf(Nested, "tail") == 6);
+
+    test6502.pass();
+}

@@ -1,0 +1,75 @@
+const test6502 = @import("test6502");
+
+const Record = struct { a: u8, b: u8, word: u16, bytes: [4]u8, words: [3]u16 };
+
+fn fields(record: *Record) u16 {
+    const a = record.a;
+    const b = record.b;
+    const word = record.word;
+    return word + a + b;
+}
+
+fn indexes(record: *Record, i: u8, j: u8) u16 {
+    const a = record.bytes[i];
+    const b = record.bytes[j];
+    const word = record.words[2];
+    return word + a + b;
+}
+
+fn words(record: *Record) u16 {
+    const first = record.word;
+    const second = record.words[0];
+    const third = record.words[1];
+    return first + second + third;
+}
+
+fn redirect(first: *Record, second: *Record) u16 {
+    var current: *Record = first;
+    const a = current.a;
+    current = second;
+    const b = current.b;
+    return a + b;
+}
+
+fn mutate(record: *Record) void { record.b = 22; }
+
+fn acrossCall(record: *Record) u16 {
+    const a = record.a;
+    mutate(record);
+    const b = record.b;
+    return a + b;
+}
+
+fn acrossBranch(first: *Record, second: *Record, choose: bool) u16 {
+    var current: *Record = first;
+    const a = current.a;
+    if (choose) { current = second; }
+    const b = current.b;
+    return a + b;
+}
+
+fn acrossVolatile(record: *Record, location: *volatile u8) u16 {
+    const a = record.a;
+    const other = location.*;
+    const b = record.b;
+    return a + b + other;
+}
+
+export fn main() void {
+    var first = Record{ .a = 3, .b = 7, .word = 0x12ff, .bytes = [_]u8{ 10, 20, 30, 40 }, .words = [_]u16{ 1, 256, 0x8001 } };
+    var second = Record{ .a = 8, .b = 9, .word = 0x8000, .bytes = [_]u8{ 1, 2, 3, 4 }, .words = [_]u16{ 0xffff, 2, 0xfffe } };
+    test6502.expectEqualU16(1, 0x1309, fields(&first));
+    test6502.expectEqualU16(2, 3, indexes(&second, 0, 3));
+    test6502.expectEqualU16(3, 0x8033, indexes(&first, 0, 3));
+    test6502.expectEqualU16(4, 0x8033, indexes(&first, 3, 0));
+    test6502.expectEqualU16(5, 0x1400, words(&first));
+    test6502.expectEqualU16(6, 0x8001, words(&second));
+    test6502.expectEqualU16(7, 12, redirect(&first, &second));
+    test6502.expectEqualU16(8, 12, acrossBranch(&first, &second, true));
+    test6502.expectEqualU16(9, 10, acrossBranch(&first, &second, false));
+    test6502.expectEqualU16(10, 25, acrossCall(&first));
+    const location: *volatile u8 = @ptrFromInt(0xc100);
+    location.* = 4;
+    test6502.expectEqualU16(11, 29, acrossVolatile(&first, location));
+    test6502.pass();
+}

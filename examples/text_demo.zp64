@@ -1,0 +1,34 @@
+const c64 = @import("c64");
+
+fn drawTitle() void {
+    c64.screen.putsAt(3, 2, "ZEROPAGE TEXT DEMO");
+    c64.screen.putsAt(3, 3, "FUNCTIONS STRINGS U8");
+}
+
+fn drawFrame() void {
+    var x: u8 = 0;
+    while (x < 22) {
+        c64.screen.putAt(3 + x, 5, '*');
+        c64.screen.putAt(3 + x, 9, '*');
+        x += 1;
+    }
+    c64.screen.putsAt(5, 7, "WHILE LOOP DREW BOX");
+}
+
+fn drawStatus() void {
+    var row: u8 = 7;
+    if (row == 7) {
+        c64.screen.putsAt(5, 11, "IF BRANCH OK");
+    } else {
+        c64.screen.putsAt(5, 11, "IF BRANCH BAD");
+    }
+}
+
+export fn main() void {
+    c64.screen.clear();
+    c64.vic.border = 6;
+    drawTitle();
+    drawFrame();
+    drawStatus();
+}
+

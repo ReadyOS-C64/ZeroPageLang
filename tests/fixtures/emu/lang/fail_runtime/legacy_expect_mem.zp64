@@ -1,0 +1,8 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+export fn main() void {
+    c64.vic.border = 6;
+    test6502.expectMemU8(1, 53280, 7);
+    test6502.pass();
+}

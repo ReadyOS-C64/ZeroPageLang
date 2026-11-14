@@ -1,0 +1,212 @@
+const test6502 = @import("test6502");
+
+fn chooseByte(ok: bool, a: u8, b: u8) u8 {
+    return if (ok) a else b;
+}
+
+fn chooseWord(ok: bool, a: u16, b: u16) u16 {
+    return if (ok) a else b;
+}
+
+fn chooseBool(a: u8, b: u8) bool {
+    return if (a == b) true else a < b;
+}
+
+fn wordFromNestedIf(value: u16) u16 {
+    return if (value == 0) 1 else if (value < 1024) value + 2 else value - 3;
+}
+
+fn ignoredByte() u8 {
+    test6502.hit(1);
+    return 7;
+}
+
+fn ignoredWord() u16 {
+    test6502.hit(2);
+    return 1024;
+}
+
+fn rhsSkipped() bool {
+    test6502.hit(3);
+    return true;
+}
+
+fn blockSelect(value: u8) u8 {
+    return outer: {
+        const picked = if (value < 10) inner: {
+            break :inner value + 2;
+        } else 1;
+        break :outer picked + 3;
+    };
+}
+
+fn discardSideEffect(value: u8) u8 {
+    test6502.hit(4);
+    return value + 1;
+}
+
+fn boolPassThrough(flag: bool) bool {
+    return flag;
+}
+
+fn nestedMulWord(a: u16, b: u16, c: u16) u16 {
+    return a * (b * c);
+}
+
+const byte_table = [_]u8{ 2, 4, 8, 16 };
+const word_table = [_]u16{ 257, 514, 1028 };
+const flag_table = [_]bool{ true, false, true, true };
+const mask_table = [_]u8{ 1, 3, 7, 15 };
+const greeting = "for array ok";
+
+fn indexedByte(index: u8) u8 {
+    return byte_table[index] | 1;
+}
+
+fn indexedWord(index: u8) u16 {
+    return word_table[index] + 1;
+}
+
+fn chooseIndexed(ok: bool, index: u8) u8 {
+    return if (ok and flag_table[index]) byte_table[index] else 0;
+}
+
+fn mutateThroughIndex() u8 {
+    var values: [4]u8 = .{ 1, 2, 3, 4 };
+    for (values, 0..) |mut_item, mut_index| {
+        values[mut_index] = (mut_item + mut_index) * 2;
+    }
+    return values[0] + values[1] + values[2] + values[3];
+}
+
+fn nestedForBlockValue() u16 {
+    return outer: {
+        var total: u16 = 0;
+        for (0..word_table.len) |word_loop_index| {
+            for (mask_table, 0..) |mask_value, mask_index| {
+                if (mask_index == word_loop_index) {
+                    total += (word_table[word_loop_index] & 511) + mask_value;
+                    continue;
+                }
+                if (mask_index == 3) {
+                    break;
+                }
+            }
+        }
+        break :outer total;
+    };
+}
+
+fn ignoredArraySideEffect() u8 {
+    test6502.hit(5);
+    return mask_table[3];
+}
+
+fn forWithDiscardedCaptures() u8 {
+    var count: u8 = 0;
+    for (byte_table) |_| {
+        count += 1;
+    }
+    for (byte_table, 0..) |_, discard_index| {
+        count += discard_index;
+    }
+    return count;
+}
+
+export fn main() void {
+    const cmp = chooseBool(3, 4);
+    const byte_a = chooseByte(cmp, 10, 1);
+    const byte_b = if (chooseBool(9, 9)) chooseByte(true, 20, 0) else 3;
+    test6502.expectEqualU8(1, 10, byte_a);
+    test6502.expectEqualU8(2, 20, byte_b);
+
+    var word = chooseWord(byte_a == 10 and byte_b == 20, 4096, 1);
+    test6502.expectEqualU16(3, 4096, word);
+    word = if (false or word == 4096) word + 512 else word - 1;
+    test6502.expectEqualU16(4, 4608, word);
+
+    const nested_zero = wordFromNestedIf(0);
+    const nested_mid = wordFromNestedIf(512);
+    const nested_high = wordFromNestedIf(2048);
+    test6502.expectEqualU16(5, 1, nested_zero);
+    test6502.expectEqualU16(6, 514, nested_mid);
+    test6502.expectEqualU16(7, 2045, nested_high);
+
+    ignoredByte();
+    ignoredWord();
+    test6502.expectHitCount(1, 1);
+    test6502.expectHitCount(2, 1);
+
+    const sc = true or rhsSkipped();
+    test6502.expectEqualBool(8, true, sc);
+    test6502.expectHitCount(3, 0);
+
+    const inferred = if (sc) chooseByte(true, 55, 0) else 4;
+    var assigned = inferred;
+    assigned += 5;
+    test6502.expectEqualU8(9, 60, assigned);
+
+    const block_value = blockSelect(4);
+    test6502.expectEqualU8(10, 9, block_value);
+    _ = discardSideEffect(block_value);
+    test6502.expectHitCount(4, 1);
+
+    const nested_condition = if (blk: {
+        break :blk boolPassThrough(block_value == 9);
+    }) false or true else false;
+    test6502.expectEqualBool(11, true, nested_condition);
+
+    var word_again = blk: {
+        const base = chooseWord(nested_condition, 2048, 1);
+        break :blk if (base == 2048) base + 2048 else base;
+    };
+    test6502.expectEqualU16(12, 4096, word_again);
+    word_again -= 4095;
+    test6502.expectEqualU16(13, 1, word_again);
+
+    const product = nestedMulWord(3, 256, 4);
+    test6502.expectEqualU16(14, 3072, product);
+    const mixed = if (product == 3072) blk: {
+        var local = 9;
+        local *= 7;
+        break :blk local + 1;
+    } else 0;
+    test6502.expectEqualU8(15, 64, mixed);
+
+    var local_table: [4]u8 = .{ 1, 3, 5, 7 };
+    var dynamic_index: u8 = 2;
+    local_table[dynamic_index] = indexedByte(1);
+    local_table[dynamic_index] <<= 1;
+    test6502.expectEqualU8(16, 10, local_table[2]);
+    test6502.expectEqualU8(17, 17, indexedByte(3));
+
+    const word_index = if (local_table[2] == 10) 1 else 0;
+    const word_pick = blk: {
+        const word_base = indexedWord(word_index);
+        break :blk word_base << 1;
+    };
+    test6502.expectEqualU16(18, 1030, word_pick);
+
+    const discarded_array_expr = local_table[dynamic_index] + byte_table[0];
+    _ = discarded_array_expr;
+    test6502.expectEqualU8(19, 12, local_table[dynamic_index] + byte_table[0]);
+
+    var words: [2]u16 = .{ 1024, 2048 };
+    words[1] |= 15;
+    words[0] = if (flag_table[0]) words[1] >> 1 else 0;
+    test6502.expectEqualU16(20, 1031, words[0]);
+    test6502.expectEqualU16(21, 2063, words[1]);
+
+    test6502.expectEqualU16(22, 4, byte_table.len);
+    test6502.expectEqualU8(23, 8, chooseIndexed(true, 2));
+    test6502.expectEqualU8(24, 0, chooseIndexed(true, 1));
+    test6502.expectEqualU8(25, 32, mutateThroughIndex());
+    test6502.expectEqualU16(26, 274, nestedForBlockValue());
+    _ = ignoredArraySideEffect();
+    test6502.expectHitCount(5, 1);
+    test6502.expectEqualU8(27, 10, forWithDiscardedCaptures());
+    test6502.expectString(28, greeting, "for array ok");
+    test6502.expectEqualU8(29, 15, mask_table[(byte_table.len - 1)]);
+    test6502.expectEqualU16(30, 514, word_table[mask_table[0]]);
+    test6502.pass();
+}

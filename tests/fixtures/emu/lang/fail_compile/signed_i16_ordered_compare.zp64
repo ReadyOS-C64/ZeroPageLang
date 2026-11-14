@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported signed ordered comparison
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var a: i16 = 65535;
+    test6502.expectEqualBool(1, true, a >= 1);
+}

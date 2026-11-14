@@ -1,0 +1,8 @@
+// zeropage-emu-error: unsupported pointer target
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const value: u8 = 1;
+    const ptr: *u8 = &value;
+    test6502.expectEqualU8(1, 1, ptr.*);
+}

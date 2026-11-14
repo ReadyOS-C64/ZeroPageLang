@@ -1,0 +1,25 @@
+// zeropage-emu-error: unsupported stack frame runtime helper
+const c64 = @import("c64");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xe000, .size = 0x0800, .bank = .ram_under_kernal },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+    },
+    .abi = .{ .functions = .{ .tick = .{ .frame = .stack } } },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_kernal_keyboard_unsafe",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+};
+
+fn tick(value: u8) u8 {
+    const key = c64.keyboard.readPetscii();
+    return value + key;
+}
+
+export fn main() void {}

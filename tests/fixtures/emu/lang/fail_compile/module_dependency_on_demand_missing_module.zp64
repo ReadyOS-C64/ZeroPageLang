@@ -1,0 +1,16 @@
+// zeropage-emu-error: unknown ZeroPage.module id
+pub const zeropage_options = .{
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x001000 },
+        .disk_staging = .{ .addr = 0x9000, .size = 0x0800 },
+        .registry = .{ .capacity = 2 },
+        .disk_manifest = .{ .current = "enemyrt", .deps = .{ .math_core = "mathcore" } },
+        .policy = .{
+            .current = .{ .mode = .manual },
+            .deps = .{ .math_core = .{ .mode = .on_demand } },
+        },
+    },
+};
+
+export fn main() void {}

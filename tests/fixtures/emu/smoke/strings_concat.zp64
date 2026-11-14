@@ -1,0 +1,17 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+const hello = "hello";
+const world = "world";
+const joined = hello ++ ", " ++ world ++ "\n";
+const explicit = c64.petscii.reverse_on ++ c64.string.petscii("petscii") ++ c64.petscii.reverse_off ++ "\n";
+const ascii = c64.string.ascii("ascii proxy: ok\n");
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("STRINGS\n", .{});
+    c64.console.puts(joined);
+    c64.console.puts(explicit);
+    c64.console.puts(ascii);
+    test6502.pass();
+}

@@ -1,0 +1,13 @@
+// zeropage-emu-error: unsupported heap function
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .heaps = .{
+        .main = .{ .region = .{ .addr = 0x9200, .size = 0x0040 }, .kind = .arena },
+    },
+};
+
+export fn main() void {
+    const ptr: [*]u8 = @ptrFromInt(0x9200);
+    ZeroPage.heap("main").free(ptr);
+}

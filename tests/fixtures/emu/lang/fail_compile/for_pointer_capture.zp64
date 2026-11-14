@@ -1,0 +1,10 @@
+// zeropage-emu-error: unsupported feature: for pointer capture
+const test6502 = @import("test6502");
+
+export fn main() void {
+    var xs: [2]u8 = .{ 1, 2 };
+    for (xs) |*item| {
+        item.* += 1;
+    }
+    test6502.pass();
+}

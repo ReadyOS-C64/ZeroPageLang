@@ -1,0 +1,25 @@
+const c64 = @import("c64");
+
+const hello = "hello, ";
+const subject = "mutable";
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("MUTABLE STRING DEMO\n", .{});
+
+    var msg = c64.string.buffer(40);
+    msg = hello ++ subject;
+    c64.string.append(msg, " ok\n");
+    c64.console.puts(msg);
+
+    c64.string.clear(msg);
+    c64.string.append(msg, "runtime ");
+    c64.string.append(msg, "append\n");
+    c64.console.puts(msg);
+
+    c64.string.clear(msg);
+    msg = "kernal " ++ "buffer ok\r";
+    c64.kernal.puts(msg);
+    c64.kernal.setName(msg);
+    c64.console.print("BUFFER SETNAM OK\n", .{});
+}

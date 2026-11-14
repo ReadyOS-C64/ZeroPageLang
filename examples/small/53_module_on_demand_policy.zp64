@@ -1,0 +1,42 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region module_cache: reu at 0x030000 size 0x010000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+    current {
+        load = .on_demand;
+        load_file = "enemyrt";
+    }
+}
+
+module enemy_runtime abi 1 {
+    export border = borderColor;
+}
+
+fn borderColor(seed: u8) callconv(.stack) u8 {
+    return seed + 2;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("MODULE ON DEMAND\n", .{});
+    const maybe_border = ZeroPage.module.call("enemy_runtime", "border", .{3});
+    if (maybe_border) |border| {
+        c64.console.print("ON DEMAND OK\n", .{});
+        c64.vic.border = border;
+    } else {
+        c64.console.print("ON DEMAND FAIL\n", .{});
+        c64.vic.border = 2;
+    }
+}

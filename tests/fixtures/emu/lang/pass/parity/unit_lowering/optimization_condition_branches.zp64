@@ -1,0 +1,49 @@
+const test6502 = @import("test6502");
+
+fn less(a: u8, b: u8) bool { return a < b; }
+fn lessEqual(a: u8, b: u8) bool { return a <= b; }
+fn greater(a: u8, b: u8) bool { return a > b; }
+fn greaterEqual(a: u8, b: u8) bool { return a >= b; }
+fn equal(a: u8, b: u8) bool { return a == b; }
+fn unequal(a: u8, b: u8) bool { return a != b; }
+
+fn hit(value: bool) bool {
+    test6502.hit(40);
+    return value;
+}
+
+export fn main() void {
+    var count: u16 = 0;
+    var value: u8 = 0;
+    while (count < 256) {
+        var lt: bool = false;
+        var le: bool = false;
+        var gt: bool = false;
+        var ge: bool = false;
+        var eq: bool = false;
+        var ne: bool = false;
+        if (value < 127) { lt = true; }
+        if (value <= 127) { le = true; }
+        if (value > 127) { gt = true; }
+        if (value >= 127) { ge = true; }
+        if (value == 127) { eq = true; }
+        if (value != 127) { ne = true; }
+        test6502.expectEqualBool(1, true, lt == less(value, 127));
+        test6502.expectEqualBool(2, true, le == lessEqual(value, 127));
+        test6502.expectEqualBool(3, true, gt == greater(value, 127));
+        test6502.expectEqualBool(4, true, ge == greaterEqual(value, 127));
+        test6502.expectEqualBool(5, true, eq == equal(value, 127));
+        test6502.expectEqualBool(6, true, ne == unequal(value, 127));
+        count += 1;
+        value += 1;
+    }
+    if (hit(false) and hit(true)) { test6502.fail(10); }
+    if (hit(true) or hit(false)) { test6502.hit(41); }
+    if (!(hit(false) or (hit(true) and hit(false)))) { test6502.hit(42); }
+    if ((hit(true) and !hit(false)) or hit(false)) { test6502.hit(43); }
+    test6502.expectHitCount(40, 7);
+    test6502.expectHitCount(41, 1);
+    test6502.expectHitCount(42, 1);
+    test6502.expectHitCount(43, 1);
+    test6502.pass();
+}

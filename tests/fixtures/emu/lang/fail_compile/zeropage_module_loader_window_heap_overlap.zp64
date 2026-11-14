@@ -1,0 +1,12 @@
+// zeropage-emu-error: invalid zeropage_options module load window
+pub const zeropage_options = .{
+    .heaps = .{
+        .main = .{ .region = .{ .addr = 0x9000, .size = 0x0100 }, .kind = .arena },
+    },
+    .modules = .{
+        .load_window = .{ .addr = 0x9000, .size = 0x0100 },
+        .reu_cache = .{ .addr = 0x020000, .size = 0x010000 },
+    },
+};
+
+export fn main() void {}

@@ -1,0 +1,194 @@
+// The state lives in the compiler's ordinary static frame, not fixed ZP slots.
+// init() returns a pointer to that singleton; another init() resets it.
+// This balanced variant retains bulk fill/copy assembly and high-level state.
+// back_page is deliberately a byte: the high address byte of a fixed screen.
+const RepeatedHelloBalancedState = struct {
+    head: u8,
+    row: u8,
+    shown: bool,
+    screen_select: u8,
+    back_page: u8,
+    frames_left: u8,
+    pending: bool,
+};
+
+fn init() *RepeatedHelloBalancedState {
+    var state = RepeatedHelloBalancedState{
+        .head = 0,
+        .row = 0,
+        .shown = false,
+        .screen_select = 0x17,
+        .back_page = 0x24,
+        .frames_left = 10,
+        .pending = false,
+    };
+    const screen_select: *volatile u8 = @ptrFromInt(0xd018);
+    screen_select.* = state.screen_select;
+    asm {
+        jsr $e544
+    }
+
+    const cia_irq: *volatile u8 = @ptrFromInt(0xdc0d);
+    const vic_irq_enable: *volatile u8 = @ptrFromInt(0xd01a);
+    const vic_irq_flags: *volatile u8 = @ptrFromInt(0xd019);
+    cia_irq.* = 0x7f;
+    _ = cia_irq.*;
+    vic_irq_enable.* = 0;
+    vic_irq_flags.* = 0x0f;
+
+    // Fixed four-page fill: keep the bulk work close to the 6502 hardware.
+    asm {
+        lda #32
+        ldx #0
+clear_ring:
+        sta $2800,x
+        sta $2900,x
+        sta $2a00,x
+        sta $2b00,x
+        inx
+        bne clear_ring
+    }
+    return &state;
+}
+
+fn waitFrame() void {
+    asm {
+wait_low:
+        bit $d011
+        bmi wait_low
+wait_high:
+        bit $d011
+        bpl wait_high
+    }
+}
+
+fn frame(state: *RepeatedHelloBalancedState) bool {
+    if (state.pending) {
+        state.screen_select ^= 0x80;
+        const screen_select: *volatile u8 = @ptrFromInt(0xd018);
+        screen_select.* = state.screen_select;
+        state.back_page ^= 0x20;
+        state.shown = true;
+        state.pending = false;
+    }
+
+    state.frames_left -= 1;
+    if (state.frames_left == 0) {
+        state.frames_left = 9;
+        return true;
+    }
+    return false;
+}
+
+fn printLine(state: *RepeatedHelloBalancedState) void {
+    // Mixed-case screen codes for the lowercase character set.
+    const greeting = [_]u8{
+        0x48, 0x05, 0x0c, 0x0c, 0x0f, 0x2c, 0x20,
+        0x57, 0x0f, 0x12, 0x0c, 0x04, 0x21,
+    };
+    const ring: [*]u8 = @ptrFromInt(0x2800);
+    state.shown = false;
+    if (state.row == 25) {
+        const row_pointer: *u16 = @ptrFromInt(0x20);
+        row_pointer.* = 0x2800 + @as(u16, state.head) * 40;
+        asm {
+            lda #32
+            ldy #39
+clear_row:
+            sta ($20),y
+            dey
+            bpl clear_row
+        }
+        state.head += 1;
+        if (state.head == 25) {
+            state.head = 0;
+        }
+        state.row = 24;
+    }
+
+    var physical_row: u8 = state.head + state.row;
+    if (physical_row >= 25) {
+        physical_row -= 25;
+    }
+    var offset: u16 = @as(u16, physical_row) * 40;
+    for (greeting) |ch| {
+        ring[offset] = ch;
+        offset += 1;
+    }
+    state.row += 1;
+}
+
+fn copyPage(state: *RepeatedHelloBalancedState) void {
+    // High-level state selects the ring head and hidden screen. Assembly owns
+    // the full bulk-copy loop, using $20-$23 and $30 as transient ZP scratch.
+    var head: u8 = state.head;
+    var back_page: u8 = state.back_page;
+    asm {
+        lda #0
+        sta $20
+        sta $22
+        lda @back_page
+        sta $23
+        lda #$28
+        sta $21
+        ldx @head
+        beq source_ready
+source_address:
+        clc
+        lda $20
+        adc #40
+        sta $20
+        bcc source_next
+        inc $21
+source_next:
+        dex
+        bne source_address
+source_ready:
+        lda #25
+        sta $30
+next_row:
+        ldy #39
+copy_cell:
+        lda ($20),y
+        sta ($22),y
+        dey
+        bpl copy_cell
+        clc
+        lda $22
+        adc #40
+        sta $22
+        bcc advance_source
+        inc $23
+advance_source:
+        clc
+        lda $20
+        adc #40
+        sta $20
+        bcc check_wrap
+        inc $21
+check_wrap:
+        lda $21
+        cmp #$2b
+        bne row_done
+        lda $20
+        cmp #$e8
+        bne row_done
+        lda #0
+        sta $20
+        lda #$28
+        sta $21
+row_done:
+        dec $30
+        bne next_row
+    }
+    state.pending = true;
+}
+
+fn stopRequested() bool {
+    const keyboard_columns: *volatile u8 = @ptrFromInt(0xdc00);
+    const keyboard_rows: *volatile u8 = @ptrFromInt(0xdc01);
+    keyboard_columns.* = 0x7f;
+    const rows = keyboard_rows.*;
+    keyboard_columns.* = 0xff;
+    return (rows & 0x80) == 0;
+}

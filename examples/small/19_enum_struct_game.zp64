@@ -1,0 +1,80 @@
+const c64 = @import("c64");
+
+const Cell = enum(u8) { empty = 0, x = 1, o = 2 };
+const Board = struct { cells: [9]Cell };
+const Game = struct { board: Board, history: [9]u8, move_count: u8 };
+
+fn decodeMove(key: u8) u8 {
+    return switch (key) {
+        49 => 0,
+        50 => 1,
+        51 => 2,
+        52 => 3,
+        53 => 4,
+        54 => 5,
+        55 => 6,
+        56 => 7,
+        57 => 8,
+        else => 255,
+    };
+}
+
+fn markForTurn(turn: u8) Cell {
+    return switch (turn) {
+        0 => .x,
+        else => .o,
+    };
+}
+
+fn tag(cell: Cell) u8 {
+    return switch (cell) {
+        Cell.empty => 0,
+        Cell.x => 1,
+        else => 2,
+    };
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("enum struct game\n", .{});
+    c64.console.print("press 1 5 9\n", .{});
+
+    var game = Game{
+        .board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty } },
+        .history = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        .move_count = 0,
+    };
+
+    var turn: u8 = 0;
+    while (game.move_count < 3) {
+        const key = c64.keyboard.waitPetscii();
+        const index = decodeMove(key);
+        if (index < game.board.cells.len) {
+            game.board.cells[index] = markForTurn(turn);
+            game.history[game.move_count] = index;
+            game.move_count = game.move_count + 1;
+            turn = turn ^ 1;
+        }
+    }
+
+    c64.console.print("cells {x} {x} {x}\n", .{ tag(game.board.cells[0]), tag(game.board.cells[4]), tag(game.board.cells[8]) });
+    c64.console.print("hist {x} {x} {x}\n", .{ game.history[0], game.history[1], game.history[2] });
+    c64.console.print("moves {x}\n", .{game.move_count});
+
+    var score: u8 = 0;
+    for (0..9) |i| {
+        score += tag(game.board.cells[i]);
+    }
+    c64.console.print("score {x}\n", .{score});
+
+    switch (score) {
+        4 => {
+            c64.console.print("game ok\n", .{});
+            c64.vic.border = 5;
+        },
+        else => {
+            c64.console.print("game bad\n", .{});
+            c64.vic.border = 2;
+        },
+    }
+}

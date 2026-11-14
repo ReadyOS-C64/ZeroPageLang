@@ -1,0 +1,15 @@
+// zeropage-emu-start: program_entry
+const test6502 = @import("test6502");
+
+memory {
+    image prg {
+        load_addr = 0x1000;
+        entry_addr = 0x1010;
+        basic_stub = false;
+        address_limit = 0xc600;
+    }
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 0x2a, 0x2a);
+}

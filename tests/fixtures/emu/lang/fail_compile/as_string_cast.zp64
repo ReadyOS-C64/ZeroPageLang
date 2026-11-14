@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported pointer type
+const test6502 = @import("test6502");
+
+export fn main() void {
+    const text = @as(*const [2:0]u8, "ok");
+    test6502.expectEqualU8(1, 0, @intFromPtr(text));
+}

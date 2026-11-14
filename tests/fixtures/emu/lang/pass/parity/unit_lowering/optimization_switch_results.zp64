@@ -1,0 +1,193 @@
+const test6502 = @import("test6502");
+const Color = enum(u8) { red = 20, green, blue, orange, purple, grey };
+fn dense(value: u8) u16 {
+    return switch (value) {
+        0 => 1,
+        1 => 2,
+        2 => 4,
+        3 => 8,
+        4 => 16,
+        5 => 32,
+        6 => 64,
+        7 => 128,
+        8 => 256,
+        else => 0,
+    };
+}
+fn biased(value: u8) u16 {
+    return switch (value) {
+        224 => 33024,
+        225 => 33041,
+        226 => 33058,
+        227 => 33075,
+        228 => 33092,
+        229 => 33109,
+        230 => 33126,
+        231 => 33143,
+        else => 65535,
+    };
+}
+fn holes(value: u8) u8 {
+    return switch (value) {
+        10 => 95,
+        12 => 89,
+        16 => 69,
+        20 => 65,
+        22 => 67,
+        24 => 77,
+        27 => 78,
+        30 => 75,
+        else => 99,
+    };
+}
+fn signedByte(value: i8) u8 {
+    return switch (value) {
+        128 => 10,
+        129 => 11,
+        130 => 12,
+        131 => 13,
+        132 => 14,
+        133 => 15,
+        134 => 16,
+        135 => 17,
+        else => 77,
+    };
+}
+fn wordPage(value: u16) u16 {
+    return switch (value) {
+        33024 => 36864,
+        33025 => 36865,
+        33026 => 36866,
+        33027 => 36867,
+        33028 => 36868,
+        33029 => 36869,
+        33030 => 36870,
+        33031 => 36871,
+        else => 123,
+    };
+}
+fn signedWord(value: i16) u16 {
+    return switch (value) {
+        32768 => 65535,
+        32769 => 65534,
+        32770 => 65533,
+        32771 => 65532,
+        32772 => 65531,
+        32773 => 65530,
+        32774 => 65529,
+        32775 => 65528,
+        else => 99,
+    };
+}
+fn wordInterval(value: u16) u16 {
+    return switch (value) {
+        250...300 => 999,
+        else => 77,
+    };
+}
+fn uniform(value: u16) u16 {
+    return switch (value) {
+        1 => 555,
+        2 => 555,
+        300...302 => 555,
+        else => 555,
+    };
+}
+fn adjacentRanges(value: u8) u8 {
+    return switch (value) {
+        10...11 => 8,
+        12...14 => 8,
+        else => 0,
+    };
+}
+fn boolean(value: bool) bool {
+    return switch (value) {
+        true => false,
+        else => true,
+    };
+}
+fn enumResult(value: u8) Color {
+    return switch (value) {
+        0 => .red,
+        1 => .green,
+        2 => .blue,
+        3 => .orange,
+        4 => .purple,
+        else => .grey,
+    };
+}
+fn enumSelector(value: Color) u16 {
+    return switch (value) {
+        .red => 11,
+        .green => 22,
+        .blue => 33,
+        .orange => 44,
+        .purple => 55,
+        else => 99,
+    };
+}
+fn charResult(value: u8) u8 {
+    return switch (value) {
+        0 => 'A',
+        1 => 'B',
+        2 => 'C',
+        else => 'D',
+    };
+}
+fn knownSelector() u16 { return switch (@as(u16, 0x8102)) { 0x8100 => 900, 0x8102 => 902, else => 99 }; }
+fn castResults(value: u8) u16 { return switch (value) { 0 => @as(u16, 257), 1 => @as(u16, 258), 2 => @as(u16, 259), 3 => @as(u16, 260), else => @as(u16, 999) }; }
+fn nested(value: u8) u16 { return switch (dense(value)) { 1 => 10, 2 => 20, 4 => 30, 8 => 40, else => 77 }; }
+fn payload(value: u16) u16 { return switch (value) { 1 => |v1| v1 + 1, else => |v2| v2 + 2 }; }
+fn dynamicValue(value: u8, other: u16) u16 { return switch (value) { 0 => other, 1 => 8, else => 9 }; }
+fn touch(location: *u8) u8 { location.* = location.* + 1; return location.*; }
+fn selectorEffect(location: *u8) u16 { return switch (touch(location)) { 0 => 777, 1 => 777, else => 777 }; }
+fn volatileLookup(location: *volatile u16) u16 { return switch (location.*) { 0x8101 => 500, 0x8102 => 501, 0x8103 => 502, 0x8104 => 503, 0x8105 => 504, 0x8106 => 505, 0x8107 => 506, else => 99 }; }
+fn volatileUniform(location: *volatile u16) u16 {
+    const result = switch (location.*) { 0 => 777, 1 => 777, else => 777 };
+    return result + location.*;
+}
+fn consume(value: u8, other: u16) u16 {
+    const picked = dense(value);
+    if (picked == other) { return picked + 1; }
+    return picked + 2;
+}
+export fn main() void {
+    test6502.expectEqualU16(1, 256, dense(8));
+    test6502.expectEqualU16(2, 0, dense(9));
+    test6502.expectEqualU16(3, 33075, biased(227));
+    test6502.expectEqualU16(4, 65535, biased(223));
+    test6502.expectEqualU8(5, 89, holes(12));
+    test6502.expectEqualU8(6, 99, holes(13));
+    test6502.expectEqualU8(7, 10, signedByte(128));
+    test6502.expectEqualU8(8, 77, signedByte(255));
+    test6502.expectEqualU16(9, 36868, wordPage(0x8104));
+    test6502.expectEqualU16(10, 123, wordPage(0x8004));
+    test6502.expectEqualU16(11, 65528, signedWord(0x8007));
+    test6502.expectEqualU16(12, 99, signedWord(0x8100));
+    test6502.expectEqualU16(13, 999, wordInterval(250));
+    test6502.expectEqualU16(14, 999, wordInterval(300));
+    test6502.expectEqualU16(15, 77, wordInterval(301));
+    test6502.expectEqualU16(16, 555, uniform(65535));
+    test6502.expectEqualU8(17, 8, adjacentRanges(12));
+    test6502.expectEqualU8(18, 0, adjacentRanges(15));
+    test6502.expectEqualBool(19, false, boolean(true));
+    test6502.expectEqualBool(20, true, boolean(false));
+    test6502.expectEqualU8(21, 23, enumResult(3));
+    test6502.expectEqualU16(22, 55, enumSelector(.purple));
+    test6502.expectEqualU8(23, 2, charResult(1));
+    test6502.expectEqualU16(24, 902, knownSelector());
+    test6502.expectEqualU16(25, 259, castResults(2));
+    test6502.expectEqualU16(26, 40, nested(3));
+    test6502.expectEqualU16(27, 77, nested(8));
+    test6502.expectEqualU16(28, 6, payload(4));
+    test6502.expectEqualU16(29, 300, dynamicValue(0, 300));
+    test6502.expectEqualU16(30, 9, consume(3, 8));
+    var byte: u8 = 10;
+    test6502.expectEqualU16(31, 777, selectorEffect(&byte));
+    test6502.expectEqualU8(32, 11, byte);
+    const location: *volatile u16 = @ptrFromInt(0xc700);
+    location.* = 0x8103;
+    test6502.expectEqualU16(33, 502, volatileLookup(location));
+    test6502.expectEqualU16(34, 33804, volatileUniform(location));
+    test6502.pass();
+}

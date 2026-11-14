@@ -1,0 +1,75 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty = 0, x = 1, o };
+const Turn = enum(u8) { x = 10, o, draw = 99 };
+
+fn identity(cell: Cell) Cell {
+    return cell;
+}
+
+fn next(cell: Cell) Cell {
+    return switch (cell) {
+        Cell.empty => .x,
+        Cell.x => .o,
+        else => .empty,
+    };
+}
+
+fn choose(flag: bool, a: Cell, b: Cell) Cell {
+    return if (flag) a else b;
+}
+
+fn blockChoice(flag: bool) Cell {
+    return blk: {
+        if (flag) {
+            break :blk .x;
+        }
+        break :blk .o;
+    };
+}
+
+fn turnScore(turn: Turn) u8 {
+    return switch (turn) {
+        Turn.x => 1,
+        Turn.o => 2,
+        Turn.draw => 3,
+        else => 0,
+    };
+}
+
+export fn main() void {
+    var cell: Cell = Cell.empty;
+    test6502.expectEqualU8(1, 0, cell);
+
+    cell = .x;
+    test6502.expectEqualU8(2, 1, cell);
+    test6502.expectEqualBool(3, true, cell == Cell.x);
+    test6502.expectEqualBool(4, true, cell != Cell.o);
+
+    const inferred = Cell.o;
+    test6502.expectEqualU8(5, 2, inferred);
+    test6502.expectEqualU8(6, 1, identity(.x));
+    test6502.expectEqualU8(7, 2, next(Cell.x));
+    test6502.expectEqualU8(8, 0, next(Cell.o));
+    test6502.expectEqualU8(9, 2, choose(false, .x, .o));
+    test6502.expectEqualU8(10, 1, blockChoice(true));
+    test6502.expectEqualU8(11, 2, blockChoice(false));
+
+    const if_result: Cell = if (cell == .x) .o else .empty;
+    test6502.expectEqualU8(12, 2, if_result);
+
+    const switch_result: Cell = switch (if_result) {
+        Cell.o => .x,
+        else => .empty,
+    };
+    test6502.expectEqualU8(13, 1, switch_result);
+
+    test6502.expectEqualU8(14, 10, Turn.x);
+    test6502.expectEqualU8(15, 11, Turn.o);
+    test6502.expectEqualU8(16, 99, Turn.draw);
+    test6502.expectEqualU8(17, 1, turnScore(Turn.x));
+    test6502.expectEqualU8(18, 2, turnScore(Turn.o));
+    test6502.expectEqualU8(19, 3, turnScore(Turn.draw));
+
+    test6502.pass();
+}

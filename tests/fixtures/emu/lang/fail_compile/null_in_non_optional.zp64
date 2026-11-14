@@ -1,0 +1,5 @@
+// zeropage-emu-error: UnsupportedOptional
+export fn main() void {
+    var byte: u8 = null;
+    _ = byte;
+}

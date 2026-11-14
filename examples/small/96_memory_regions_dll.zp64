@@ -1,0 +1,50 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+memory {
+    region near_arena: c64 at 0x9000 size 0x0100;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region software_stack: c64 at 0xc800 size 0x0400;
+    region module_cache: reu at 0x030000 size 0x010000;
+
+    stack in software_stack;
+    arena near_heap in near_arena;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+}
+
+module region_dll abi 1 {
+    export tick;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("REGION ARENA DLL\n", .{});
+
+    var ok = false;
+    const allocation = near_heap.allocBytes(2);
+    if (allocation) |bytes| {
+        bytes[0] = 0x55;
+        bytes[1] = 0xaa;
+        if (ZeroPage.module.load("region_dll")) {
+            if (ZeroPage.module.call("region_dll", "tick", .{5})) |value| {
+                ok = value == 6;
+            }
+        }
+    }
+
+    if (ok) {
+        c64.console.print("REGION DLL CACHE OK\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("REGION DLL FAILED\n", .{});
+        c64.vic.border = 2;
+    }
+}

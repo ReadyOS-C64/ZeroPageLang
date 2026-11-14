@@ -1,0 +1,7 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const Cell = enum(u8) { empty = 0, x = 1 };
+
+export fn main() void {
+    const cell: Cell = @enumFromInt(1);
+    _ = cell;
+}

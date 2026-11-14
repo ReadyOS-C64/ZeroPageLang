@@ -1,0 +1,36 @@
+const c64 = @import("c64");
+const test6502 = @import("test6502");
+
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn isEqual(value: u8, expected: u8) bool {
+    return value == expected;
+}
+
+fn choose(ok: bool, yes: u8, no: u8) u8 {
+    if (ok == true) {
+        return yes;
+    } else {
+        return no;
+    }
+}
+
+export fn main() void {
+    var total: u8 = add(add(1, 2), 3);
+    test6502.expectA(1, 6);
+    total = add(total, 0);
+    test6502.expectA(2, 6);
+    var ok: bool = isEqual(total, 6);
+    test6502.expectA(3, 1);
+    var picked: u8 = choose(ok, 9, 1);
+    test6502.expectA(4, 9);
+
+    c64.screen.clear();
+    c64.screen.putsAt(0, 0, "CALLS");
+    c64.screen.hexAt(0, 1, total);
+    c64.screen.hexAt(3, 1, ok);
+    c64.screen.hexAt(6, 1, picked);
+    test6502.pass();
+}

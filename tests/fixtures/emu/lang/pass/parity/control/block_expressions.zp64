@@ -1,0 +1,149 @@
+const test6502 = @import("test6502");
+
+fn byteBlock(value: u8) u8 {
+    return blk: {
+        const base = value + 1;
+        break :blk base + 2;
+    };
+}
+
+fn boolBlock(value: u8) bool {
+    return blk: {
+        if (value == 3) {
+            break :blk true;
+        }
+        break :blk false;
+    };
+}
+
+fn wordBlock(value: u16) u16 {
+    return blk: {
+        var current = value;
+        current += 256;
+        break :blk current;
+    };
+}
+
+fn usizeBlock(value: usize) usize {
+    return blk: {
+        break :blk value + 1024;
+    };
+}
+
+fn signedByteBlock(ok: bool) i8 {
+    return blk: {
+        if (ok) {
+            break :blk signedByteOne();
+        }
+        break :blk signedByteTwo();
+    };
+}
+
+fn signedByteOne() i8 {
+    return 255;
+}
+
+fn signedByteTwo() i8 {
+    return 128;
+}
+
+fn signedWordBlock(ok: bool) i16 {
+    return blk: {
+        if (ok) {
+            break :blk signedWordOne();
+        }
+        break :blk signedWordTwo();
+    };
+}
+
+fn signedWordOne() i16 {
+    return 65535;
+}
+
+fn signedWordTwo() i16 {
+    return 32768;
+}
+
+fn earlyBreak(limit: u8) u8 {
+    return blk: {
+        var i: u8 = 0;
+        while (true) {
+            i += 1;
+            if (i == limit) {
+                break :blk i + 10;
+            }
+            if (i > 20) {
+                break;
+            }
+        }
+        break :blk 0;
+    };
+}
+
+fn nestedBlock(value: u8) u8 {
+    return outer: {
+        const inner = inner_blk: {
+            break :inner_blk value + 3;
+        };
+        break :outer inner + 4;
+    };
+}
+
+fn callArg(value: u8) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    const inferred_byte = blk: {
+        const value = 4;
+        break :blk value + 5;
+    };
+    test6502.expectEqualU8(1, 9, inferred_byte);
+    test6502.expectEqualU8(2, 8, byteBlock(5));
+    test6502.expectEqualBool(3, true, boolBlock(3));
+    test6502.expectEqualBool(4, false, boolBlock(4));
+
+    var assigned: u8 = 0;
+    assigned = blk: {
+        var tmp = 10;
+        tmp += 2;
+        break :blk tmp;
+    };
+    test6502.expectEqualU8(5, 12, assigned);
+
+    const word = wordBlock(1024);
+    const word_branch = if (true) blk: {
+        break :blk word + 512;
+    } else 1;
+    test6502.expectEqualU16(6, 1280, word);
+    test6502.expectEqualU16(7, 1792, word_branch);
+    test6502.expectEqualU16(8, 4096, usizeBlock(3072));
+
+    test6502.expectEqualI8(9, 255, signedByteBlock(true));
+    test6502.expectEqualI8(10, 128, signedByteBlock(false));
+    test6502.expectEqualU16(11, 65535, signedWordBlock(true));
+    test6502.expectEqualU16(12, 32768, signedWordBlock(false));
+
+    test6502.expectEqualU8(13, 15, earlyBreak(5));
+    test6502.expectEqualU8(14, 9, nestedBlock(2));
+    test6502.expectEqualU8(15, 42, callArg(blk: {
+        break :blk 41;
+    }));
+    test6502.expectEqualU8(16, 7, if (true) blk: {
+        break :blk 7;
+    } else 1);
+    test6502.expectEqualBool(17, true, true or blk: {
+        break :blk false;
+    });
+    test6502.expectEqualBool(18, true, false or blk: {
+        break :blk true;
+    });
+
+    while (blk: {
+        break :blk assigned < 15;
+    }) {
+        assigned += 1;
+    }
+    test6502.expectEqualU8(19, 15, assigned);
+    test6502.pass();
+}

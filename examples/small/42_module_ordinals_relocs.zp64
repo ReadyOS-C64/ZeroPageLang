@@ -1,0 +1,32 @@
+const c64 = @import("c64");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+
+    stack in call_stack;
+}
+
+module enemy_relocs abi 1 {
+    export tick;
+    export score;
+    dependency math;
+}
+
+fn bump(state: u8) callconv(.stack) u8 {
+    return state + 1;
+}
+
+fn tick(state: u8) callconv(.stack) u8 {
+    return bump(state);
+}
+
+fn score(state: u8) callconv(.stack) u8 {
+    return state + 2;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("MODULE RELOCS\n", .{});
+    c64.console.print("ORDINALS OK\n", .{});
+    c64.vic.border = 5;
+}

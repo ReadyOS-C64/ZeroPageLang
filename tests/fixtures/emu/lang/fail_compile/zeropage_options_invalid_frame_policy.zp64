@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported zeropage_options metadata
+pub const zeropage_options = .{
+    .abi = .{ .functions = .{ .main = .{ .frame = .fast } } },
+};
+
+export fn main() void {}

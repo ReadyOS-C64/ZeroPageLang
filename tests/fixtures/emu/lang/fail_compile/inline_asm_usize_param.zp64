@@ -1,0 +1,11 @@
+// zeropage-emu-error: UnsupportedInlineAsmVariableType
+const test6502 = @import("test6502");
+fn readPointer(addr: usize) void {
+    asm {
+        lda @addr
+    }
+}
+export fn main() void {
+    readPointer(1024);
+    test6502.pass();
+}

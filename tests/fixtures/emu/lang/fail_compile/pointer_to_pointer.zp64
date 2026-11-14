@@ -1,0 +1,7 @@
+// zeropage-emu-error: unsupported array repetition
+export fn main() void {
+    var byte: u8 = 1;
+    const ptr: *u8 = &byte;
+    const ptr_ptr: **u8 = &ptr;
+    _ = ptr_ptr;
+}

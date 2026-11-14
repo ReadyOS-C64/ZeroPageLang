@@ -1,0 +1,81 @@
+const test6502 = @import("test6502");
+
+fn add16(a: u16, b: u16) u16 {
+    return a + b;
+}
+
+fn sub16(a: u16, b: u16) u16 {
+    return a - b;
+}
+
+fn addByte(word: u16, byte: u8) u16 {
+    return word + byte;
+}
+
+fn bumpParam(value: u16) u16 {
+    value += 256;
+    value -= 1;
+    return value;
+}
+
+fn callerIsolation(value: u16) u16 {
+    var local: u16 = value;
+    var changed: u16 = bumpParam(local);
+    return changed - local;
+}
+
+export fn main() void {
+    var zero: u16 = 0;
+    var one: u16 = 1;
+    var byte_max: u16 = 255;
+    var page: u16 = 256;
+    var max: u16 = 65535;
+
+    test6502.expectEqualU16(1, 0, zero);
+    test6502.expectEqualU16(2, 1, one);
+    test6502.expectEqualU16(3, 255, byte_max);
+    test6502.expectEqualU16(4, 256, page);
+    test6502.expectEqualU16(5, 65535, max);
+    test6502.expectEqualU16(6, 256, byte_max + one);
+    test6502.expectEqualU16(7, 257, page + one);
+    test6502.expectEqualU16(8, 511, page + byte_max);
+    test6502.expectEqualU16(9, 0, max + one);
+    test6502.expectEqualU16(10, 255, page - one);
+    test6502.expectEqualU16(11, 65535, zero - one);
+    test6502.expectEqualU16(12, 1, zero - max);
+
+    var from_expr: u16 = byte_max + one;
+    test6502.expectEqualU16(13, 256, from_expr);
+    from_expr = from_expr + 256;
+    test6502.expectEqualU16(14, 512, from_expr);
+    from_expr = from_expr - 257;
+    test6502.expectEqualU16(15, 255, from_expr);
+    from_expr += 1;
+    test6502.expectEqualU16(16, 256, from_expr);
+    from_expr += 65535;
+    test6502.expectEqualU16(17, 255, from_expr);
+    from_expr -= 256;
+    test6502.expectEqualU16(18, 65535, from_expr);
+    from_expr -= 65535;
+    test6502.expectEqualU16(19, 0, from_expr);
+
+    test6502.expectEqualU16(20, 4097, add16(4096, 1));
+    test6502.expectEqualU16(21, 65535, sub16(0, 1));
+    test6502.expectEqualU16(22, 4351, addByte(4096, 255));
+    test6502.expectEqualU16(23, 511, bumpParam(256));
+    test6502.expectEqualU16(24, 255, callerIsolation(1024));
+    test6502.expectEqualU16(25, 10, add16(add16(1, 2), add16(3, 4)));
+
+    var signed: i16 = 65535;
+    test6502.expectEqualU16(26, 0, signed + one);
+    signed -= 1;
+    test6502.expectEqualU16(27, 65534, signed);
+
+    var ptr: usize = 4096;
+    ptr += 255;
+    test6502.expectEqualU16(28, 4351, ptr);
+    ptr = ptr - 255;
+    test6502.expectEqualU16(29, 4096, ptr);
+
+    test6502.pass();
+}

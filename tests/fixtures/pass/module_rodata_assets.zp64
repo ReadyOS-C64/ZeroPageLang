@@ -1,0 +1,3 @@
+const title = "ASSETS";
+const table = [_]u8{ 4, 5, 6 };
+

@@ -1,0 +1,4 @@
+// zeropage-emu-error: invalid zeropage_options zero-page policy
+pub const zeropage_options = .{ .zero_page = .{ .profile = .bare } };
+
+export fn main() void {}

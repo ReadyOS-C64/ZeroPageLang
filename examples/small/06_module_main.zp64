@@ -1,0 +1,17 @@
+const c64 = @import("c64");
+const math = @import("06_module_math.zp64");
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "MODULE DEMO");
+
+    var total: u8 = math.add8(2, 5);
+    var ok: bool = math.isEqual8(total, 7);
+    if (ok == true) {
+        c64.screen.putsAt(2, 5, "IMPORT CALL OK");
+    }
+    c64.screen.putsAt(2, 7, "TOTAL=");
+    c64.screen.hexAt(8, 7, total);
+    c64.screen.putsAt(12, 7, "OK=");
+    c64.screen.hexAt(15, 7, ok);
+}

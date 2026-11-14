@@ -1,0 +1,51 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Enemy = struct {
+    hp: u8,
+    x: u8,
+    score: u16,
+};
+
+memory {
+    region main_ram: c64 at 0x9000 size 16;
+    region assets_ram: reu at 0x010000 size 0x0100;
+
+    arena near_heap in main_ram;
+    arena assets in assets_ram;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("FAR RANGE\n", .{});
+
+    const maybe_far = assets.allocBytes(@sizeOf(Enemy) * 5);
+    if (maybe_far) |far| {
+        var enemies = ZeroPage.reu.view(Enemy, far, 5);
+        enemies.set(0, Enemy{ .hp = 1, .x = 2, .score = 0x1001 });
+        enemies.set(1, Enemy{ .hp = 3, .x = 4, .score = 0x1003 });
+        enemies.set(2, Enemy{ .hp = 5, .x = 6, .score = 0x1005 });
+        enemies.set(3, Enemy{ .hp = 7, .x = 8, .score = 0x1007 });
+        enemies.set(4, Enemy{ .hp = 9, .x = 10, .score = 0x1009 });
+
+        var start: u8 = 1;
+        if (enemies.materializeRange(near_heap, start, 2)) |local| {
+            const enemy = local.get(1);
+            local.set(1, Enemy{ .hp = enemy.hp + 2, .x = enemy.x + 2, .score = enemy.score + 2 });
+            enemies.flushRange(start, local);
+            near_heap.reset();
+        }
+
+        const loaded = enemies.get(2);
+        if (loaded.hp == 7 and loaded.x == 8 and loaded.score == 0x1007) {
+            c64.console.print("RANGE OK\n", .{});
+            c64.vic.border = 5;
+        } else {
+            c64.console.print("RANGE BAD\n", .{});
+            c64.vic.border = 2;
+        }
+    } else {
+        c64.console.print("FAR ALLOC BAD\n", .{});
+        c64.vic.border = 2;
+    }
+}

@@ -1,0 +1,26 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fc, .size = 24 },
+    .abi = .{ .default_frame = .stack },
+};
+
+fn pair(a: u8, b: u16) u16 {
+    if (a == 0x5a) {
+        return b;
+    }
+    return 0;
+}
+
+fn word(value: u16) u16 {
+    return value;
+}
+
+fn relay(a: u8, b: u16) u16 {
+    const result: u16 = pair(a, b);
+    return word(result + 0x0100);
+}
+
+export fn main() void {
+    test6502.expectEqualU16(1, 0x815a, relay(0x5a, 0x805a));
+}

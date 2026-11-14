@@ -1,0 +1,139 @@
+// Integrated record-address proof for constant stride specialization.
+// This supplemental source is compiled by saved/current compilers, outside the
+// normal corpus. Native QA verifies complete row/frame effects and flags.
+const test6502 = @import("test6502");
+const Record3 = struct { a: u16, tag: u8 };
+const Record4 = struct { a: u16, b: u8, tag: u8 };
+const Record5 = struct { a: u16, b: u16, tag: u8 };
+const Record9 = struct { a: u16, b: u16, c: u16, d: u16, tag: u8 };
+fn record3(value: u16, index: u16) u16 {
+    const i: u16 = index & 7;
+    var rows = [_]Record3{
+        Record3{ .a = 4096, .tag = 10 },
+        Record3{ .a = 4353, .tag = 17 },
+        Record3{ .a = 4610, .tag = 24 },
+        Record3{ .a = 4867, .tag = 31 },
+        Record3{ .a = 5124, .tag = 38 },
+        Record3{ .a = 5381, .tag = 45 },
+        Record3{ .a = 5638, .tag = 52 },
+        Record3{ .a = 5895, .tag = 59 },
+    };
+    // Keep decimal-address alias probes inside a completely seeded frame.
+    var guard = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    rows[i].a = value;
+    rows[i].tag = rows[i].tag + 3;
+    const first: u16 = rows[i].a;
+    rows[i].a = first + @as(u16, rows[i].tag);
+    const second: u16 = rows[i].a;
+    rows[i].a = second ^ 0x55aa;
+    rows[i].tag = rows[i].tag ^ 0x5a;
+    const fourth: u16 = rows[i].a;
+    const tag: u8 = rows[i].tag;
+    rows[i].a = fourth + value;
+    const final: u16 = rows[i].a;
+    const untouched: u8 = rows[i].tag;
+    const echo: u16 = rows[i].a;
+    _ = guard[0];
+    return final + echo + @as(u16, tag) + @as(u16, untouched);
+}
+fn record4(value: u16, index: u16) u16 {
+    const i: u16 = index & 7;
+    var rows = [_]Record4{
+        Record4{ .a = 4096, .b = 13, .tag = 10 },
+        Record4{ .a = 4353, .b = 14, .tag = 17 },
+        Record4{ .a = 4610, .b = 15, .tag = 24 },
+        Record4{ .a = 4867, .b = 16, .tag = 31 },
+        Record4{ .a = 5124, .b = 17, .tag = 38 },
+        Record4{ .a = 5381, .b = 18, .tag = 45 },
+        Record4{ .a = 5638, .b = 19, .tag = 52 },
+        Record4{ .a = 5895, .b = 20, .tag = 59 },
+    };
+    // Keep decimal-address alias probes inside a completely seeded frame.
+    var guard = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    rows[i].a = value;
+    rows[i].tag = rows[i].tag + 3;
+    const first: u16 = rows[i].a;
+    rows[i].a = first + @as(u16, rows[i].tag);
+    const second: u16 = rows[i].a;
+    rows[i].a = second ^ 0x55aa;
+    rows[i].tag = rows[i].tag ^ 0x5a;
+    const fourth: u16 = rows[i].a;
+    const tag: u8 = rows[i].tag;
+    rows[i].a = fourth + value;
+    const final: u16 = rows[i].a;
+    const untouched: u8 = rows[i].tag;
+    const echo: u16 = rows[i].a;
+    _ = guard[0];
+    return final + echo + @as(u16, tag) + @as(u16, untouched);
+}
+fn record5(value: u16, index: u16) u16 {
+    const i: u16 = index & 7;
+    var rows = [_]Record5{
+        Record5{ .a = 4096, .b = 8192, .tag = 10 },
+        Record5{ .a = 4353, .b = 8210, .tag = 17 },
+        Record5{ .a = 4610, .b = 8228, .tag = 24 },
+        Record5{ .a = 4867, .b = 8246, .tag = 31 },
+        Record5{ .a = 5124, .b = 8264, .tag = 38 },
+        Record5{ .a = 5381, .b = 8282, .tag = 45 },
+        Record5{ .a = 5638, .b = 8300, .tag = 52 },
+        Record5{ .a = 5895, .b = 8318, .tag = 59 },
+    };
+    // Keep decimal-address alias probes inside a completely seeded frame.
+    var guard = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    rows[i].a = value;
+    rows[i].tag = rows[i].tag + 3;
+    const first: u16 = rows[i].a;
+    rows[i].a = first + @as(u16, rows[i].tag);
+    const second: u16 = rows[i].a;
+    rows[i].a = second ^ 0x55aa;
+    rows[i].tag = rows[i].tag ^ 0x5a;
+    const fourth: u16 = rows[i].a;
+    const tag: u8 = rows[i].tag;
+    rows[i].a = fourth + value;
+    const final: u16 = rows[i].a;
+    const untouched: u8 = rows[i].tag;
+    const echo: u16 = rows[i].a;
+    _ = guard[0];
+    return final + echo + @as(u16, tag) + @as(u16, untouched);
+}
+fn record9(value: u16, index: u16) u16 {
+    const i: u16 = index & 7;
+    var rows = [_]Record9{
+        Record9{ .a = 4096, .b = 8192, .c = 12288, .d = 16384, .tag = 10 },
+        Record9{ .a = 4353, .b = 8210, .c = 12307, .d = 16404, .tag = 17 },
+        Record9{ .a = 4610, .b = 8228, .c = 12326, .d = 16424, .tag = 24 },
+        Record9{ .a = 4867, .b = 8246, .c = 12345, .d = 16444, .tag = 31 },
+        Record9{ .a = 5124, .b = 8264, .c = 12364, .d = 16464, .tag = 38 },
+        Record9{ .a = 5381, .b = 8282, .c = 12383, .d = 16484, .tag = 45 },
+        Record9{ .a = 5638, .b = 8300, .c = 12402, .d = 16504, .tag = 52 },
+        Record9{ .a = 5895, .b = 8318, .c = 12421, .d = 16524, .tag = 59 },
+    };
+    // Keep decimal-address alias probes inside a completely seeded frame.
+    var guard = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    rows[i].a = value;
+    rows[i].tag = rows[i].tag + 3;
+    const first: u16 = rows[i].a;
+    rows[i].a = first + @as(u16, rows[i].tag);
+    const second: u16 = rows[i].a;
+    rows[i].a = second ^ 0x55aa;
+    rows[i].tag = rows[i].tag ^ 0x5a;
+    const fourth: u16 = rows[i].a;
+    const tag: u8 = rows[i].tag;
+    rows[i].a = fourth + value;
+    const final: u16 = rows[i].a;
+    const untouched: u8 = rows[i].tag;
+    const echo: u16 = rows[i].a;
+    _ = guard[0];
+    return final + echo + @as(u16, tag) + @as(u16, untouched);
+}
+export fn main() void {
+    test6502.expectEqualU16(1, 44036, record3(65535, 3));
+    test6502.expectEqualU16(2, 44016, record3(32768, 7));
+    test6502.expectEqualU16(3, 44036, record4(65535, 3));
+    test6502.expectEqualU16(4, 44016, record4(32768, 7));
+    test6502.expectEqualU16(5, 44036, record5(65535, 3));
+    test6502.expectEqualU16(6, 44016, record5(32768, 7));
+    test6502.expectEqualU16(7, 44036, record9(65535, 3));
+    test6502.expectEqualU16(8, 44016, record9(32768, 7));
+    test6502.pass();
+}

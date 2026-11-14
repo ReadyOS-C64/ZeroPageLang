@@ -1,0 +1,134 @@
+const test6502 = @import("test6502");
+
+fn maskByte(value: u8, mask: u8) u8 {
+    return value & mask;
+}
+
+fn mixByte(a: u8, b: u8, c: u8) u8 {
+    return (a | b) ^ c;
+}
+
+fn invertByte(value: u8) u8 {
+    return ~value;
+}
+
+fn shlByte(value: u8, count: u8) u8 {
+    return value << count;
+}
+
+fn shrByte(value: u8, count: u8) u8 {
+    return value >> count;
+}
+
+fn maskWord(value: u16, mask: u16) u16 {
+    return value & mask;
+}
+
+fn shlWord(value: u16, count: u8) u16 {
+    return value << count;
+}
+
+fn shrWord(value: u16, count: u8) u16 {
+    return value >> count;
+}
+
+fn chooseByte(ok: bool, a: u8, b: u8) u8 {
+    return if (ok) a else b;
+}
+
+fn chooseWord(ok: bool, a: u16, b: u16) u16 {
+    return if (ok) a else b;
+}
+
+fn sideEffect(value: u8) u8 {
+    test6502.hit(1);
+    return value << 1;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 1, 3 & 1);
+    test6502.expectEqualU8(2, 7, 1 | 2 | 4);
+    test6502.expectEqualU8(3, 13, 3 ^ 6 ^ 8);
+    test6502.expectEqualU8(4, 4, 7 & 14 & 28);
+    test6502.expectEqualU8(5, 255, ~0);
+    test6502.expectEqualU8(6, 85, ~170);
+    test6502.expectEqualU8(7, 1, 1 | 2 & 4);
+    test6502.expectEqualU8(8, 3, (1 | 2) & 3);
+    test6502.expectEqualU8(9, 6, 1 + 2 << 1);
+    test6502.expectEqualU8(10, 42, maskByte(170, 47));
+    test6502.expectEqualU8(11, 6, mixByte(1, 2, 5));
+    test6502.expectEqualU8(12, 15, invertByte(240));
+
+    test6502.expectEqualU8(13, 1, 1 << 0);
+    test6502.expectEqualU8(14, 8, 1 << 3);
+    test6502.expectEqualU8(15, 0, 128 << 1);
+    test6502.expectEqualU8(16, 4, 16 >> 2);
+    test6502.expectEqualU8(17, 0, 1 >> 1);
+    test6502.expectEqualU8(18, 32, shlByte(4, 3));
+    test6502.expectEqualU8(19, 8, shrByte(64, 3));
+
+    var byte: u8 = 3;
+    byte <<= 2;
+    test6502.expectEqualU8(20, 12, byte);
+    byte >>= 1;
+    test6502.expectEqualU8(21, 6, byte);
+    byte |= 128;
+    test6502.expectEqualU8(22, 134, byte);
+    byte &= 15;
+    test6502.expectEqualU8(23, 6, byte);
+    byte ^= 3;
+    test6502.expectEqualU8(24, 5, byte);
+
+    var word: u16 = 1;
+    word <<= 8;
+    test6502.expectEqualU16(25, 256, word);
+    word <<= 4;
+    test6502.expectEqualU16(26, 4096, word);
+    word >>= 8;
+    test6502.expectEqualU16(27, 16, word);
+    word >>= 4;
+    test6502.expectEqualU16(28, 1, word);
+
+    test6502.expectEqualU16(29, 240, 61680 & 4080);
+    test6502.expectEqualU16(30, 65520, 61680 | 4080);
+    test6502.expectEqualU16(31, 65280, 61680 ^ 4080);
+    test6502.expectEqualU16(32, 3855, ~61680);
+    test6502.expectEqualU16(33, 65534, 65535 << 1);
+    test6502.expectEqualU16(34, 1, 65535 >> 15);
+    test6502.expectEqualU16(35, 1, 32768 >> 15);
+    test6502.expectEqualU16(36, 240, maskWord(61680, 4080));
+    test6502.expectEqualU16(37, 1024, shlWord(1, 10));
+    test6502.expectEqualU16(38, 64, shrWord(1024, 4));
+
+    var flags: u16 = 61680;
+    flags &= 4080;
+    test6502.expectEqualU16(39, 240, flags);
+    flags |= 3840;
+    test6502.expectEqualU16(40, 4080, flags);
+    flags ^= 255;
+    test6502.expectEqualU16(41, 3855, flags);
+
+    var ptr: usize = 4096;
+    ptr >>= 4;
+    test6502.expectEqualU16(42, 256, ptr);
+    ptr <<= 3;
+    test6502.expectEqualU16(43, 2048, ptr);
+    ptr |= 1;
+    test6502.expectEqualU16(44, 2049, ptr);
+
+    const from_if = if ((byte & 1) == 1) chooseByte(true, 77, 0) else 1;
+    test6502.expectEqualU8(45, 77, from_if);
+    const from_block = blk: {
+        const shifted = shlWord(3, 8);
+        break :blk shifted | 15;
+    };
+    test6502.expectEqualU16(46, 783, from_block);
+    test6502.expectEqualU16(47, 512, chooseWord((from_block & 15) == 15, 512, 1));
+
+    _ = sideEffect(9);
+    test6502.expectHitCount(1, 1);
+    test6502.expectEqualU8(48, 18, sideEffect(9));
+    test6502.expectHitCount(1, 2);
+
+    test6502.pass();
+}

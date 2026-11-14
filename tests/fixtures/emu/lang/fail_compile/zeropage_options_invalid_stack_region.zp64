@@ -1,0 +1,6 @@
+// zeropage-emu-error: invalid zeropage_options stack region
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xfff0, .size = 0x20 },
+};
+
+export fn main() void {}

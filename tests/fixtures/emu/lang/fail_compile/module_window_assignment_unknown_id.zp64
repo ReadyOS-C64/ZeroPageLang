@@ -1,0 +1,28 @@
+// zeropage-emu-error: unknown ZeroPage.module id
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .extra_load_windows = .{
+            .aux = .{ .addr = 0x6000, .size = 0x0800 },
+        },
+        .window_assignments = .{
+            .missing_dep = .aux,
+        },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_runtime",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick },
+    .deps = .{},
+};
+
+fn tick(value: u8) u8 {
+    return value;
+}
+
+export fn main() void {}

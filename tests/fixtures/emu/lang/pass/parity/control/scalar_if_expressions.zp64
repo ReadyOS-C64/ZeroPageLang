@@ -1,0 +1,121 @@
+const test6502 = @import("test6502");
+
+fn chooseByte(ok: bool, yes_value: u8, no_value: u8) u8 {
+    return if (ok) yes_value else no_value;
+}
+
+fn chooseWord(ok: bool, yes_value: u16, no_value: u16) u16 {
+    return if (ok) yes_value else no_value;
+}
+
+fn chooseBool(ok: bool, yes_value: bool, no_value: bool) bool {
+    return if (ok) yes_value else no_value;
+}
+
+fn chooseUsize(ok: bool, yes_value: usize, no_value: usize) usize {
+    return if (ok) yes_value else no_value;
+}
+
+fn signedByte(ok: bool) i8 {
+    return if (ok) signedByteOne() else signedByteTwo();
+}
+
+fn signedByteOne() i8 {
+    return 255;
+}
+
+fn signedByteTwo() i8 {
+    return 128;
+}
+
+fn signedWord(ok: bool) i16 {
+    return if (ok) signedWordOne() else signedWordTwo();
+}
+
+fn signedWordOne() i16 {
+    return 65535;
+}
+
+fn signedWordTwo() i16 {
+    return 32768;
+}
+
+fn nestedPick(value: u8) u8 {
+    return if (value == 0) 1 else if (value == 1) 2 else 3;
+}
+
+fn boolFromIf(value: u8) bool {
+    return if (value < 3) true else false;
+}
+
+fn byteFromNestedCall(value: u8) u8 {
+    return chooseByte(if (value == 4) true else false, value + 1, 0);
+}
+
+fn wordFromComparison(a: u16, b: u16) u16 {
+    return if (a <= b) a + b else a - b;
+}
+
+export fn main() void {
+    var byte_value: u8 = if (true) 7 else 1;
+    test6502.expectEqualU8(1, 7, byte_value);
+    byte_value = if (false) 7 else 9;
+    test6502.expectEqualU8(2, 9, byte_value);
+
+    const inferred_byte = if (1 < 2) 11 else 22;
+    const inferred_word = if (false) 255 else 1024;
+    const inferred_bool = if (inferred_byte == 11) true else false;
+    const inferred_usize = if (inferred_bool) chooseUsize(true, 4096, 1) else 2;
+    test6502.expectEqualU8(3, 11, inferred_byte);
+    test6502.expectEqualU16(4, 1024, inferred_word);
+    test6502.expectEqualBool(5, true, inferred_bool);
+    test6502.expectEqualU16(6, 4096, inferred_usize);
+
+    var word_value: u16 = if (byte_value == 9 and inferred_bool) 512 else 256;
+    test6502.expectEqualU16(7, 512, word_value);
+    word_value = if (word_value > 500) word_value + 512 else 0;
+    test6502.expectEqualU16(8, 1024, word_value);
+
+    test6502.expectEqualU8(9, 4, if (!false) 4 else 8);
+    test6502.expectEqualBool(10, false, if (false or false) true else false);
+    test6502.expectEqualBool(11, true, if (chooseBool(true, true, false)) true else false);
+    test6502.expectEqualU8(12, 9, chooseByte(if (3 != 4) true else false, 9, 1));
+    test6502.expectEqualU16(13, 2048, chooseWord(if (1024 < 2048) true else false, 2048, 1));
+
+    test6502.expectEqualU8(14, 1, nestedPick(0));
+    test6502.expectEqualU8(15, 2, nestedPick(1));
+    test6502.expectEqualU8(16, 3, nestedPick(9));
+    test6502.expectEqualBool(17, true, boolFromIf(2));
+    test6502.expectEqualBool(18, false, boolFromIf(3));
+    test6502.expectEqualU8(19, 5, byteFromNestedCall(4));
+    test6502.expectEqualU8(20, 0, byteFromNestedCall(5));
+    test6502.expectEqualU16(21, 1536, wordFromComparison(512, 1024));
+    test6502.expectEqualU16(22, 512, wordFromComparison(1024, 512));
+
+    var signed_byte: i8 = signedByte(true);
+    test6502.expectEqualI8(23, 255, signed_byte);
+    signed_byte = signedByte(false);
+    test6502.expectEqualI8(24, 128, signed_byte);
+
+    var signed_word: i16 = signedWord(true);
+    test6502.expectEqualU16(25, 65535, signed_word);
+    signed_word = signedWord(false);
+    test6502.expectEqualU16(26, 32768, signed_word);
+
+    const char_value = if (true) 'A' else 'B';
+    test6502.expectEqualU8(27, 1, char_value);
+
+    var count: u8 = 0;
+    while (if (count < 3) true else false) {
+        count += 1;
+    }
+    test6502.expectEqualU8(28, 3, count);
+
+    if (if (count == 3) true else false) {
+        test6502.hit(29);
+    } else {
+        test6502.fail(29);
+    }
+    test6502.expectHitCount(29, 1);
+    test6502.pass();
+}

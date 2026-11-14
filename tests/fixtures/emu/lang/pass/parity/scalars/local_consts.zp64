@@ -1,0 +1,88 @@
+const test6502 = @import("test6502");
+
+const Pair = struct { left: u8, right: u8, ok: bool };
+
+fn wordValue() u16 {
+    return 1024;
+}
+
+fn signedByteValue() i8 {
+    return 255;
+}
+
+fn signedWordValue() i16 {
+    return 65535;
+}
+
+fn byteAdd(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+fn wordAdd(a: u16, b: u16) u16 {
+    return a + b;
+}
+
+fn choose(ok: bool, yes_value: u8, no_value: u8) u8 {
+    if (ok) {
+        return yes_value;
+    } else {
+        return no_value;
+    }
+}
+
+fn useConstParam(value: u8) u8 {
+    const bump: u8 = 2;
+    return value + bump;
+}
+
+export fn main() void {
+    const typed_byte: u8 = 7;
+    const typed_bool: bool = true;
+    const typed_word: u16 = 1024;
+    const typed_usize: usize = 4096;
+    const typed_i8: i8 = 255;
+    const typed_i16: i16 = 65535;
+    test6502.expectEqualU8(1, 7, typed_byte);
+    test6502.expectEqualBool(2, true, typed_bool);
+    test6502.expectEqualU16(3, 1024, typed_word);
+    test6502.expectEqualU16(4, 4096, typed_usize);
+    test6502.expectEqualI8(5, 255, typed_i8);
+    test6502.expectEqualU16(6, 65535, typed_i16);
+
+    const inferred_bool = typed_byte == 7 and !false;
+    const inferred_char = 'A';
+    const inferred_byte = 42;
+    const inferred_word = 512;
+    test6502.expectEqualBool(7, true, inferred_bool);
+    test6502.expectEqualU8(8, 1, inferred_char);
+    test6502.expectEqualU8(9, 42, inferred_byte);
+    test6502.expectEqualU16(10, 512, inferred_word);
+
+    const from_call = byteAdd(3, 4);
+    const from_word_call = wordAdd(wordValue(), 1);
+    const from_signed_byte = signedByteValue();
+    const from_signed_word = signedWordValue();
+    test6502.expectEqualU8(11, 7, from_call);
+    test6502.expectEqualU16(12, 1025, from_word_call);
+    test6502.expectEqualI8(13, 255, from_signed_byte);
+    test6502.expectEqualU16(14, 65535, from_signed_word);
+
+    var pair = Pair{ .left = byteAdd(1, 2), .right = 9, .ok = typed_bool };
+    const field_byte = pair.left;
+    const field_bool = pair.ok;
+    test6502.expectEqualU8(15, 3, field_byte);
+    test6502.expectEqualBool(16, true, field_bool);
+
+    if (inferred_bool) {
+        test6502.expectEqualU8(17, 9, choose(field_bool, pair.right, 1));
+    } else {
+        test6502.fail(17);
+    }
+
+    const nested = byteAdd(byteAdd(1, 2), byteAdd(3, 4));
+    const word_math = wordValue() + 256;
+    test6502.expectEqualU8(18, 10, nested);
+    test6502.expectEqualU16(19, 1280, word_math);
+    test6502.expectEqualU8(20, 8, useConstParam(6));
+    test6502.pass();
+}

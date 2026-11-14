@@ -1,0 +1,39 @@
+const test6502 = @import("test6502");
+
+fn deadMultiply(value: u16) u16 {
+    var scratch: u16 = value * 37;
+    return scratch;
+}
+
+fn deadCaller(value: u16) u16 {
+    return deadMultiply(value) + 9;
+}
+
+fn mark(value: u8) u8 {
+    test6502.hit(30);
+    return value;
+}
+
+fn identity(value: u8) u8 {
+    return value;
+}
+
+fn index() u8 {
+    test6502.hit(31);
+    return 1;
+}
+
+export fn main() void {
+    var items: [2]u8 = .{ 3, 4 };
+    // The second visit to identity must still traverse its nested arguments.
+    const a: u8 = identity(mark(7));
+    const b: u8 = identity(mark(8));
+    items[index()] = identity(mark(9));
+    test6502.expectEqualU8(1, 7, a);
+    test6502.expectEqualU8(2, 8, b);
+    test6502.expectEqualU8(3, 9, items[index()]);
+    test6502.expectEqualU8(4, 10, identity(mark(10)));
+    test6502.expectHitCount(30, 4);
+    test6502.expectHitCount(31, 2);
+    test6502.pass();
+}

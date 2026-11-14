@@ -1,0 +1,126 @@
+const test6502 = @import("test6502");
+const values = [_]u8{ 5, 7, 11, 13 };
+const words = [_]u16{ 255, 256, 32767, 32769 };
+const Record = struct { bytes: [4]u8 };
+
+fn scalar(value: u16) u16 { return value + 1; }
+fn sumIndexes(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..255) |i| { total += i; }
+    return total;
+}
+fn shortIndexes(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..4) |i| { total += i; }
+    return total;
+}
+fn scalarCalls(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..4) |i| { total += scalar(i); }
+    return total;
+}
+fn byteArray(seed: u16) u16 {
+    var total: u16 = seed;
+    for (values, 0..) |value, i| { total += value + i; }
+    return total;
+}
+fn wordArray(seed: u16) u16 {
+    var total: u16 = seed;
+    for (words, 0..) |value, i| { total += value + i; }
+    return total;
+}
+fn pointerReads(record: *Record) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| { total += record.bytes[i] + i; }
+    return total;
+}
+fn firstIndex(target: u8) u16 {
+    for (0..255) |i| { if (i == target) { return i; } }
+    return 65535;
+}
+fn nested(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..3) |outer| {
+        for (0..4) |inner| { total += outer + inner; }
+    }
+    return total;
+}
+fn earlyContinue(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..8) |i| {
+        if (i == 3) { continue; }
+        if (i == 6) { break; }
+        total += i;
+    }
+    return total;
+}
+fn empty(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..0) |i| { total += i; }
+    return total;
+}
+fn oneTrip(seed: u16) u16 {
+    var total: u16 = seed;
+    for (0..1) |i| { total += i; }
+    return total;
+}
+fn aliasWrite(location: *u8) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += i;
+        location.* = 31;
+    }
+    return total;
+}
+fn aliasRead(location: *u8) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += i;
+        total += location.*;
+    }
+    return total;
+}
+fn mutate(location: *u8) void { location.* = 22; }
+fn calleeWrite(location: *u8) u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += i;
+        mutate(location);
+    }
+    return total;
+}
+fn tamper() void {
+    asm {
+        lda #3
+        sta asmBarrier_i+1
+    }
+}
+fn asmBarrier() u16 {
+    var total: u16 = 0;
+    for (0..4) |i| {
+        total += i;
+        tamper();
+    }
+    return total;
+}
+export fn main() void {
+    test6502.expectEqualU16(1, 32385, sumIndexes(0));
+    test6502.expectEqualU16(2, 5, shortIndexes(65535));
+    test6502.expectEqualU16(3, 10, scalarCalls(0));
+    test6502.expectEqualU16(4, 42, byteArray(0));
+    test6502.expectEqualU16(5, 517, wordArray(0));
+    var record = Record{ .bytes = [_]u8{ 1, 2, 3, 4 } };
+    test6502.expectEqualU16(6, 16, pointerReads(&record));
+    test6502.expectEqualU16(7, 254, firstIndex(254));
+    test6502.expectEqualU16(8, 65535, firstIndex(255));
+    test6502.expectEqualU16(9, 30, nested(0));
+    test6502.expectEqualU16(10, 12, earlyContinue(0));
+    test6502.expectEqualU16(11, 300, empty(300));
+    test6502.expectEqualU16(12, 300, oneTrip(300));
+    var location: u8 = 0;
+    test6502.expectEqualU16(13, 6, aliasWrite(&location));
+    test6502.expectEqualU16(14, 130, aliasRead(&location));
+    test6502.expectEqualU16(15, 6, calleeWrite(&location));
+    test6502.expectEqualU16(16, 6, asmBarrier());
+    test6502.pass();
+}

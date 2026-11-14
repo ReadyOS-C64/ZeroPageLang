@@ -1,0 +1,4 @@
+// zeropage-emu-error: unsupported zeropage_module metadata
+pub const zeropage_module = .{ .abi = 1, .exports = .{ .tick = tick } };
+fn tick(value: u8) u8 { return value; }
+export fn main() void {}

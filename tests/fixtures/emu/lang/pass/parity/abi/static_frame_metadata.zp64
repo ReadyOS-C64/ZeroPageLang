@@ -1,0 +1,22 @@
+const test6502 = @import("test6502");
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .abi = .{
+        .default_frame = .static,
+        .functions = .{
+            .add = .{ .frame = .static },
+            .main = .{ .frame = .static },
+        },
+    },
+};
+
+fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+export fn main() void {
+    var value: u8 = add(2, 5);
+    test6502.expectEqualU8(1, 7, value);
+    test6502.expectEqualU16(2, 0xc800, 0xc800);
+}

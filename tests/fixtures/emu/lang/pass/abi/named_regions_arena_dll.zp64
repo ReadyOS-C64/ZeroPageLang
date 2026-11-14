@@ -1,0 +1,54 @@
+// zeropage-emu-memory: $c000=$4c
+// zeropage-emu-reu: $030000=$4c
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+memory {
+    region near_arena: c64 at 0x9000 size 0x0010;
+    region module_window: c64 at 0xc000 size 0x0800;
+    region software_stack: c64 at 0xc800 size 0x0400;
+    region far_arena: reu at 0x010000 size 0x0010;
+    region module_cache: reu at 0x030000 size 0x010000;
+
+    stack in software_stack;
+    arena near_heap in near_arena;
+    arena assets in far_arena;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+}
+
+module region_dll abi 1 {
+    export tick;
+}
+
+fn tick(value: u8) callconv(.stack) u8 {
+    return value + 1;
+}
+
+export fn main() void {
+    const near = near_heap.allocBytes(2);
+    test6502.expectSomePtr(1, 0x9000, near);
+    if (near) |bytes| {
+        bytes[0] = 0x45;
+        bytes[1] = 0x67;
+    } else {
+        test6502.fail(90);
+    }
+    const far = assets.allocBytes(2);
+    if (far) |handle| {
+        ZeroPage.reu.copyFromC64(handle, 0x9000, 2);
+        ZeroPage.reu.copyToC64(handle, 0x9020, 2);
+    } else {
+        test6502.fail(91);
+    }
+    test6502.expectMemU8(2, 0x9020, 0x45);
+    test6502.expectMemU8(3, 0x9021, 0x67);
+
+    const loaded = ZeroPage.module.load("region_dll");
+    test6502.expectEqualBool(4, true, loaded);
+    test6502.expectMemU8(5, 0xc000, 0x4c);
+    test6502.pass();
+}

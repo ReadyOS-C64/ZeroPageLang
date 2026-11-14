@@ -1,0 +1,47 @@
+// Fresh ZeroPage workload inspired by https://github.com/drmortalwombat/oscar64/blob/443e3232275d43e02928c5f39681ccf4186afeb8/autotest/loopunrolltest.cpp
+// Widths, inputs and independent expected values are explicit; no C extensions.
+const test6502 = @import("test6502");
+
+fn rolled(count: u8, seed: u16) u16 {
+    var i: u16 = 0;
+    var total: u16 = seed;
+    while (i < count) { total += i * 3 + 7; i += 1; }
+    return total;
+}
+fn grouped(count: u8, seed: u16) u16 {
+    var i: u16 = 0;
+    var total: u16 = seed;
+    while (i + 3 <= count) {
+        total += i * 3 + 7;
+        total += (i + 1) * 3 + 7;
+        total += (i + 2) * 3 + 7;
+        i += 3;
+    }
+    while (i < count) { total += i * 3 + 7; i += 1; }
+    return total;
+}
+fn exits(count: u8) u16 {
+    var i: u16 = 0;
+    var total: u16 = 0;
+    while (i < count) {
+        const old: u16 = i;
+        i += 1;
+        if (old == 3) { continue; }
+        if (old == 10) { break; }
+        total += old;
+    }
+    return total;
+}
+export fn main() void {
+    const counts = [_]u8{ 0, 1, 2, 3, 7, 10, 11, 31 };
+    const expected = [_]u16{ 0, 7, 17, 30, 112, 205, 242, 1612 };
+    for (counts, 0..) |count, index| {
+        test6502.expectEqualBool(1, true, rolled(count, 0) == expected[index]);
+        test6502.expectEqualBool(2, true, grouped(count, 0) == expected[index]);
+        test6502.expectEqualBool(3, true, grouped(count, 65535) == expected[index] - 1);
+    }
+    test6502.expectEqualU16(4, 0, exits(0));
+    test6502.expectEqualU16(5, 3, exits(4));
+    test6502.expectEqualU16(6, 42, exits(31));
+    test6502.pass();
+}

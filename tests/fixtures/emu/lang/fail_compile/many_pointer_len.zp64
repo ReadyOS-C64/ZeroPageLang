@@ -1,0 +1,6 @@
+// zeropage-emu-error: unsupported pointer target
+export fn main() void {
+    const ptr: [*]u8 = @ptrFromInt(0x0400);
+    const len = ptr.len;
+    _ = len;
+}

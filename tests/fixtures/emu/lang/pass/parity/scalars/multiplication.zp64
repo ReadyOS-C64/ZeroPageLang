@@ -1,0 +1,102 @@
+const test6502 = @import("test6502");
+
+fn mulByte(a: u8, b: u8) u8 {
+    return a * b;
+}
+
+fn mulWord(a: u16, b: u16) u16 {
+    return a * b;
+}
+
+fn mulUsize(a: usize, b: usize) usize {
+    return a * b;
+}
+
+fn addThenMul(a: u8, b: u8, c: u8) u8 {
+    return (a + b) * c;
+}
+
+fn mulThenAdd(a: u8, b: u8, c: u8) u8 {
+    return a + b * c;
+}
+
+fn chooseWord(ok: bool, a: u16, b: u16) u16 {
+    return if (ok) a else b;
+}
+
+fn blockProduct(a: u16, b: u16) u16 {
+    return blk: {
+        const left = a + 1;
+        break :blk left * b;
+    };
+}
+
+fn sideByte(value: u8) u8 {
+    test6502.hit(1);
+    return value * 2;
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 0, 0 * 9);
+    test6502.expectEqualU8(2, 9, 1 * 9);
+    test6502.expectEqualU8(3, 6, 2 * 3);
+    test6502.expectEqualU8(4, 255, 15 * 17);
+    test6502.expectEqualU8(5, 0, 16 * 16);
+    test6502.expectEqualU8(6, 42, mulByte(6, 7));
+    test6502.expectEqualU8(7, 24, mulByte(mulByte(2, 3), 4));
+    test6502.expectEqualU8(8, 25, mulByte(5, mulByte(1, 5)));
+    test6502.expectEqualU8(31, 24, (2 * 3) * 4);
+    test6502.expectEqualU8(32, 24, 2 * (3 * 4));
+
+    const inferred_byte = 3 * 9;
+    var byte_var = inferred_byte;
+    test6502.expectEqualU8(9, 27, byte_var);
+    byte_var *= 2;
+    test6502.expectEqualU8(10, 54, byte_var);
+    byte_var *= 5 + 1;
+    test6502.expectEqualU8(11, 68, byte_var);
+    byte_var = (byte_var - 4) * 2;
+    test6502.expectEqualU8(12, 128, byte_var);
+
+    test6502.expectEqualU8(13, 20, addThenMul(2, 3, 4));
+    test6502.expectEqualU8(14, 14, mulThenAdd(2, 3, 4));
+    test6502.expectEqualU8(15, 30, if (3 * 4 == 12) 30 else 1);
+
+    test6502.expectEqualU16(16, 256, 16 * 16);
+    test6502.expectEqualU16(17, 510, 255 * 2);
+    test6502.expectEqualU16(18, 1024, 256 * 4);
+    test6502.expectEqualU16(19, 65534, 65535 * 2);
+    test6502.expectEqualU16(20, 4096, mulWord(64, 64));
+    test6502.expectEqualU16(21, 8192, mulWord(mulWord(32, 8), 32));
+    test6502.expectEqualU16(33, 3072, 3 * (256 * 4));
+    test6502.expectEqualU16(34, 6144, (3 * 512) * 4);
+
+    var word: u16 = 300;
+    word *= 4;
+    test6502.expectEqualU16(22, 1200, word);
+    word = word * 2;
+    test6502.expectEqualU16(23, 2400, word);
+    word *= 16 + 1;
+    test6502.expectEqualU16(24, 40800, word);
+
+    const chosen = chooseWord(word > 40000, 7 * 8, 1);
+    test6502.expectEqualU16(25, 56, chosen);
+    test6502.expectEqualU16(26, 1536, blockProduct(11, 128));
+    test6502.expectEqualU16(27, 6144, mulUsize(2048, 3));
+
+    const word_from_if = if (true and 2 * 3 == 6) 512 * 2 else 1;
+    test6502.expectEqualU16(28, 1024, word_from_if);
+    const word_from_block = blk: {
+        var tmp: u16 = 33;
+        tmp *= 31;
+        break :blk tmp + 1;
+    };
+    test6502.expectEqualU16(29, 1024, word_from_block);
+
+    _ = sideByte(9);
+    test6502.expectHitCount(1, 1);
+    test6502.expectEqualU8(30, 18, sideByte(9));
+    test6502.expectHitCount(1, 2);
+
+    test6502.pass();
+}

@@ -1,0 +1,20 @@
+const c64 = @import("c64");
+
+const Marker = struct { x: u8, y: u8, ch: u8 };
+
+fn drawMarker(x: u8, ch: u8) void {
+    c64.screen.putAt(x, 6, ch);
+}
+
+export fn main() void {
+    c64.screen.clear();
+    c64.screen.putsAt(2, 2, "STRUCT DEMO");
+
+    var marker = Marker{ .x = 12, .y = 6, .ch = '*' };
+    drawMarker(marker.x, marker.ch);
+    c64.screen.putsAt(2, 12, "FIELDS OK");
+    c64.screen.putsAt(2, 10, "X Y CH");
+    c64.screen.hexAt(8, 10, marker.x);
+    c64.screen.hexAt(11, 10, marker.y);
+    c64.screen.hexAt(14, 10, marker.ch);
+}

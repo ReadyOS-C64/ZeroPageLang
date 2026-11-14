@@ -1,0 +1,66 @@
+// zeropage-emu-memory: $c000=$4c
+// zeropage-emu-label-memory: zeropage_module_registry_loaded=$01
+// zeropage-emu-label-memory: zeropage_module_registry_refcount=$01
+// zeropage-emu-reu: $030000=$4c
+const ZeroPage = @import("ZeroPage");
+const test6502 = @import("test6502");
+
+const reloc_table = [_]u8{ 3, 5, 8, 13 };
+
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc800, .size = 0x0400 },
+    .modules = .{
+        .load_window = .{ .addr = 0xc000, .size = 0x0800 },
+        .reu_cache = .{ .addr = 0x030000, .size = 0x010000 },
+    },
+    .abi = .{
+        .functions = .{
+            .tick = .{ .frame = .stack },
+            .tablePtr = .{ .frame = .stack },
+            .bump = .{ .frame = .stack },
+        },
+    },
+};
+
+pub const zeropage_module = .{
+    .id = "enemy_runtime",
+    .abi = 1,
+    .flags = .{},
+    .exports = .{ .tick = tick, .table_ptr = tablePtr },
+    .deps = .{},
+};
+
+fn bump(value: u8) u8 {
+    return value + 1;
+}
+
+fn tick(value: u8) u8 {
+    return bump(value);
+}
+
+fn tablePtr() usize {
+    return @intFromPtr(&reloc_table[1]);
+}
+
+export fn main() void {
+    const window0: *volatile u8 = @ptrFromInt(0xc000);
+
+    test6502.expectEqualBool(1, false, ZeroPage.module.isLoaded("enemy_runtime"));
+    test6502.expectEqualBool(2, true, ZeroPage.module.load("enemy_runtime"));
+    test6502.expectEqualBool(3, true, ZeroPage.module.isLoaded("enemy_runtime"));
+    ZeroPage.module.unload("enemy_runtime");
+    test6502.expectEqualBool(4, false, ZeroPage.module.isLoaded("enemy_runtime"));
+    ZeroPage.module.unload("enemy_runtime");
+    test6502.expectEqualBool(5, false, ZeroPage.module.isLoaded("enemy_runtime"));
+    window0.* = 0;
+    test6502.expectMemU8(6, 0xc000, 0x00);
+    test6502.expectEqualBool(7, true, ZeroPage.module.load("enemy_runtime"));
+    test6502.expectEqualBool(8, true, ZeroPage.module.isLoaded("enemy_runtime"));
+    test6502.expectMemU8(9, 0xc000, 0x4c);
+    test6502.expectMemU8(10, 0xc003, 0x4c);
+    test6502.expectMemU8(11, 0xc08b, 0x06);
+    test6502.expectMemU8(12, 0xc08c, 0xc0);
+    test6502.expectMemU8(13, 0xc0b6, 0xc2);
+    test6502.expectMemU8(14, 0xc0b8, 0x9b);
+    test6502.pass();
+}

@@ -1,0 +1,29 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("keyboard demo\n", .{});
+    c64.console.print("poll A\n", .{});
+
+    var first = c64.keyboard.readPetscii();
+    while (first == c64.key.none) {
+        first = c64.keyboard.readPetscii();
+    }
+
+    if (first == 65) {
+        c64.console.print("read A ok\n", .{});
+    } else {
+        c64.console.print("read bad {x}\n", .{first});
+    }
+
+    c64.console.print("wait down\n", .{});
+    const cursor = c64.keyboard.waitPetscii();
+
+    if (cursor == c64.key.cursor_down) {
+        c64.console.print("wait down ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("wait bad {x}\n", .{cursor});
+        c64.vic.border = 2;
+    }
+}

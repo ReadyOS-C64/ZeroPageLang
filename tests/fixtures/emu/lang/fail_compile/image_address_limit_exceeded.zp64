@@ -1,0 +1,10 @@
+// zeropage-emu-error: resident PRG exceeds zeropage_options.image.address_limit
+pub const zeropage_options = .{
+    .image = .{ .load_addr = 0x1000, .entry_addr = 0x1000, .basic_stub = false, .address_limit = 0x1004 },
+};
+
+export fn main() void {
+    var value: u16 = 0x1234;
+    value += 1;
+    _ = value;
+}

@@ -1,0 +1,143 @@
+const test6502 = @import("test6502");
+
+fn boolParam(value: bool) bool {
+    return value;
+}
+
+fn boolPair(a: bool, b: bool) bool {
+    return a and b;
+}
+
+fn pickByte(ok: bool, yes_value: u8, no_value: u8) u8 {
+    if (ok) {
+        return yes_value;
+    } else {
+        return no_value;
+    }
+}
+
+fn pickWord(ok: bool, yes_value: u16, no_value: u16) u16 {
+    if (ok) {
+        return yes_value;
+    } else {
+        return no_value;
+    }
+}
+
+fn sum8(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) u8 {
+    var total: u8 = a;
+    total += b;
+    total += c;
+    total += d;
+    total += e;
+    total += f;
+    total += g;
+    total += h;
+    return total;
+}
+
+fn returnCall(value: u8) u8 {
+    return pickByte(value == 3, value + 4, 0);
+}
+
+fn returnFromWhileTrue() u8 {
+    while (true) {
+        return 42;
+    }
+    return 0;
+}
+
+fn breakFromWhileTrue(limit: u8) u8 {
+    var i: u8 = 0;
+    while (true) {
+        i += 1;
+        if (i == limit) {
+            break;
+        }
+    }
+    return i;
+}
+
+fn nestedBreakContinue(limit: u8) u8 {
+    var outer: u8 = 0;
+    var kept: u8 = 0;
+    while (outer < limit) {
+        outer += 1;
+        var inner: u8 = 0;
+        while (true) {
+            inner += 1;
+            if (inner == 1) {
+                continue;
+            }
+            if (inner > 3) {
+                break;
+            }
+            kept += outer;
+        }
+    }
+    return kept;
+}
+
+fn sideByte(value: u8) u8 {
+    test6502.hit(10);
+    return value;
+}
+
+fn sideWord(value: u16) u16 {
+    test6502.hit(11);
+    return value;
+}
+
+fn sideBool(value: bool) bool {
+    test6502.hit(12);
+    return value;
+}
+
+fn shortCircuitReturn(a: bool, b: bool) bool {
+    return a or sideBool(b);
+}
+
+fn bothComparisons(a: u8, b: u8, c: u16, d: u16) bool {
+    return a < b and c <= d;
+}
+
+export fn main() void {
+    test6502.expectEqualBool(1, true, boolParam(true));
+    test6502.expectEqualBool(2, false, boolParam(false));
+    test6502.expectEqualBool(3, true, boolPair(true, true));
+    test6502.expectEqualBool(4, false, boolPair(true, false));
+
+    var cmp: bool = 3 < 4;
+    test6502.expectEqualU8(5, 9, pickByte(cmp, 9, 1));
+    cmp = 512 >= 512;
+    test6502.expectEqualU16(6, 4096, pickWord(cmp, 4096, 1024));
+    test6502.expectEqualBool(7, true, bothComparisons(1, 2, 1024, 1024));
+    test6502.expectEqualBool(8, false, bothComparisons(2, 1, 1024, 1024));
+
+    test6502.expectEqualU8(9, 36, sum8(1, 2, 3, 4, 5, 6, 7, 8));
+    test6502.expectEqualU8(13, 7, returnCall(3));
+    test6502.expectEqualU8(14, 42, returnFromWhileTrue());
+    test6502.expectEqualU8(15, 5, breakFromWhileTrue(5));
+    test6502.expectEqualU8(16, 12, nestedBreakContinue(3));
+
+    sideByte(99);
+    sideWord(2048);
+    test6502.expectHitCount(10, 1);
+    test6502.expectHitCount(11, 1);
+
+    var sc: bool = true or sideBool(false);
+    test6502.expectEqualBool(17, true, sc);
+    test6502.expectHitCount(12, 0);
+    sc = false or sideBool(true);
+    test6502.expectEqualBool(18, true, sc);
+    test6502.expectHitCount(12, 1);
+    sc = shortCircuitReturn(true, false);
+    test6502.expectEqualBool(19, true, sc);
+    test6502.expectHitCount(12, 1);
+
+    test6502.expectEqualBool(20, true, false or true and true);
+    test6502.expectEqualBool(21, false, (false or true) and false);
+    test6502.expectEqualU8(22, 6, pickByte((1 < 2 and 3 != 4) or false, 6, 0));
+    test6502.expectEqualU16(23, 65535, pickWord(65535 == 65535 and 0 <= 1, 65535, 0));
+    test6502.pass();
+}

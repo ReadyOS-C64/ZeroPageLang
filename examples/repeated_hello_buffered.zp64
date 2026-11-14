@@ -1,0 +1,19 @@
+const display = @import("micromodules/repeated_hello_display.zp64");
+
+// Reference-style ring + two screen matrices. Compile-only comparison sample.
+export fn main() void {
+    display.init();
+    while (true) {
+        display.waitFrame();
+        if (display.frame()) {
+            display.printLine();
+            display.copyPage();
+        }
+        if (display.stopRequested()) {
+            while (display.stopRequested()) {}
+            asm {
+                jmp $fe66
+            }
+        }
+    }
+}

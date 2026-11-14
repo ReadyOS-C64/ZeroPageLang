@@ -1,0 +1,5 @@
+const test6502 = @import("test6502");
+export fn main() void {
+    test6502.expectEqualBool(1, true, false);
+    test6502.pass();
+}

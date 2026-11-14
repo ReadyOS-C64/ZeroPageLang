@@ -1,0 +1,27 @@
+const c64 = @import("c64");
+
+memory {
+    region call_stack: c64 at 0xc800 size 0x0400;
+    region module_window: c64 at 0xe000 size 0x0800 bank .ram_under_kernal;
+    region module_cache: reu at 0x040000 size 0x010000;
+    region staging_ram: c64 at 0x9000 size 0x0800;
+
+    stack in call_stack;
+}
+
+module_loader {
+    window main in module_window;
+    reu_cache in module_cache;
+    disk_staging in staging_ram;
+}
+
+module math_core abi 1 {
+    export banner;
+}
+
+fn banner() callconv(.stack) u8 {
+    c64.console.print("DEP TRAMP EXPORT\n", .{});
+    return 7;
+}
+
+export fn main() void {}

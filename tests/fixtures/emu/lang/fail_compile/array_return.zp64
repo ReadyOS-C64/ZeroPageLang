@@ -1,0 +1,12 @@
+// zeropage-emu-error: unsupported array by-value use
+const test6502 = @import("test6502");
+
+fn values() [2]u8 {
+    return [_]u8{ 1, 2 };
+}
+
+export fn main() void {
+    const xs = values();
+    test6502.expectEqualU8(1, 1, xs[0]);
+    test6502.pass();
+}

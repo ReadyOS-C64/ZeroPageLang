@@ -1,0 +1,9 @@
+// zeropage-emu-error: unsupported stack frame ABI
+pub const zeropage_options = .{
+    .abi = .{
+        .default_frame = .static,
+        .functions = .{ .main = .{ .frame = .auto } },
+    },
+};
+
+export fn main() void {}

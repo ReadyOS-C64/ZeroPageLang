@@ -1,0 +1,54 @@
+const test6502 = @import("test6502");
+
+const Cell = enum(u8) { empty, x, o };
+const Board = struct { cells: [4]Cell, score: u16, turn: Cell };
+const Game = struct { board: Board, history: [4]u8, move_count: u8 };
+
+fn newBoard(first: Cell) Board {
+    return Board{ .cells = [_]Cell{ first, .empty, .o, .x }, .score = 260, .turn = first };
+}
+
+fn newGame() Game {
+    return Game{
+        .board = newBoard(.x),
+        .history = [_]u8{ 0, 1, 2, 3 },
+        .move_count = 2,
+    };
+}
+
+export fn main() void {
+    var board = newBoard(.x);
+    const snapshot = board;
+    var other: Board = Board{ .cells = [_]Cell{ .empty, .empty, .empty, .empty }, .score = 0, .turn = .empty };
+    other = board;
+
+    board.cells[0] = .o;
+    board.score = 999;
+    board.turn = .o;
+
+    test6502.expectEqualU8(1, 1, snapshot.cells[0]);
+    test6502.expectEqualU16(2, 260, snapshot.score);
+    test6502.expectEqualU8(3, 1, snapshot.turn);
+    test6502.expectEqualU8(4, 1, other.cells[0]);
+    test6502.expectEqualU8(5, 2, other.cells[2]);
+    test6502.expectEqualU16(6, 260, other.score);
+    test6502.expectEqualU8(7, 1, other.turn);
+    test6502.expectEqualU8(8, 2, board.cells[0]);
+    test6502.expectEqualU16(9, 999, board.score);
+
+    var game = newGame();
+    const saved = game;
+    game.board.cells[1] = .o;
+    game.history[0] = 9;
+    game.move_count = 4;
+
+    test6502.expectEqualU8(10, 1, saved.board.cells[0]);
+    test6502.expectEqualU8(11, 0, saved.board.cells[1]);
+    test6502.expectEqualU8(12, 0, saved.history[0]);
+    test6502.expectEqualU8(13, 2, saved.move_count);
+    test6502.expectEqualU8(14, 2, game.board.cells[1]);
+    test6502.expectEqualU8(15, 9, game.history[0]);
+    test6502.expectEqualU8(16, 4, game.move_count);
+
+    test6502.pass();
+}

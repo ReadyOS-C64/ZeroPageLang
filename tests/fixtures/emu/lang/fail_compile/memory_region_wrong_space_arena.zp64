@@ -1,0 +1,13 @@
+// zeropage-emu-error: invalid zeropage_options memory region
+const ZeroPage = @import("ZeroPage");
+
+pub const zeropage_options = .{
+    .memory = .{ .regions = .{
+        .far = .{ .addr = 0x010000, .size = 0x0100, .space = .reu },
+    } },
+    .heaps = .{ .main = .{ .region = .far, .kind = .arena } },
+};
+
+export fn main() void {
+    _ = ZeroPage.heap("main").allocBytes(1);
+}

@@ -1,0 +1,12 @@
+pub const zeropage_options = .{
+    .stack = .{ .base = 0xc8fb, .size = 5 },
+    .abi = .{ .functions = .{ .subtract = .{ .frame = .stack } } },
+};
+
+fn subtract(left: u16, right: u16) u16 {
+    return left - right;
+}
+
+export fn main() void {
+    _ = subtract(0x8000, 1);
+}

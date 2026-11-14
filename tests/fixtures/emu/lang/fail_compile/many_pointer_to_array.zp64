@@ -1,0 +1,5 @@
+// zeropage-emu-error: unsupported pointer type
+export fn main() void {
+    const ptr: [*][3]u8 = @ptrFromInt(0x0400);
+    _ = ptr;
+}

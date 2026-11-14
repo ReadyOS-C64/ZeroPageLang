@@ -1,0 +1,5 @@
+pub const zeropage_options = .{
+    .abi = .{ .default_frame = .static },
+};
+
+fn touch() void {}

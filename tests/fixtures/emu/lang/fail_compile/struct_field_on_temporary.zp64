@@ -1,0 +1,12 @@
+// zeropage-emu-error: valid Zig syntax, but unsupported ZeroPage subset construct
+const test6502 = @import("test6502");
+
+const Pair = struct { left: u8, right: u8 };
+
+fn makePair() Pair {
+    return Pair{ .left = 1, .right = 2 };
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 1, makePair().left);
+}

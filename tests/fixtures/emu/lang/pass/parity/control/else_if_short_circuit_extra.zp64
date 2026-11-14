@@ -1,0 +1,125 @@
+const test6502 = @import("test6502");
+
+fn classifyByte(value: u8) u8 {
+    if (value == 0) {
+        return 10;
+    } else if (value < 4) {
+        return value + 20;
+    } else if (value >= 4 and value <= 8) {
+        return value + 30;
+    } else {
+        return 99;
+    }
+}
+
+fn classifyWord(value: u16) u16 {
+    if (value == 0) {
+        return 1000;
+    } else if (value < 512) {
+        return value + 1;
+    } else if (value >= 512 and value <= 1024) {
+        return value + 2;
+    } else {
+        return value - 3;
+    }
+}
+
+fn sideTrue11() bool {
+    test6502.hit(11);
+    return true;
+}
+
+fn sideFalse12() bool {
+    test6502.hit(12);
+    return false;
+}
+
+fn sideTrue13() bool {
+    test6502.hit(13);
+    return true;
+}
+
+fn sideFalse14() bool {
+    test6502.hit(14);
+    return false;
+}
+
+fn ignoredByte(value: u8) u8 {
+    test6502.hit(20);
+    return value + 1;
+}
+
+fn ignoredWord(value: u16) u16 {
+    test6502.hit(21);
+    return value + 256;
+}
+
+fn mutateParam(value: u8) u8 {
+    var copy = value;
+    copy += 2;
+    return copy;
+}
+
+fn loopWithConstLimit(limit: u8) u8 {
+    const start = 1;
+    var total = start;
+    while (total < limit) {
+        total += 1;
+    }
+    return total;
+}
+
+fn signedFromTypedSource(ok: bool) i16 {
+    const low: i16 = 32768;
+    const high: i16 = 65535;
+    if (ok) {
+        return high;
+    } else {
+        return low;
+    }
+}
+
+export fn main() void {
+    test6502.expectEqualU8(1, 10, classifyByte(0));
+    test6502.expectEqualU8(2, 23, classifyByte(3));
+    test6502.expectEqualU8(3, 34, classifyByte(4));
+    test6502.expectEqualU8(4, 99, classifyByte(9));
+
+    test6502.expectEqualU16(5, 1000, classifyWord(0));
+    test6502.expectEqualU16(6, 257, classifyWord(256));
+    test6502.expectEqualU16(7, 514, classifyWord(512));
+    test6502.expectEqualU16(8, 2045, classifyWord(2048));
+
+    const byte_const = 200;
+    const word_const = 4096;
+    var inferred_byte = byte_const;
+    var inferred_word = word_const;
+    inferred_byte -= 55;
+    inferred_word += 512;
+    test6502.expectEqualU8(9, 145, inferred_byte);
+    test6502.expectEqualU16(10, 4608, inferred_word);
+
+    const first = false and sideTrue11();
+    const second = true or sideFalse12();
+    const third = true and sideTrue13();
+    const fourth = false or sideFalse14();
+    test6502.expectEqualBool(15, false, first);
+    test6502.expectEqualBool(16, true, second);
+    test6502.expectEqualBool(17, true, third);
+    test6502.expectEqualBool(18, false, fourth);
+    test6502.expectHitCount(11, 0);
+    test6502.expectHitCount(12, 0);
+    test6502.expectHitCount(13, 1);
+    test6502.expectHitCount(14, 1);
+
+    ignoredByte(9);
+    ignoredWord(1024);
+    test6502.expectHitCount(20, 1);
+    test6502.expectHitCount(21, 1);
+
+    test6502.expectEqualU8(22, 7, mutateParam(5));
+    test6502.expectEqualU8(23, 4, loopWithConstLimit(4));
+    test6502.expectEqualU16(24, 65535, signedFromTypedSource(true));
+    test6502.expectEqualU16(25, 32768, signedFromTypedSource(false));
+    test6502.pass();
+}

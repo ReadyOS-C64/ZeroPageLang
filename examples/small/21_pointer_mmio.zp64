@@ -1,0 +1,42 @@
+const c64 = @import("c64");
+
+fn poke(ptr: *volatile u8, value: u8) void {
+    ptr.* = value;
+}
+
+fn peek(ptr: *volatile u8) u8 {
+    return ptr.*;
+}
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("pointer mmio\n", .{});
+
+    var value: u8 = 1;
+    const local_ptr: *u8 = &value;
+    local_ptr.* = 0x21;
+    c64.console.print("local {x}\n", .{local_ptr.*});
+
+    const border: *volatile u8 = @ptrFromInt(0xd020);
+    const background: *volatile u8 = @ptrFromInt(0xd021);
+    poke(border, 5);
+    background.* = 0;
+
+    const m0: *volatile u8 = @ptrFromInt(0x04a0);
+    const m1: *volatile u8 = @ptrFromInt(0x04a1);
+    const m2: *volatile u8 = @ptrFromInt(0x04a2);
+    const m3: *volatile u8 = @ptrFromInt(0x04a3);
+    const m4: *volatile u8 = @ptrFromInt(0x04a4);
+    m0.* = 'M';
+    m1.* = 'M';
+    m2.* = 'I';
+    m3.* = 'O';
+    m4.* = '!';
+
+    if (peek(m0) == 'M' and value == 0x21) {
+        c64.console.print("poke ok\n", .{});
+    } else {
+        c64.console.print("poke bad\n", .{});
+        border.* = 2;
+    }
+}

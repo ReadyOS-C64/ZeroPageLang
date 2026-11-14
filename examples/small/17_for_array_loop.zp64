@@ -1,0 +1,36 @@
+const c64 = @import("c64");
+
+const lookup_table = [_]u8{ 4, 7, 9, 12 };
+const word_table = [_]u16{ 256, 512, 1024 };
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("for loop demo\n", .{});
+
+    var lookup_sum: u8 = 0;
+    for (lookup_table) |sum_value| {
+        lookup_sum += sum_value;
+    }
+
+    var indexed: [4]u8 = .{ 0, 0, 0, 0 };
+    for (lookup_table, 0..) |indexed_value, indexed_index| {
+        indexed[indexed_index] = indexed_value + indexed_index;
+    }
+
+    var word_sum: u16 = 0;
+    for (0..word_table.len) |word_index| {
+        word_sum += word_table[word_index];
+    }
+
+    c64.console.print("sum {x}\n", .{lookup_sum});
+    c64.console.print("indexed {x} {x} {x}\n", .{ indexed[0], indexed[1], indexed[2] });
+    c64.console.print("word {x16}\n", .{word_sum});
+
+    if (lookup_sum == 32 and indexed[2] == 11 and word_sum == 1792) {
+        c64.console.print("for ok\n", .{});
+        c64.vic.border = 5;
+    } else {
+        c64.console.print("for bad\n", .{});
+        c64.vic.border = 2;
+    }
+}
