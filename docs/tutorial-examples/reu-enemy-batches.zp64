@@ -1,0 +1,100 @@
+const c64 = @import("c64");
+const ZeroPage = @import("ZeroPage");
+
+const Kind = enum(u8) { scout = 1, guard = 2 };
+const Position = struct { x: u8, y: u8 };
+const Enemy = struct {
+    hp: u8,
+    points: u16,
+    kind: Kind,
+    pos: Position,
+    patrol: [4]u8,
+    phase: u8,
+    cooldown: u8,
+};
+
+memory {
+    region tick_ram: c64 at 0x9000 size 240;
+    region roster_reu: reu at 0x010000 size 2400;
+    arena scratch in tick_ram;
+    arena roster in roster_reu;
+}
+
+fn showEnemy(index: u8, enemy: Enemy) void {
+    const x = enemy.pos.x;
+    const hp = enemy.hp;
+    const points = enemy.points;
+    c64.console.print("ENEMY {x} X {x} HP {x} PTS {x16}\n", .{ index, x, hp, points });
+}
+
+fn tickRoster() bool {
+    if (roster.allocBytes(@sizeOf(Enemy) * 200)) |bytes| {
+        var enemies = ZeroPage.reu.view(Enemy, bytes, 200);
+        var index: u8 = 0;
+        while (index < 200) {
+            enemies.set(index, Enemy{
+                .hp = 6,
+                .points = 0x0100,
+                .kind = .scout,
+                .pos = Position{ .x = index & 31, .y = 10 },
+                .patrol = [_]u8{ 4, 8, 12, 16 },
+                .phase = 0,
+                .cooldown = 1,
+            });
+            index += 1;
+        }
+
+        var hits: u8 = 0;
+        var start: u8 = 0;
+        while (start < 200) {
+            if (enemies.materializeRange(scratch, start, 20)) |batch| {
+                for (0..20) |movement_index| {
+                    var moving = batch.get(movement_index);
+                    const phase = moving.phase;
+                    const step = moving.patrol[phase];
+                    moving.pos.x = moving.pos.x + step;
+                    moving.phase = (phase + 1) & 3;
+                    if (moving.cooldown != 0) {
+                        moving.cooldown -= 1;
+                    }
+                    batch.set(movement_index, moving);
+                }
+                for (0..20) |i| {
+                    var enemy = batch.get(i);
+                    if (enemy.kind == .scout and enemy.pos.x < 12 and enemy.hp > 0) {
+                        enemy.hp -= 1;
+                        enemy.points += 5;
+                        hits += 1;
+                        batch.set(i, enemy);
+                    }
+                }
+                enemies.flushRange(start, batch);
+            } else {
+                roster.reset();
+                return false;
+            }
+            scratch.reset();
+            start += 20;
+        }
+
+        c64.console.print("TICK HITS {x}\n", .{hits});
+        const first = enemies.get(0);
+        const last = enemies.get(199);
+        showEnemy(0, first);
+        showEnemy(199, last);
+        roster.reset();
+        return true;
+    }
+    return false;
+}
+
+export fn main() void {
+    c64.console.clear();
+    if (ZeroPage.reu.present()) {
+        if (tickRoster() == false) {
+            c64.console.print("ROSTER DOES NOT FIT\n", .{});
+        }
+    } else {
+        c64.console.print("REU REQUIRED\n", .{});
+    }
+}

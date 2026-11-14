@@ -440,8 +440,8 @@ def example_link(path, title="Open the complete source"):
     target = path.removeprefix("docs/") if path.startswith("docs/tutorial-examples/") else blob + path
     return f'<a href="{target}">{title}</a>'
 
-def example_run(path, name, reu=False, anchor=None):
-    flags = " -reu -reusize 16384" if reu else ""
+def example_run(path, name, reu=False, anchor=None, reu_size=16384):
+    flags = f" -reu -reusize {reu_size}" if reu else ""
     return f'<p>{example_link(path)}</p>' + shell(f"mkdir -p build\n./zig-out/bin/zp64c compile {path} -o build/{name}.prg\nx64sc{flags} -autostart build/{name}.prg", "Build and run this example", anchor)
 
 guide_page("setup", "Install and build ZeroPage", "Set up the host compiler and build a C64 program from a fresh checkout.", [
@@ -472,6 +472,7 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-memory.html#reservation">Reserve bytes for application code</a> and read the resulting zero-page map.</li>
 <li><a href="guide-arenas.html#record">Encode a record in a near arena</a> or <a href="guide-reu.html#range">edit a range of far records</a> and flush it to the REU.</li>
 <li><a href="guide-reu.html#working-set">Reuse one working buffer</a> to update an entire far table.</li>
+<li><a href="tutorial-reu-pages.html#enemy-roster">Update 200 game enemies in batches of 20</a> with one 240-byte buffer.</li>
 <li><a href="guide-reu.html#sector-map">Calculate a map's REU and scratch capacity</a> and test both bounds.</li>
 <li><a href="guide-reu.html#immutable-assets">Stage tile data in REU</a> and fetch a fixed subrange directly to the screen.</li>
 <li><a href="guide-reu.html#split-tables">Keep mutable tile state separate from artwork</a> so the two follow different transfer paths.</li>
@@ -868,6 +869,7 @@ if (maybe_far) |far| {
 <p>Both forms require the matching record type. Equal byte widths alone give no conversion between types. If you are migrating a record format, read the old fields, construct a new record explicitly, and write it through the new view. When troubleshooting, check type, count, and destination start before looking at DMA or banking.</p>
 <p>{fixture_link("lang/fail_compile/far_view_flush_wrong_count", "Whole-view count mismatch")} · {fixture_link("lang/fail_compile/far_view_flush_range_wrong_type", "Range flush record-type mismatch")} · {fixture_link("lang/pass/parity/abi/far_reu_materialize_range", "Successful partial write-back")}</p>'''),
     ("working-set", "Process a table larger than its C64 working space", f'''
+<p>For a game-sized example, <a href="tutorial-reu-pages.html#enemy-roster">update 200 enemies in batches of 20</a>. Each batch stays in C64 RAM for movement and collision passes before one write-back.</p>
 <p>Four three-byte sectors occupy twelve bytes in REU. The C64 scratch arena has six bytes, enough for two sectors. Process starts 0 and 2 in sequence. For each range, bring in both records, run three update passes in C64 RAM, and write back once. The same arena serves the next range after reset. This works because the first near view has gone out of use before the second allocation.</p>
 {sample("docs/tutorial-examples/reu-working-set.zp64")}
 {example_run("docs/tutorial-examples/reu-working-set.zp64", "reu-working-set", True, anchor="reu-working-set")}
@@ -1660,6 +1662,19 @@ guide_page("tutorial-reu-pages", "Reuse one buffer across a far table", "Process
 <tr><td>Repeatedly edit a larger table</td><td><code>table.materializeRange(scratch, start, count)</code></td><td><code>table.flushRange(start, local)</code></td></tr>
 </tbody></table>
 <p>A far get or set transfers one record through staging. Materialization trades working RAM and a larger transfer for local reads and writes. A read-only pass can skip flush. A whole-view flush needs the same record type and count on each side. A range count is a compile-time literal, while the starting index can change at runtime.</p>'''),
+    ("enemy-roster", "Update 200 enemies in batches of 20", f'''
+<p>Suppose a game level has 200 enemies. A record holds health, a 16-bit point total, an enemy-kind tag, a nested X/Y position, four patrol steps, the current patrol phase, and an attack cooldown. At 12 bytes each, the roster takes 2,400 bytes in REU. Reserve 240 bytes of C64 RAM for one batch of 20 records and reuse it ten times.</p>
+<table><thead><tr><th scope="col">Step</th><th scope="col">Where it happens</th><th scope="col">What changes</th></tr></thead><tbody>
+<tr><td>Materialize</td><td>REU to C64 RAM</td><td>Copy 20 records starting at the current roster index. In the second batch, far index 20 is local index 0.</td></tr>
+<tr><td>Move</td><td>C64 RAM</td><td>Use each enemy's patrol step to advance X, then advance its patrol phase and count down its cooldown.</td></tr>
+<tr><td>Resolve damage</td><td>C64 RAM</td><td>Scouts that moved into the hazard at X below 12 lose one health point and gain five points.</td></tr>
+<tr><td>Flush and reset</td><td>C64 RAM to REU</td><td>Write the 20 updated records back to the same far start, then reclaim the buffer for the next batch.</td></tr>
+</tbody></table>
+{sample("docs/tutorial-examples/reu-enemy-batches.zp64")}
+{example_run("docs/tutorial-examples/reu-enemy-batches.zp64", "tutorial-enemy-batches", True, anchor="tutorial-enemy-batches", reu_size=128)}
+<p>Expect <code>TICK HITS 38</code> (56 in decimal). The two sample reads after the update show <code>ENEMY 00 X 04 HP 05 PTS 0105</code> and <code>ENEMY C7 X 0B HP 05 PTS 0105</code>. The first and last records came from different batches, and both reflect the write-back. The run command enables a 128 KiB REU. The roster starts at <code>$010000</code> and ends at <code>$010960</code> exclusive, so check the installed capacity before running on hardware.</p>
+<p>The update loop issues ten copy-ins and ten write-backs. A one-record-at-a-time version that reads and writes each enemy once would issue 400 transfers for the same tick. Both move 4,800 bytes for that update. Batching cuts DMA setups, and both passes share the data while it is local. The counts exclude level initialization and the two display reads. This example resolves each enemy against a fixed hazard, so all of its work fits within the current batch. A rule that needs enemies from other batches needs a separate global pass or an index.</p>
+<p>Try giving scratch 239 bytes. The 240-byte batch can no longer materialize and the program reports <code>ROSTER DOES NOT FIT</code>. In a game loop, initialize the roster when loading the level and keep it between ticks. This program runs one tick, prints the results, and releases the roster.</p>'''),
     ("loop", "Finish one page before asking for the next", f'''
 <p>This example has four three-byte records in REU. A six-byte arena in C64 RAM can hold exactly two records. The first pass brings far indexes 0 and 1 into local indexes 0 and 1. The second pass brings far indexes 2 and 3 into those same local indexes.</p>
 {sample("docs/tutorial-examples/reu-working-set.zp64")}

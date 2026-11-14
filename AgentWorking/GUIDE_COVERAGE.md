@@ -31,6 +31,11 @@ calls, the exact-fit frame budget and the one-byte-short trap, and both DLL
 state policies. The combined score disk runs with a 256 KiB REU. The compiler
 rejects a direct resident read of hidden data and an overlapping score arena.
 
+The enemy-roster lesson processes 200 twelve-byte records in groups of 20.
+VICE with a 128 KiB REU confirms the first and last records and the damage
+count. The trace between initialization and display confirms ten transfers
+in each direction. A 239-byte scratch reservation exercises batch exhaustion.
+
 | Area | Current guide evidence | Sources for the next review |
 | --- | --- | --- |
 | Types, expressions, imports | Language and record chapters cover layout, effects, control, imported data, casts, optionals, and tagged unions. Worked examples cover carry and inference, early returns, fixed array literals, exact/list/range dispatch, and copied records with shared and subsequently rebound pointers. A layout example distinguishes compile-time queries from runtime functions. | Scalar, composite, pointer, control-flow, and layout parity fixtures |
