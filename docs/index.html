@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ZeroPage is a Zig-shaped programming language and compiler for native C64 programs.">
+<title>ZeroPage · A language for the Commodore 64</title>
+<link rel="stylesheet" href="site/style.css">
+<script src="site/copy.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="wrap bar"><a class="logo" href="./"><span aria-hidden="true">▸</span> ZeroPage</a><nav aria-label="Main navigation"><a href="index.html#philosophy">Philosophy</a><a href="index.html#c64">C64 features</a><a href="index.html#subset">Zig subset</a><a href="tutorial.html">Tutorial</a><a href="https://github.com/ReadyOS-C64/ZeroPageLang">GitHub</a></nav></div></header>
+
+<main id="main">
+  <div class="wrap hero">
+    <div>
+      <div class="badge">0.1.0 source preview</div>
+      <h1>ZeroPage</h1>
+      <p>A Zig-shaped language for writing native Commodore 64 programs with explicit control over memory, hardware, and loadable code.</p>
+      <div class="actions"><a class="button primary" href="tutorial.html">Build your first program</a><a class="button" href="#disks">Try a C64 disk</a></div>
+    </div>
+    <div class="screen" aria-label="The hello demo prints HELLO FROM ZEROPAGE and returns to READY">
+      <p aria-hidden="true">**** COMMODORE 64 BASIC V2 ****</p>
+      <p aria-hidden="true">READY.</p>
+      <p aria-hidden="true">RUN</p>
+      <p aria-hidden="true">HELLO FROM ZEROPAGE</p>
+      <p aria-hidden="true">READY.<br><span class="cursor"></span></p>
+    </div>
+  </div>
+  <section id="philosophy" class="section"><div class="wrap split">
+    <h2>Philosophy</h2>
+    <div><p>Use familiar types, functions, and control flow while keeping the costs of the 6510 visible. The language uses Zig's parser for ordinary syntax. ZeroPage lowers a documented subset and adds declarations for C64 concerns such as banking, zero-page ownership, and module loading.</p>
+    <p>A small program needs only a <code>main</code> and the helpers it calls. A larger program can choose where code and data live, and inspect the assembled memory map to check those choices. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/language.md">Language reference</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/runtime.md">Runtime</a></p></div>
+  </div></section>
+  <section id="c64" class="section"><div class="wrap split">
+    <h2>C64 features</h2><div class="features"><article><h3>Hardware and I/O</h3><p>Write to the VIC-II border register, draw directly into screen RAM, or use the PETSCII console, keyboard, KERNAL, and timing helpers. Volatile pointers expose memory-mapped devices. Inline <code>asm { ... }</code> embeds 6502/6510 instructions in the same source. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/api.md">Library API</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/inline-assembler.md">Inline assembler</a></p></article><article><h3>Memory and banking</h3><p>Name C64 and REU ranges in a <code>memory</code> block. Reserve them for arenas, fixed-block pools, the software stack, or DLL windows. Set the PRG load and entry addresses independently. Place selected code and constant data at fixed addresses or copy them into RAM under ROM at startup. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/memory-model.md">Memory model</a></p></article><article><h3>Zero page and call frames</h3><p>Specify which zero-page bytes the compiler may use and which are reserved by your code or the system. Static frames give functions fixed storage. <code>callconv(.stack)</code> enables checked recursive frames in a configured RAM region. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/abi.md">Calling conventions</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/memory-model.md">Zero-page policy</a></p></article><article><h3>REU and DLLs</h3><p>Use explicit DMA transfers and typed views to store data in an REU. A DLL can load from disk into an REU cache, then relocate into a C64 RAM window for execution. DLLs can share a window, and configured state ranges can survive a swap. Typed imports and dependency policies make those calls visible in source. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/reu-overlays.md">REU and DLLs</a></p></article><article><h3>Build artifacts and tests</h3><p>The compiler emits only the runtime helpers it uses. Inspect the 64tass assembly, VICE labels, and memory map. Use the Peddle 6510 test runner for target assertions and VICE for emulator integration. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/cli.md">CLI reference</a> · <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/testing.md">Testing</a></p></article></div>
+  </div></section>
+  <section id="subset" class="section"><div class="wrap">
+    <h2>The Zig subset</h2>
+    <div class="grid">
+      <article><h3>Values and storage</h3><p><code>bool</code>, <code>u8</code>, <code>i8</code>, <code>u16</code>, <code>i16</code>, 16-bit <code>usize</code>, supported near and volatile pointers, fixed arrays and structs, <code>enum(u8)</code>, scalar and pointer optionals, and narrow tagged unions.</p></article>
+      <article><h3>Control flow and composition</h3><p>Typed functions, local <code>@import</code>, <code>if</code>, <code>while</code>, fixed-array and zero-based range <code>for</code>, scalar <code>switch</code>, and layout queries such as <code>@sizeOf</code>.</p></article>
+      <article><h3>Target semantics</h3><p>Runtime array indexing is unchecked. Arithmetic retains the low bits of the destination width. Strings have PETSCII helpers and fixed-capacity buffers.</p></article>
+      <article><h3>Unsupported forms</h3><p><code>std</code>, generics, general <code>comptime</code>, slices, floating point, division, error unions, <code>try</code>, and <code>defer</code> produce diagnostics. <a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/language.md">Full language reference</a></p></article>
+    </div>
+  </div></section>
+  <section id="disks" class="section"><div class="wrap split">
+    <h2>Sample disks</h2><div>
+    <ul>
+      <li><a href="https://raw.githubusercontent.com/ReadyOS-C64/ZeroPageLang/main/examples/zeropage-demos.d64">ZeroPage demos</a> includes <code>HELLO</code> and a banked-memory example.</li>
+      <li><a href="https://raw.githubusercontent.com/ReadyOS-C64/ZeroPageLang/main/sampleapps/tictactoe/tictactoe.d64">Tic-Tac-Toe</a> includes the standalone and classic variants.</li>
+      <li><a href="https://raw.githubusercontent.com/ReadyOS-C64/ZeroPageLang/main/examples/zeropage-reu.d64">ZeroPage REU</a> boots a disk-loaded DLL example with a 16 MiB REU configured.</li>
+    </ul>
+    <p><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/docs/sample-disks.md">Disk commands and rebuild instructions</a></p>
+    </div>
+  </div></section>
+</main>
+<footer><div class="wrap"><span>ZeroPage · 0.1.0 in progress</span><a href="https://github.com/ReadyOS-C64/ZeroPageLang/blob/main/LICENSE">MIT license</a></div></footer>
+</body>
+</html>
