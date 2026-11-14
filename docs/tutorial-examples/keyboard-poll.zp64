@@ -1,0 +1,22 @@
+const c64 = @import("c64");
+
+export fn main() void {
+    c64.console.clear();
+    c64.console.print("PRESS A TO STOP\n", .{});
+
+    var ticks: u8 = 0;
+    var running: bool = true;
+    while (running) {
+        const key = c64.keyboard.readPetscii();
+        if (key == 0x41) {
+            running = false;
+        } else {
+            ticks += 1;
+            c64.screen.hexAt(0, 2, ticks);
+            c64.time.sleepFrames(2);
+        }
+    }
+
+    c64.screen.putsAt(0, 4, "STOPPED");
+    c64.vic.border = 5;
+}

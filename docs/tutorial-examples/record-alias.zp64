@@ -1,0 +1,35 @@
+const c64 = @import("c64");
+
+const Link = struct { tag: u8, target: *u8 };
+
+fn advance(link: Link) Link {
+    link.tag += 1;
+    const target: *u8 = link.target;
+    target.* = target.* + 1;
+    return link;
+}
+
+export fn main() void {
+    c64.console.clear();
+
+    const first_ptr: *u8 = @ptrFromInt(0xc150);
+    const second_ptr: *u8 = @ptrFromInt(0xc1f0);
+    first_ptr.* = 5;
+    second_ptr.* = 9;
+    const original = Link{ .tag = 1, .target = first_ptr };
+    var result = advance(original);
+    c64.console.print("TAGS {x} {x}\n", .{ original.tag, result.tag });
+    const old_target: *u8 = original.target;
+    const shared_target: *u8 = result.target;
+    c64.console.print("SHARED {x} {x}\n", .{ old_target.*, shared_target.* });
+
+    result.target = second_ptr;
+    const new_target: *u8 = result.target;
+    new_target.* = new_target.* + 1;
+    c64.console.print("SPLIT {x} {x}\n", .{ old_target.*, new_target.* });
+    if (original.tag == 1 and result.tag == 2 and first_ptr.* == 6 and second_ptr.* == 10) {
+        c64.vic.border = 5;
+    } else {
+        c64.vic.border = 2;
+    }
+}

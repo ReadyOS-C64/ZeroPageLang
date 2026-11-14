@@ -56,7 +56,11 @@ const key = c64.keyboard.readPetscii();
 const pressed = c64.keyboard.waitPetscii();
 ```
 
-`readPetscii` returns `0` when no buffered key is available. `waitPetscii` waits for a press and release. `c64.key` provides named PETSCII key constants such as `space`, `return_`, cursor keys, edit keys, function keys, and colors.
+`readPetscii` returns `0` when no buffered key is available. `waitPetscii`
+waits for the first nonzero byte, drains the buffer until GETIN returns zero,
+then returns that first byte. It tests buffer availability rather than the
+physical key state. `c64.key` provides named PETSCII key constants such as
+`space`, `return_`, cursor keys, edit keys, function keys, and colors.
 
 ### Strings
 

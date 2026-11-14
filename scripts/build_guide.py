@@ -201,6 +201,7 @@ lesson["language"] = f'''
 <p>Open <code>docs/tutorial-examples/colors.zp64</code> in the repository. Each keypress advances to the next color. Return exits the program.</p>
 {sample(colors_example)}
 {shell("""
+mkdir -p build
 ./zig-out/bin/zp64c compile docs/tutorial-examples/colors.zp64 -o build/tutorial-colors.prg
 x64sc -autostart build/tutorial-colors.prg
 """)}
@@ -217,6 +218,7 @@ lesson["memory"] = f'''
 {block("95_memory_regions_placement.zp64 · placement excerpt", Path("examples/small/95_memory_regions_placement.zp64").read_text().split("export fn main()")[0])}
 <p><code>linksection("hidden")</code> places the lookup function and table together. <code>.startup_copy</code> keeps their bytes in the load image and copies them to the run address before <code>main</code>. A resident call gateway exposes the hidden RAM and restores the previous mapping. The demo also uses <code>near_heap.allocBytes(2)</code>, which returns an optional pointer to visible C64 RAM.</p>
 {shell("""
+mkdir -p build
 ./zig-out/bin/zp64c compile examples/small/95_memory_regions_placement.zp64 -o build/placement.prg
 x64sc -autostart build/placement.prg
 """)}
@@ -327,6 +329,7 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <ul>
 <li><a href="guide-language.html#width">Carry a byte counter into a word</a> and predict its displayed bytes.</li>
 <li><a href="guide-data.html#ownership">Choose a snapshot or an in-place update</a> for game state.</li>
+<li><a href="guide-hardware.html#polling">Keep a display updating while waiting for a key</a>.</li>
 <li><a href="guide-assembly.html#strings">Pass a string address and length to assembly</a> and trace what the wrapper preserves.</li>
 <li><a href="guide-assembly.html#kernal-result">Capture a KERNAL register result</a> in a typed function.</li>
 <li><a href="guide-assembly.html#kernal-load">Pass a filename to KERNAL and capture carry</a> before the assembly wrapper restores status.</li>
@@ -346,6 +349,24 @@ guide_page("guide", "The ZeroPage programming guide", "A guide to writing ZeroPa
 <li><a href="guide-abi.html#aggregate-return">Trace a three-byte record through a static call</a>.</li>
 <li><a href="guide-verification.html#policy-cost">Measure a zero-page policy</a> with the same source workload and assertions.</li>
 </ul>'''),
+    ("reference", "Look up a language or machine contract", f'''
+<ul>
+<li>{doc("language", "Language subset")} · {doc("api", "Built-in APIs")} · {doc("inline-assembler", "Assembly operands and instructions")}</li>
+<li>{doc("memory-model", "Memory reservations")} · {doc("abi", "Call frames and ABI")} · {doc("reu-overlays", "REU and DLL contracts")}</li>
+<li>{doc("cli", "Compiler commands and generated files")} · {doc("testing", "Test tools and fixture directives")} · {doc("compatibility", "Preview compatibility")}</li>
+</ul>'''),
+    ("terms", "Find a term used in the guide", '''
+<dl>
+<dt><a href="guide-arenas.html#choose">Arena and pool</a></dt><dd>An arena reclaims its allocations together. A fixed-block pool also lets you return individual blocks.</dd>
+<dt><a href="guide-module-lifecycle.html#registry">DLL registry row and active row</a></dt><dd>The registry row tracks a module's residency and references. An execution window's active row identifies the module whose code occupies that window.</dd>
+<dt><a href="guide-reu.html#handles">Far handle and near pointer</a></dt><dd>A far handle identifies an REU allocation. A near pointer addresses the C64's CPU-visible address space.</dd>
+<dt><a href="guide-memory.html#image">Load address, entry address, and run address</a></dt><dd>The load address is where the PRG arrives. The entry address is where control starts. A placed section's run address is where its bytes are used after any startup copy.</dd>
+<dt><a href="guide-reu.html#range">Materialized view</a></dt><dd>A typed working copy of a whole far view or a range, held in a C64 arena. Flush writes its contents back to REU.</dd>
+<dt><a href="guide-module-lifecycle.html#relocation">Relocation</a></dt><dd>Patching encoded addresses so a copied DLL can run in its assigned C64 window.</dd>
+<dt><a href="guide-module-lifecycle.html#artifacts">Sidecar</a></dt><dd>A compiler output beside the PRG. Maps and labels support inspection. DLL metadata and relocation files also supply information to caller builds.</dd>
+<dt><a href="guide-abi.html#stack">Software stack</a></dt><dd>A reserved C64 RAM range for per-call frames. Machine return addresses still go on the 6510 hardware stack.</dd>
+<dt><a href="guide-memory.html#zero-page">Zero-page claim</a></dt><dd>A byte or range below <code>$0100</code> owned by the compiler, system, or application according to the selected policy.</dd>
+</dl>'''),
 ])
 
 def fixture_link(path, title):
@@ -467,10 +488,16 @@ guide_page("hardware", chapters[1][1], chapters[1][2], [
 {sample("examples/small/13_string_controls.zp64")}
 <p>{example_link("examples/small/13_string_controls.zp64", "Complete control-string demo")} · {fixture_link("lang/pass/parity/strings_asm/strings", "Length, concatenation, and buffer assertions")}</p>'''),
     ("input", "KERNAL, keyboard, and timing", f'''
-<p><code>readPetscii()</code> returns zero when the buffer is empty. <code>waitPetscii()</code> waits for a press and release. <code>c64.key</code> provides named keys. <code>c64.time.sleepTicks</code> and <code>sleepFrames</code> busy-wait. Use KERNAL calls with the appropriate ROM mapping and system workspace.</p>
+<p><code>readPetscii()</code> returns zero when the buffer is empty. <code>waitPetscii()</code> waits for the first nonzero byte, drains further buffered bytes until GETIN returns zero, and returns the first byte. The empty-buffer check does not observe physical key release. <code>c64.key</code> provides named keys. Use KERNAL calls with the appropriate ROM mapping and system workspace.</p>
 {sample("examples/small/14_keyboard_input.zp64")}
 <p>Poll with <code>readPetscii()</code> when the rest of the program must keep running between keys. Use the blocking form for a prompt that can wait. <code>sleepTicks</code> waits for changes in the low byte of CIA1 timer A at <code>$dc04</code>. <code>sleepFrames</code> waits for the low raster register at <code>$d012</code> to leave zero and return to it. These are polling loops over the hardware registers. Their timing depends on the running hardware and its configuration. Use VICE to observe behavior that depends on the VIC-II or CIA.</p>
 <p>{doc("api", "Complete C64 API")}</p>'''),
+    ("polling", "Keep updating the display while you wait for a key", f'''
+<p>Try the running counter below. Each pass asks for one buffered key. A stops the loop. With an empty buffer, the program advances the counter, writes it to the screen, and paces the next poll with a short raster wait. Use the same structure to advance a game, animate a cursor, or keep a status display current.</p>
+{sample("docs/tutorial-examples/keyboard-poll.zp64")}
+{example_run("docs/tutorial-examples/keyboard-poll.zp64", "keyboard-poll", anchor="keyboard-poll")}
+<p>Let the count run, then press A. The screen shows <code>STOPPED</code> and the border turns green. The counter is a byte and wraps. The delay illustrates pacing on the default machine mapping. It gives no exact wall-clock interval and does not let other source code run concurrently.</p>
+<p>For a prompt that can pause everything, use <code>waitPetscii()</code>. Use a poll when input should share the loop with drawing or game rules. If each keystroke matters, consume the buffered bytes with <code>readPetscii()</code> so the blocking helper does not drain subsequent keys. <a href="guide-application.html#play">See polling in the Tic-Tac-Toe case study</a>.</p>'''),
 ])
 
 guide_page("assembly", chapters[2][1], chapters[2][2], [
@@ -1280,6 +1307,12 @@ test6502.expectEqualU16(25, 2, @offsetOf(Nested, "header.word"));
 <p>The captured <code>*Board</code> can still refer to mutable data. The optional changes whether the address is available. A pointer field embedded in a copied record keeps its two address bytes, and both copies can refer to the same target. A record copy gives you an independent set of fields while pointed-to data can remain shared.</p>
 <p>Use <code>@ptrFromInt</code> for supported scalar addresses such as hardware registers. Form a typed struct pointer using <code>&amp;record</code> or the address of a supported nested field. Integer-to-struct casts, volatile struct pointers, and pointer-to-pointer types are outside this subset.</p>
 <p>{fixture_link("lang/pass/parity/optionals/optional_pointers", "Optional pointer branches and updates")} · {fixture_link("lang/pass/parity/pointers/pointer_field_widths", "Two-byte pointer fields across copies and calls")}</p>'''),
+    ("pointer-copy", "Copy a record that contains an address", f'''
+<p>Predict what changes when <code>advance</code> copies a <code>Link</code>. The tag is copied by value. Changing the callee's tag changes the returned record, while the original keeps tag 1. The pointer's two address bytes are also copied by value. Both initially address the same byte at <code>$c150</code>, so incrementing through the copied pointer is visible through the original.</p>
+{sample("docs/tutorial-examples/record-alias.zp64")}
+{example_run("docs/tutorial-examples/record-alias.zp64", "record-alias", anchor="record-alias")}
+<p>Expect <code>TAGS 01 02</code>, <code>SHARED 06 06</code>, then <code>SPLIT 06 0A</code>. Assigning a new address to <code>result.target</code> changes that field only. The next write goes to <code>$c1f0</code>, where the value becomes <code>$0a</code>. The preview accepts an explicit load followed by a store through a single-item pointer, as in <code>target.* = target.* + 1</code>.</p>
+<p>If a snapshot needs independent pointed-to bytes, copy the data into storage you own and set the snapshot's pointer to that storage. A by-value record assignment copies the addresses. {fixture_link("lang/pass/parity/pointers/pointer_field_widths", "Host assertions for copied pointer bytes")} · <a href="guide-abi.html#aggregate-return">Trace the aggregate return storage</a></p>'''),
     ("indexed-pointers", "Pass a base address and an index", f'''
 <p>A many-item pointer carries a base address, with no array length alongside it. The indexing demo takes the address of the first scalar element, passes through the supported integer conversion, and constructs a many-item pointer. Mutating element 1 through that pointer changes <code>values[1]</code>. Use a fixed array and its <code>.len</code> while you own the table. If you pass a pointer to another function, pass or otherwise establish the available length as part of the function's contract.</p>
 {block("From the indexed pointer demo", """var values = [_]u8{ 1, 2, 3, 4 };

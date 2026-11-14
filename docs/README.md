@@ -4,6 +4,7 @@ Start with the [project README](../README.md), then use the guide that matches t
 
 | Guide | Use it for |
 | --- | --- |
+| [Programming guide](https://readyos-c64.github.io/ZeroPageLang/guide.html) | Language-first chapters, runnable examples, and worked C64 memory and DLL designs |
 | [Getting started](getting-started.md) | Installing tools, building `zp64c`, and compiling a first program |
 | [Sample disks](sample-disks.md) | Bootable D64s and how to rebuild them |
 | [CLI reference](cli.md) | Commands, options, generated files, and tool lookup |
