@@ -108,3 +108,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 @media (min-width: 41rem) and (max-width: 52rem) {
   .dll-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.terminal { margin: 1rem 0 1.4rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--panel); }
+.terminal summary { padding: .6rem .85rem; color: var(--violet); cursor: pointer; }
+.terminal summary:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.terminal[open] summary { border-bottom: 1px solid var(--line); }
+.terminal .codebox { margin: 0; border: 0; border-radius: 0 0 .35rem .35rem; }
