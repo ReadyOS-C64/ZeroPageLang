@@ -1,6 +1,6 @@
 # ZeroPage
 
-ZeroPage is a Zig-shaped programming language for the Commodore 64. Write typed functions and fixed-layout data, choose where they live in C64 memory, and build a native 6510 program you can inspect in assembly. The compiler, `zp64c`, turns `.zp64` source into 64tass assembly and a runnable C64 PRG.
+ZeroPage is a Zig-shaped programming language for the Commodore 64. Write typed functions and fixed-layout data, choose where they live in C64 memory, and build a native C64 program you can inspect as 6502 assembly. The compiler, `zp64c`, turns `.zp64` source into 64tass assembly and a runnable C64 PRG.
 
 ```zig
 const c64 = @import("c64");
@@ -18,7 +18,7 @@ The example prints a line to the C64 screen and changes the VIC-II border color.
 
 ## What makes ZeroPage different on the C64
 
-- **Use the hardware from source.** The built-in `c64` module exposes VIC-II registers, screen and color RAM, PETSCII console output, keyboard input, and KERNAL routines. Use volatile pointers for memory-mapped I/O and `asm { ... }` for native 6502/6510 instructions. [Library API](docs/api.md) · [Inline assembler](docs/inline-assembler.md)
+- **Use the hardware from source.** The built-in `c64` module exposes VIC-II registers, screen and color RAM, PETSCII console output, keyboard input, and KERNAL routines. Use volatile pointers for memory-mapped I/O and `asm { ... }` for native 6502 instructions. [Library API](docs/api.md) · [Inline assembler](docs/inline-assembler.md)
 - **Make the memory layout part of the program.** Declare named C64 and REU regions in a `memory` block and assign them to code, data, arenas, fixed-block pools, the software stack, or DLL loading. The compiler checks address ranges and overlapping claims. You can set the PRG load and entry addresses and copy selected code or tables into RAM under ROM at startup. [Memory model](docs/memory-model.md) · [Placement example](examples/small/95_memory_regions_placement.zp64)
 - **Choose the cost of a call.** Functions use fixed storage for their frames by default. Mark functions that need recursion with `callconv(.stack)` and reserve a software stack in C64 RAM. You can also declare which zero-page bytes the compiler may use. The compiler emits runtime helpers on demand, so a program that only changes the border carries no console, heap, or module routines. [ABI](docs/abi.md) · [Runtime](docs/runtime.md)
 - **Use the REU for data and loadable code.** The built-in `@import("ZeroPage")` API supports explicit transfers to the RAM Expansion Unit (REU) and typed views of data stored there. A dynamically loadable module (DLL) can load from disk into an REU cache, then relocate into a C64 RAM window to run. Multiple DLLs can share a window, including supported windows under ROM, leaving more resident RAM for the main program. Typed imports, dependency policies, and state snapshots let you control when modules load and what survives a window swap. [REU and DLLs](docs/reu-overlays.md) · [DLL example](examples/small/96_memory_regions_dll.zp64)

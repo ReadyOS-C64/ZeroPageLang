@@ -23,7 +23,7 @@ fn read(bank: u8, id: u16) void {
 
 This excerpt from [`store.zp64`](../sampleapps/spreadsheet/store.zp64) calls an
 ordinary local import. [`dma.zp64`](../sampleapps/spreadsheet/dma.zp64) takes the
-physical bank at runtime. Its inline 6510 assembly programs the REU controller.
+physical bank at runtime. Its inline 6502 assembly programs the REU controller.
 The standalone build uses fixed bank numbers. The ReadyOS build gets them from
 its app-side schema-5 resource adapter.
 

@@ -251,7 +251,7 @@ The older `zeropage_options` and `zeropage_module` forms remain accepted for exi
 
 ## Inline assembly
 
-`asm { ... }` is an intentional syntax extension beyond Zig. The block contains a restricted 64tass-style 6502/6510 instruction surface and is extracted before Zig parsing.
+`asm { ... }` is an intentional syntax extension beyond Zig. The block contains a restricted set of 6502 instructions in 64tass syntax and is extracted before Zig parsing.
 
 A standalone absolute `jmp $hhhh` block is the terminal-transfer form for resident OS/ROM ABI vectors; it does not return to the surrounding ZeroPage function.
 

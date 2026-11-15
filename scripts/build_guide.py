@@ -88,7 +88,7 @@ def page(title, desc, active, content):
 '''
 
 features = [
- ("Hardware and I/O", "Write to the VIC-II border register, draw directly into screen RAM, or use the PETSCII console, keyboard, KERNAL, and timing helpers. Volatile pointers expose memory-mapped devices. Inline <code>asm {{ ... }}</code> embeds 6502/6510 instructions in the same source.", [doc("api", "Library API"), doc("inline-assembler", "Inline assembler")]),
+ ("Hardware and I/O", "Write to the VIC-II border register, draw directly into screen RAM, or use the PETSCII console, keyboard, KERNAL, and timing helpers. Volatile pointers expose memory-mapped devices. Inline <code>asm {{ ... }}</code> embeds 6502 assembly in the same source.", [doc("api", "Library API"), doc("inline-assembler", "Inline assembler")]),
  ("Memory and banking", "Name C64 and REU ranges in a <code>memory</code> block. Reserve them for arenas, fixed-block pools, the software stack, or DLL windows. Set the PRG load and entry addresses independently. Place selected code and constant data at fixed addresses or copy them into RAM under ROM at startup.", [doc("memory-model", "Memory model")]),
  ("Zero page and call frames", "Specify which zero-page bytes the compiler may use and which are reserved by your code or the system. Static frames give functions fixed storage. <code>callconv(.stack)</code> enables checked recursive frames in a configured RAM region.", [doc("abi", "Calling conventions"), doc("memory-model", "Zero-page policy")]),
  ("REU and DLLs", "Use explicit DMA transfers and typed views to store data in an REU. A DLL can load from disk into an REU cache, then relocate into a C64 RAM window for execution. DLLs can share a window, and configured state ranges can survive a swap. Typed imports and dependency policies make those calls visible in source.", [doc("reu-overlays", "REU and DLLs")]),
@@ -116,7 +116,7 @@ index = f'''
     <h2>ZeroPage by example</h2>
     <div class="example-grid">
       <article><h3>A first program</h3><p>Use a built-in API to print PETSCII text and write the VIC-II border register.</p>{sample("examples/hello.zp64")}</article>
-      <article><h3>Inline 6510 assembly</h3><p>A block-local loop increments a ZeroPage byte through <code>@color</code>. The compiler restores A, X, and status. The byte and VIC-II writes persist. <a href="guide-assembly.html">Assembly chapter</a></p>{sample("docs/tutorial-examples/asm-border.zp64")}</article>
+      <article><h3>Inline 6502 assembly</h3><p>A block-local loop increments a ZeroPage byte through <code>@color</code>. The compiler restores A, X, and status. The byte and VIC-II writes persist. <a href="guide-assembly.html">Assembly chapter</a></p>{sample("docs/tutorial-examples/asm-border.zp64")}</article>
       <article><h3>Read record fields from assembly</h3><p>The static function reads the nested byte <code>actor.pos.x</code> through its flattened name. It stores the result in a local so ZeroPage can return it after A and status are restored. <a href="guide-assembly.html#bindings">Source operands and storage</a></p>{block("By-value record parameter · excerpt", "fn adjustedX" + Path("docs/tutorial-examples/asm-record.zp64").read_text().split("fn adjustedX", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
       <article><h3>Bring a firmware result back into ZeroPage</h3><p>KERNAL GETIN returns a byte in A. Store it before the wrapper restores A, then return it as a typed value. <a href="tutorial-assembly.html#wrapper">Read the source and generated wrapper side by side</a>.</p>{block("Keyboard read · excerpt", "fn readKey" + Path("docs/tutorial-examples/asm-getin.zp64").read_text().split("fn readKey", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}</article>
       <article><h3>Activate a DLL from REU</h3><p>The typed binding declares the export signature. Loading seeds the REU cache from the resident PRG. A loaded module can be activated again after another module takes its execution window. <a href="tutorial-dll-cache.html">Walk through disk loading and REU activation</a>.</p>{block("Load and dispatch · excerpt", """extern module RegionDll = region_dll {
@@ -182,7 +182,7 @@ lessons = [
 ]
 lesson = {}
 lesson["model"] = """
-<p>ZeroPage is a language for writing native Commodore 64 programs. Write functions, records, and control flow in a Zig-shaped source file. The compiler emits 6510 assembly, and 64tass turns it into a PRG. The program runs on the C64 and contains the runtime helpers it uses.</p>
+<p>ZeroPage is a language for writing native Commodore 64 programs. Write functions, records, and control flow in a Zig-shaped source file. The compiler emits 6502 assembly, and 64tass turns it into a PRG. The program runs on the C64 and contains the runtime helpers it uses.</p>
 <table><thead><tr><th scope="col">When you need to</th><th scope="col">Use</th><th scope="col">What you decide</th></tr></thead><tbody>
 <tr><td>Keep and update a value</td><td>Typed locals and records</td><td>Choose a byte or a word and who can modify it.</td></tr>
 <tr><td>Reach the machine</td><td>C64 helpers, volatile pointers, or inline assembly</td><td>Choose the device operation and which effects must survive the call.</td></tr>
@@ -192,7 +192,7 @@ lesson["model"] = """
 <p>Start with the first program below. Then build a small sector survey. First it tracks a selection and a visit count on the C64. Later exercises encode a sector record, move a larger table into an REU, and show how a separate disk payload supplies code. Each step starts with a result you can check on screen or in the emulator.</p>
 <p>Zig supplies the parser for ordinary source syntax. ZeroPage supports a target-specific subset and adds declarations for the machine. The <a href="guide-language.html#boundary">language chapter</a> explains where that boundary matters. You can read the tutorial before installing anything. Use <a href="setup.html">Setup</a> when you want to build the first PRG.</p>"""
 lesson["install"] = f'''
-<p>Download and unpack Zig <strong>0.16.0</strong> and install 64tass <strong>1.60.3243</strong>. Put the directories containing the two executables on your shell's <code>PATH</code>. Zig builds the host compiler and provides its parser. 64tass assembles the emitted 6510 code. Install VICE for <code>x64sc</code> and the optional <code>c1541</code> disk utility. <a href="https://ziglang.org/download/">Zig downloads</a> · <a href="https://sourceforge.net/projects/tass64/files/">64tass downloads</a> · <a href="https://vice-emu.sourceforge.io/">VICE downloads</a></p>
+<p>Download and unpack Zig <strong>0.16.0</strong> and install 64tass <strong>1.60.3243</strong>. Put the directories containing the two executables on your shell's <code>PATH</code>. Zig builds the host compiler and provides its parser. 64tass assembles the emitted 6502 assembly. Install VICE for <code>x64sc</code> and the optional <code>c1541</code> disk utility. <a href="https://ziglang.org/download/">Zig downloads</a> · <a href="https://sourceforge.net/projects/tass64/files/">64tass downloads</a> · <a href="https://vice-emu.sourceforge.io/">VICE downloads</a></p>
 {shell("""
 zig version
 64tass --version
@@ -247,7 +247,7 @@ lesson["stack"] = f'''
 <p>Compile the file and inspect the generated assembly for the entry and frame setup. The software stack holds the supported call-frame values. The 6510 hardware stack still holds CPU return addresses. {doc("abi", "Frame layouts and ABI limits")}</p>'''
 
 lesson["verify"] = f'''
-<p><code>zp64c compile</code> emits a PRG plus <code>.asm</code>, <code>.labels</code>, and <code>.zpmap.json</code> sidecars. Use the assembly to see the generated 6510 instructions, VICE labels to set breakpoints, and the map to inspect section ownership. <code>zp64c asm</code> emits assembly without running 64tass.</p>
+<p><code>zp64c compile</code> emits a PRG plus <code>.asm</code>, <code>.labels</code>, and <code>.zpmap.json</code> sidecars. Use the assembly to see the generated 6502 instructions, VICE labels to set breakpoints, and the map to inspect section ownership. <code>zp64c asm</code> emits assembly without running 64tass.</p>
 {shell("""
 zig build test
 zig build emu-test
@@ -320,7 +320,7 @@ def tutorial_page(reading_order):
 chapters = [
     ("language", "Types, control flow, and imports", "Read data layout, expressions, and diagnostics through the 6510's byte and word model."),
     ("hardware", "C64 I/O and strings", "Choose between direct screen writes, memory-mapped registers, and KERNAL services."),
-    ("assembly", "Inline 6510 assembly", "Use source operands, follow the preservation wrapper, and call a ROM routine or terminal vector."),
+    ("assembly", "Inline 6502 assembly", "Use source operands, follow the preservation wrapper, and call a ROM routine or terminal vector."),
     ("memory", "Images, placement, and zero page", "Plan a PRG and its regions, including startup copies, bank gateways, and reserved zero page."),
     ("arenas", "Arenas, pools, and records", "Choose a visible-RAM arena, a fixed-block pool, or an REU arena and work with structured data."),
     ("reu", "Far data and materialized views", "Transfer bytes, fetch typed records, or edit a working range in C64 RAM and flush it."),
@@ -671,7 +671,7 @@ guide_page("assembly", chapters[2][1], chapters[2][2], [
 <tr><td><code>ldx #3</code> or <code>ldy #3</code></td><td>P, A, and the changed index register</td><td>3</td></tr>
 <tr><td>Both index registers or any external <code>jsr</code></td><td>P, A, X, Y</td><td>4</td></tr></tbody></table>
 <p><code>TXA</code> and <code>TYA</code> use A to push the index values. Restores run in reverse order. <code>PLP</code> is last because the preceding pulls and transfers can change flags. Here is the generated wrapper for a KERNAL CHROUT call:</p>
-{block("Emitted 6510 instructions", "php\npha\ntxa\npha\ntya\npha\nlda #$41\njsr $ffd2\npla\ntay\npla\ntax\npla\nplp\n", "asm")}
+{block("Emitted 6502 instructions", "php\npha\ntxa\npha\ntya\npha\nlda #$41\njsr $ffd2\npla\ntay\npla\ntax\npla\nplp\n", "asm")}
 <p>Prepare call registers and consume results inside the same block. Store a useful result to a source cell before fallthrough. RAM, I/O, and ROM workspace writes survive register restoration. The host fixture primes A, X, Y, and P and checks them after both a clobbering block and an external call. <a href="{blob}tests/fixtures/emu/lang/pass/parity/strings_asm/inline_asm.zp64">Register preservation fixture</a>. Reserve assembly-owned zero-page bytes explicitly and account for IRQ and ROM requirements. A block that writes the processor port also owns the resulting bank mapping.</p>'''),
     ("check-state", "Inspect the assembly wrapper in your own program", f'''
 <p>Generate assembly for the border example and find the loop that increments <code>color</code>. The block changes A, X, and status. The wrapper saves those before the first instruction and restores them after the store to <code>$d020</code>. If you single-step the PRG in VICE, compare the registers just before the wrapper and just after it. The border remains green because the wrapper restores CPU state while the device write has already happened.</p>
@@ -1586,7 +1586,7 @@ mkdir -p build
 ZEROPAGE_EMU_FILTER=oscar64_short_scalar_calls zig build emu-test > build/short-calls.log 2>&1
 awk '/^host-metrics/ && $2 !~ /scalars_oscar64_short_scalar_calls/' build/short-calls.log
 """, "Reproduce the two host measurements")}
-<p>These counts cover stepped 6510 instructions in the host fixture. Intercepted hooks, VIC-II stalls, and physical drive or REU timing are outside the measurement. {fixture_link("lang/pass/optimization_reference/oscar64_short_scalar_calls", "Default-policy workload")} · {fixture_link("lang/pass/optimization_reference/zero_page_oscar64_short_scalar_calls", "Same workload with scratch allocation")} · {doc("testing", "Metric columns and lifecycle timing")}</p>'''),
+<p>These counts cover instructions stepped in the host 6510 fixture. Intercepted hooks, VIC-II stalls, and physical drive or REU timing are outside the measurement. {fixture_link("lang/pass/optimization_reference/oscar64_short_scalar_calls", "Default-policy workload")} · {fixture_link("lang/pass/optimization_reference/zero_page_oscar64_short_scalar_calls", "Same workload with scratch allocation")} · {doc("testing", "Metric columns and lifecycle timing")}</p>'''),
     ("context", "How ZeroPage fits among C64 toolchains", '''
 <p>Memory regions and overlays have precedents. Oscar64 documents source pragmas for sections and regions and a linker-generated overlay flow. cc65's ld65 documents memory and segment configuration with separate load and run addresses. <a href="https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md">Oscar64 manual</a> · <a href="https://cc65.github.io/doc/ld65.html">ld65 guide</a></p>
 <p>ZeroPage's combination is a Zig-shaped target subset with source-declared ownership shared by the PRG, heaps, zero page, placements, and DLL loader. Typed far views expose explicit copies to and from C64 RAM. The DLL loader combines named REU slots, typed exports, relocations, window activation, and explicit ownership in one model.</p>'''),
@@ -1984,7 +1984,7 @@ guide_page("tutorial-first", "Build and read a first PRG", "Start with one obser
     ("read", "Read the program before installing tools", f'''
 <p>Three lines do the work. Clear the console, print a greeting, and set the border color. <code>c64</code> is the built-in module that supplies those operations. The formatter accepts an argument tuple. Here the empty tuple means the message contains no values to insert.</p>
 {sample("examples/hello.zp64")}
-<p>The entry function is <code>main</code>. It returns <code>void</code> because its effect is visible on the machine. ZeroPage lowers the program to 6510 assembly. It includes console support because the program prints text, and leaves out features such as REU DMA and DLL loading because this source never uses them.</p>'''),
+<p>The entry function is <code>main</code>. It returns <code>void</code> because its effect is visible on the machine. ZeroPage lowers the program to 6502 assembly. It includes console support because the program prints text, and leaves out features such as REU DMA and DLL loading because this source never uses them.</p>'''),
     ("run", "Run it and change one thing", f'''
 <p>Use the pinned tools from <a href="setup.html">Setup</a>. When the program runs, expect <code>HELLO FROM ZEROPAGE</code> and a green border. Change the border value from 5 to 2, rebuild, and check that the text stays the same while the border turns red.</p>
 {example_run("examples/hello.zp64", "tutorial-first", anchor="first-prg")}
@@ -2070,7 +2070,7 @@ guide_page("tutorial-hardware", "Draw and talk to hardware", "Use C64 helpers fo
 <p>Use the survey's green border as a completion indicator. Add a second color for the active survey and set it before entering the input loop. After Q, check that the border changes to green. Use the built-in border assignment first, then try the volatile store from this chapter to see the same effect through a literal hardware address.</p>'''),
 ])
 
-guide_page("tutorial-assembly", "Pass values through inline assembly", "Send data to a 6510 instruction, capture a result, and follow the compiler's register wrapper.", [
+guide_page("tutorial-assembly", "Pass values through inline assembly", "Send data to a 6502 instruction, capture a result, and follow the compiler's register wrapper.", [
     ("operands", "Read parameters and write source variables", f'''
 <p>Start with the two data paths in <code>adjustedX</code>. A by-value record parameter supplies <code>actor.pos.x</code> through <code>@actor_pos_x</code>. The byte parameter <code>delta</code> has its own cell. Write the sum into <code>@result</code> before leaving the block so the ZeroPage return statement can read it.</p>
 {block("Byte parameters, a nested field, and a mutable result", "fn adjustedX" + Path("docs/tutorial-examples/asm-record.zp64").read_text().split("fn adjustedX", 1)[1].split("export fn main", 1)[0].rstrip() + "\n")}
@@ -2295,7 +2295,7 @@ zig build spreadsheet
 <p>A row and column map to a numeric ID. With 16 columns, the four low bits give the column. A 32-byte record starts at <code>id &lt;&lt; 5</code> and holds a length byte plus up to 31 PETSCII bytes. B3 has zero-based coordinates (2, 1), so its ID is 33 and its record begins at <code>$0420</code> within the live bank.</p>
 {sheet_excerpt("grid.zp64", "fn id(", "fn chrome(", "Row and column to cell ID")}
 {sheet_excerpt("store.zp64", "fn read(", "fn write(", "Fetch one cell into C64 scratch at $C000")}
-<p><code>store.zp64</code> imports the small <code>dma.zp64</code> source library. That helper accepts a runtime bank number and uses ZeroPage <code>asm {{ ... }}</code> to write the REU controller registers.</p>
+<p><code>store.zp64</code> imports the small <code>dma.zp64</code> source library. That helper accepts a runtime bank number and uses inline 6502 assembly in a ZeroPage <code>asm {{ ... }}</code> block to write the REU controller registers.</p>
 {sheet_excerpt("dma.zp64", "        lda @bank", "        lda #0", "Send the bank and transfer size to the REU")}
 <p>Here <code>@bank</code> names a ZeroPage byte parameter. The store to <code>$DF06</code> selects the physical REU bank, and <code>$DF07–$DF08</code> set the transfer length. Source imports are compiled into the calling image. On a warm render, the grid fetches cached values and reads raw cell text when needed. <a href="tutorial-composition.html">Source imports</a> · <a href="tutorial-dma.html">Raw DMA exercise</a></p>
 '''),

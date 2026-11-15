@@ -1,6 +1,6 @@
 # ZeroPage inline assembly
 
-ZeroPage supports statement-level inline 6502/6510 assembly in static-frame
+ZeroPage supports statement-level inline 6502 assembly in static-frame
 functions. The block below changes the VIC-II border. The compiler restores A
 and processor status when the block ends.
 
@@ -36,7 +36,7 @@ The preparser only recognizes statement-boundary `asm { ... }` blocks and ignore
 
 Inline assembly accepts the following forms:
 
-- NMOS 6502/6510 mnemonics;
+- NMOS 6502 mnemonics;
 - 64tass-style operands such as `#$00`, `$d020`, `$0400,x`, and `$ffd2`;
 - ZeroPage byte variable operands written as `@name`;
 - ZeroPage string storage operands written as `@name.data`, `#<@name.data`, `#>@name.data`, `#@const_name.len`, and `@buffer_name.len`;

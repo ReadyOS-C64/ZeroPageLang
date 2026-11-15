@@ -41,7 +41,7 @@
 <span class="w">    </span><span class="n">dma</span><span class="p">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">bank</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mh">0xc000</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<p><code>store.zp64</code> imports the small <code>dma.zp64</code> source library. That helper accepts a runtime bank number and uses ZeroPage <code>asm { ... }</code> to write the REU controller registers.</p>
+<p><code>store.zp64</code> imports the small <code>dma.zp64</code> source library. That helper accepts a runtime bank number and uses inline 6502 assembly in a ZeroPage <code>asm { ... }</code> block to write the REU controller registers.</p>
 <div class="codebox"><div class="codebar"><span class="mono">dma.zp64 · Send the bank and transfer size to the REU</span></div><pre tabindex="0"><code><span class="n">lda</span><span class="w"> </span><span class="nb">@bank</span>
 <span class="n">sta</span><span class="w"> </span><span class="err">$</span><span class="n">df06</span>
 <span class="n">lda</span><span class="w"> </span><span class="n">dma_transfer_length</span>

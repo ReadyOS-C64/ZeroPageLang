@@ -11,7 +11,7 @@ Start with the [project README](../README.md), then use the guide that matches t
 | [CLI reference](cli.md) | Commands, options, generated files, and tool lookup |
 | [Language reference](language.md) | The supported Zig-shaped language subset |
 | [Library API](api.md) | `c64` and `ZeroPage` built-ins |
-| [Inline assembler](inline-assembler.md) | Embedded 6502/6510 assembly |
+| [Inline assembler](inline-assembler.md) | Embedded 6502 assembly |
 | [ABI](abi.md) | Data layout, calls, frames, and module dispatch |
 | [Memory model](memory-model.md) | C64, zero-page, heap, REU, and module reservations |
 | [REU and DLLs](reu-overlays.md) | Far storage, materialization, and loadable modules |
